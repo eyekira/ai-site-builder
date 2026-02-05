@@ -1,7 +1,11 @@
+import { ClientCounter } from "@/app/components/client-counter";
+
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-8">
-      <h1 className="text-3xl font-bold text-slate-900">Hello World</h1>
+    <main>
+      <h1>Next.js App Router + TypeScript</h1>
+      <p>This project is scaffolded for server/client component separation.</p>
+      <ClientCounter />
     </main>
   );
 }
