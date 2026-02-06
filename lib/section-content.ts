@@ -20,10 +20,7 @@ export type ContactContent = {
 export const DEFAULT_HERO_CONTENT: HeroContent = {
   headline: 'Welcome to our business',
   subheadline: 'We help our customers with great service.',
-  ctas: [
-    { label: 'Call us', href: 'tel:+1-555-0100' },
-    { label: 'Get directions', href: '#' },
-  ],
+  ctas: [{ label: 'Learn more', href: '#' }],
 };
 
 export const DEFAULT_ABOUT_CONTENT: AboutContent = {

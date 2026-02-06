@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { addSection, reorderSections, updateSection } from './actions';
@@ -60,12 +60,41 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
   const [lastSavedBySection, setLastSavedBySection] = useState<Record<number, string>>(() =>
     Object.fromEntries(sections.map((section) => [section.id, normalizeSectionContent(section, section.contentJson)])),
   );
-  const [previewKey, setPreviewKey] = useState(Date.now());
+  const [previewVersion, setPreviewVersion] = useState(Date.now());
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const orderedSections = useMemo(() => [...sections].sort((a, b) => a.order - b.order), [sections]);
+  const orderedSections = useMemo(
+    () => [...sections].sort((a, b) => (a.order === b.order ? a.id - b.id : a.order - b.order)),
+    [sections],
+  );
   const selectedSection = orderedSections.find((section) => section.id === selectedSectionId) ?? null;
+  const hasAboutSection = orderedSections.some((section) => section.type === 'ABOUT');
+  const hasContactSection = orderedSections.some((section) => section.type === 'CONTACT');
+
+  useEffect(() => {
+    if (!selectedSectionId && orderedSections[0]) {
+      setSelectedSectionId(orderedSections[0].id);
+      return;
+    }
+
+    if (selectedSectionId && !orderedSections.some((section) => section.id === selectedSectionId)) {
+      setSelectedSectionId(orderedSections[0]?.id ?? null);
+    }
+  }, [orderedSections, selectedSectionId]);
+
+  useEffect(() => {
+    if (saveState !== 'saved') {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSaveState('idle');
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [saveState]);
 
   const currentDraft = selectedSection
     ? draftsBySection[selectedSection.id] ?? normalizeSectionContent(selectedSection, selectedSection.contentJson)
@@ -76,9 +105,17 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       (lastSavedBySection[selectedSection.id] ?? normalizeSectionContent(selectedSection, selectedSection.contentJson))
     : false;
 
+  const hasAnyUnsavedChanges = orderedSections.some((section) => {
+    const draft = draftsBySection[section.id] ?? normalizeSectionContent(section, section.contentJson);
+    const saved = lastSavedBySection[section.id] ?? normalizeSectionContent(section, section.contentJson);
+
+    return draft !== saved;
+  });
+
   const updateDraft = (sectionId: number, nextJson: string) => {
     setDraftsBySection((prev) => ({ ...prev, [sectionId]: nextJson }));
     setSaveState('idle');
+    setSaveError(null);
   };
 
   const onSave = () => {
@@ -87,6 +124,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
     }
 
     setSaveState('saving');
+    setSaveError(null);
 
     startTransition(async () => {
       try {
@@ -94,11 +132,12 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
         await updateSection(siteId, selectedSection.id, normalized);
         setDraftsBySection((prev) => ({ ...prev, [selectedSection.id]: normalized }));
         setLastSavedBySection((prev) => ({ ...prev, [selectedSection.id]: normalized }));
-        setPreviewKey(Date.now());
+        setPreviewVersion(Date.now());
         setSaveState('saved');
         router.refresh();
       } catch {
         setSaveState('error');
+        setSaveError('Could not save changes. Please try again.');
       }
     });
   };
@@ -125,7 +164,8 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
         reordered.map((section) => section.id),
       );
       setSaveState('idle');
-      setPreviewKey(Date.now());
+      setSaveError(null);
+      setPreviewVersion(Date.now());
       router.refresh();
     });
   };
@@ -134,7 +174,8 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
     startTransition(async () => {
       await addSection(siteId, type);
       setSaveState('idle');
-      setPreviewKey(Date.now());
+      setSaveError(null);
+      setPreviewVersion(Date.now());
       router.refresh();
     });
   };
@@ -204,8 +245,8 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       <main className="border-r border-zinc-200 bg-zinc-50 p-4">
         <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
           <iframe
-            key={previewKey}
-            src={`/s/${slug}?previewKey=${previewKey}`}
+            key={previewVersion}
+            src={`/s/${slug}?v=${previewVersion}`}
             title="Live preview"
             className="h-full w-full rounded-xl"
           />
@@ -213,8 +254,11 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       </main>
 
       <aside className="bg-white p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Inspector</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-zinc-600">
+            Inspector
+            {hasAnyUnsavedChanges && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">Unsaved</span>}
+          </h2>
           <button
             type="button"
             onClick={onSave}
@@ -225,11 +269,39 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
           </button>
         </div>
 
-        {hasUnsavedChanges && <p className="mb-3 text-xs font-medium text-amber-600">Unsaved changes</p>}
         {saveState === 'saved' && <p className="mb-3 text-xs font-medium text-emerald-600">Saved</p>}
-        {saveState === 'error' && <p className="mb-3 text-xs font-medium text-red-600">Error while saving</p>}
+        {saveState === 'error' && <p className="mb-3 text-xs font-medium text-red-600">{saveError ?? 'Error while saving'}</p>}
+        {hasUnsavedChanges && <p className="mb-3 text-xs font-medium text-amber-600">Unsaved changes</p>}
 
-        {!selectedSection && <p className="text-sm text-zinc-500">Select a section to edit.</p>}
+        {!selectedSection && (
+          <div className="space-y-3 text-sm text-zinc-600">
+            <p>Select a section to edit.</p>
+            {!hasAboutSection && (
+              <div className="rounded-md border border-dashed border-zinc-300 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">ABOUT missing</p>
+                <button
+                  type="button"
+                  onClick={() => onAddSection('ABOUT')}
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+                >
+                  Add ABOUT section
+                </button>
+              </div>
+            )}
+            {!hasContactSection && (
+              <div className="rounded-md border border-dashed border-zinc-300 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">CONTACT missing</p>
+                <button
+                  type="button"
+                  onClick={() => onAddSection('CONTACT')}
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+                >
+                  Add CONTACT section
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {selectedSection?.type === 'HERO' && (
           <HeroInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
@@ -245,6 +317,35 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
 
         {selectedSection && !['HERO', 'ABOUT', 'CONTACT'].includes(selectedSection.type) && (
           <p className="text-sm text-zinc-500">Coming soon.</p>
+        )}
+
+        {selectedSection && (!hasAboutSection || !hasContactSection) && (
+          <div className="mt-4 space-y-2">
+            {!hasAboutSection && (
+              <div className="rounded-md border border-dashed border-zinc-300 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">ABOUT missing</p>
+                <button
+                  type="button"
+                  onClick={() => onAddSection('ABOUT')}
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+                >
+                  Add ABOUT section
+                </button>
+              </div>
+            )}
+            {!hasContactSection && (
+              <div className="rounded-md border border-dashed border-zinc-300 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">CONTACT missing</p>
+                <button
+                  type="button"
+                  onClick={() => onAddSection('CONTACT')}
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+                >
+                  Add CONTACT section
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </aside>
     </div>
@@ -276,7 +377,16 @@ function HeroInspector({ json, onChange }: { json: string; onChange: (json: stri
       </label>
 
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">CTA buttons</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">CTA buttons</p>
+          <button
+            type="button"
+            onClick={() => onChange(JSON.stringify({ ...value, ctas: [...value.ctas, { label: 'Learn more', href: '#' }] }))}
+            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+          >
+            + Add CTA
+          </button>
+        </div>
         {value.ctas.map((cta, index) => (
           <div key={`${index}-${cta.label}`} className="rounded-md border border-zinc-200 p-2">
             <input
@@ -299,6 +409,24 @@ function HeroInspector({ json, onChange }: { json: string; onChange: (json: stri
               placeholder="https://..."
               className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
             />
+            {(!cta.href || cta.href === '#') && <p className="mt-1 text-xs text-amber-600">Add a real link</p>}
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  if (value.ctas.length <= 1) {
+                    return;
+                  }
+
+                  const next = value.ctas.filter((_, ctaIndex) => ctaIndex !== index);
+                  onChange(JSON.stringify({ ...value, ctas: next }));
+                }}
+                disabled={value.ctas.length <= 1}
+                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
           </div>
         ))}
       </div>

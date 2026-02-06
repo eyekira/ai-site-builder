@@ -5,6 +5,23 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { defaultContentForType, parseSectionContent, type SectionType } from '@/lib/section-content';
 
+async function normalizeSiteSectionOrders(siteId: number) {
+  const sections = await prisma.section.findMany({
+    where: { siteId },
+    orderBy: [{ order: 'asc' }, { id: 'asc' }],
+    select: { id: true, order: true },
+  });
+
+  await prisma.$transaction(
+    sections.map((section, index) =>
+      prisma.section.update({
+        where: { id: section.id },
+        data: { order: index + 1 },
+      }),
+    ),
+  );
+}
+
 async function getSiteSection(siteId: number, sectionId: number) {
   const section = await prisma.section.findFirst({
     where: { id: sectionId, siteId },
@@ -42,16 +59,22 @@ export async function reorderSections(siteId: number, orderedSectionIds: number[
   const sections = await prisma.section.findMany({
     where: { siteId },
     include: { site: { select: { slug: true } } },
-    orderBy: { order: 'asc' },
+    orderBy: [{ order: 'asc' }, { id: 'asc' }],
   });
 
   const sectionIds = sections.map((section) => section.id);
+  const payloadIds = new Set(orderedSectionIds);
+  const validIds = new Set(sectionIds);
 
   if (sections.length === 0 || orderedSectionIds.length !== sections.length) {
     throw new Error('Invalid section order payload.');
   }
 
-  const isSameSet = orderedSectionIds.every((id) => sectionIds.includes(id));
+  if (payloadIds.size !== sectionIds.length) {
+    throw new Error('Payload contains duplicate section ids.');
+  }
+
+  const isSameSet = [...payloadIds].every((id) => validIds.has(id));
 
   if (!isSameSet) {
     throw new Error('Payload contains invalid section ids.');
@@ -65,6 +88,8 @@ export async function reorderSections(siteId: number, orderedSectionIds: number[
       }),
     ),
   );
+
+  await normalizeSiteSectionOrders(siteId);
 
   const slug = sections[0]?.site.slug;
   if (slug) {
@@ -95,6 +120,8 @@ export async function addSection(siteId: number, type: SectionType) {
       contentJson: defaultContentForType(type),
     },
   });
+
+  await normalizeSiteSectionOrders(siteId);
 
   revalidatePath(`/editor/${site.slug}`);
   revalidatePath(`/s/${site.slug}`);
