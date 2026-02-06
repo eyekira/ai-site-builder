@@ -3,42 +3,18 @@
 import { useEffect, useMemo, useState } from 'react';
 
 type PlaceSuggestion = {
-  place_id: string;
+  id: string;
   name: string;
   address?: string;
 };
 
-type PlacesApiResponse = PlaceSuggestion[] | { results?: PlaceSuggestion[] };
-
-function normalizePlacesResponse(payload: PlacesApiResponse): PlaceSuggestion[] {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (payload && Array.isArray(payload.results)) {
-    return payload.results;
-  }
-
-  return [];
-}
-
 export function PlaceSearch() {
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
 
-  const hasQuery = useMemo(() => debouncedQuery.trim().length > 0, [debouncedQuery]);
-  const shouldShowDropdown = query.trim().length > 0;
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [query]);
+  const hasQuery = useMemo(() => query.trim().length > 0, [query]);
 
   useEffect(() => {
     if (!hasQuery) {
@@ -49,78 +25,68 @@ export function PlaceSearch() {
     }
 
     const controller = new AbortController();
-
-    const fetchPlaces = async () => {
+    const timeoutId = setTimeout(async () => {
       try {
         setLoading(true);
         setError(null);
 
         const response = await fetch(
-          `/api/test-places?input=${encodeURIComponent(debouncedQuery.trim())}`,
+          `/api/test-places?input=${encodeURIComponent(query.trim())}`,
           { signal: controller.signal },
         );
 
         if (!response.ok) {
-          throw new Error('Unable to load search results.');
+          throw new Error('검색 결과를 불러오지 못했습니다.');
         }
 
-        const data = (await response.json()) as PlacesApiResponse;
-        setResults(normalizePlacesResponse(data));
+        const data = (await response.json()) as { results?: PlaceSuggestion[] };
+        setResults(data.results ?? []);
       } catch (fetchError) {
         if ((fetchError as Error).name === 'AbortError') {
           return;
         }
-        setError('Something went wrong while searching. Please try again.');
-        setResults([]);
+        setError('검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       } finally {
         setLoading(false);
       }
-    };
-
-    void fetchPlaces();
+    }, 250);
 
     return () => {
       controller.abort();
+      clearTimeout(timeoutId);
     };
-  }, [debouncedQuery, hasQuery]);
+  }, [hasQuery, query]);
 
   return (
     <section className="w-full max-w-2xl">
-      <div className="relative">
-        <div className="rounded-full border border-gray-300 bg-white px-5 py-3 shadow-sm transition focus-within:border-blue-500 focus-within:shadow-md">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search restaurants by name or address"
-            className="w-full bg-transparent text-base text-gray-800 outline-none"
-            aria-label="Search restaurants"
-          />
-        </div>
+      <div className="rounded-full border border-gray-300 bg-white px-5 py-3 shadow-sm transition focus-within:border-blue-500 focus-within:shadow-md">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="식당 이름 또는 주소를 입력하세요"
+          className="w-full bg-transparent text-base text-gray-800 outline-none"
+          aria-label="식당 검색"
+        />
+      </div>
 
-        {shouldShowDropdown && (
-          <div className="absolute left-0 right-0 z-20 mt-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-lg">
-            {loading && <p className="text-sm text-gray-500">Loading...</p>}
-            {!loading && error && <p className="text-sm text-red-500">{error}</p>}
-            {!loading && !error && results.length === 0 && (
-              <p className="text-sm text-gray-500">No search results found.</p>
-            )}
-            {!loading && !error && results.length > 0 && (
-              <ul className="max-h-72 space-y-2 overflow-y-auto">
-                {results.map((place) => (
-                  <li key={place.place_id}>
-                    <button
-                      type="button"
-                      onClick={() => console.log(place.place_id)}
-                      className="w-full rounded-xl border border-gray-100 px-4 py-3 text-left transition hover:border-blue-200 hover:bg-blue-50"
-                    >
-                      <p className="font-medium text-gray-900">{place.name}</p>
-                      {place.address && <p className="text-sm text-gray-500">{place.address}</p>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+      <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        {loading && <p className="text-sm text-gray-500">검색 중...</p>}
+        {!loading && error && <p className="text-sm text-red-500">{error}</p>}
+        {!loading && !error && !hasQuery && (
+          <p className="text-sm text-gray-500">원하는 식당을 검색해보세요.</p>
+        )}
+        {!loading && !error && hasQuery && results.length === 0 && (
+          <p className="text-sm text-gray-500">검색 결과가 없습니다.</p>
+        )}
+        {!loading && !error && results.length > 0 && (
+          <ul className="space-y-3">
+            {results.map((place) => (
+              <li key={place.id} className="rounded-xl border border-gray-100 px-4 py-3">
+                <p className="font-medium text-gray-900">{place.name}</p>
+                {place.address && <p className="text-sm text-gray-500">{place.address}</p>}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </section>
