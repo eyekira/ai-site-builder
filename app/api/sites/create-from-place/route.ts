@@ -210,7 +210,14 @@ export async function POST(request: NextRequest) {
       });
     }
     return response;
-  } catch {
-    return NextResponse.json({ error: 'Failed to create site from place.' }, { status: 502 });
+  } catch (error) {
+    console.error('Failed to create site from place', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to create site from place.',
+        detail: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 },
+    );
   }
 }
