@@ -1,7 +1,7 @@
 'use client';
 
 import { Loader2, MapPin, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ export function PlaceSearch() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const isNavigatingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
 
@@ -72,10 +73,15 @@ export function PlaceSearch() {
   }, [hasQuery, query]);
 
   const handleSelect = async (placeId: string) => {
-    try {
-      setCreating(true);
-      setError(null);
+    if (isNavigatingRef.current) {
+      return;
+    }
 
+    isNavigatingRef.current = true;
+    setCreating(true);
+    setError(null);
+
+    try {
       const response = await fetch('/api/sites/create-from-place', {
         method: 'POST',
         headers: {
@@ -89,15 +95,15 @@ export function PlaceSearch() {
       }
 
       const data = (await response.json()) as { ok?: boolean; site?: { slug?: string } };
-      if (!data.ok || !data.site?.slug) {
+      if (!data?.site?.slug) {
         throw new Error('Missing slug in response.');
       }
 
       router.push(`/editor/${data.site.slug}`);
     } catch {
-      setError('사이트 생성에 실패했습니다. 다시 시도해주세요.');
-    } finally {
+      isNavigatingRef.current = false;
       setCreating(false);
+      setError('사이트 생성에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
