@@ -4,8 +4,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { prisma } from '@/lib/prisma';
 import { parseAboutContent, parseContactContent, parseHeroContent } from '@/lib/section-content';
 
-export default async function SitePage({ params }: { params: Promise<{ slug: string }> }) {
+type SitePageProps = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ embed?: string | string[] }>;
+};
+
+function isEmbedMode(embedParam: string | string[] | undefined): boolean {
+  const embedValue = Array.isArray(embedParam) ? embedParam[0] : embedParam;
+
+  return embedValue === '1' || embedValue === 'true';
+}
+
+export default async function SitePage({ params, searchParams }: SitePageProps) {
   const { slug } = await params;
+  const query = await searchParams;
+  const embedMode = isEmbedMode(query.embed);
 
   const site = await prisma.site.findUnique({
     where: { slug },
@@ -22,7 +35,26 @@ export default async function SitePage({ params }: { params: Promise<{ slug: str
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <>
+      {embedMode && (
+        <style>{`
+          body:has([data-site-embed="true"]) header,
+          body:has([data-site-embed="true"]) main > div[class*="container"],
+          body:has([data-site-embed="true"]) hr {
+            display: none;
+          }
+
+          body:has([data-site-embed="true"]) main {
+            max-width: 100%;
+            padding: 0;
+          }
+        `}</style>
+      )}
+
+      <section
+        data-site-embed={embedMode ? 'true' : undefined}
+        className={`flex w-full flex-col gap-6 ${embedMode ? 'mx-0 max-w-none bg-zinc-100 p-6' : 'mx-auto max-w-3xl'}`}
+      >
       {site.sections.map((section) => {
         if (section.type === 'HERO') {
           const content = parseHeroContent(section.contentJson);
@@ -95,6 +127,7 @@ export default async function SitePage({ params }: { params: Promise<{ slug: str
           </Card>
         );
       })}
-    </section>
+      </section>
+    </>
   );
 }
