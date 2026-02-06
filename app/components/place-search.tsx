@@ -93,7 +93,7 @@ export function PlaceSearch() {
         throw new Error('Missing slug in response.');
       }
 
-      router.push(data.existed ? `/editor/${data.slug}` : `/s/${data.slug}`);
+      router.push(`/editor/${data.slug}`);
     } catch {
       setError('사이트 생성에 실패했습니다. 다시 시도해주세요.');
     } finally {
