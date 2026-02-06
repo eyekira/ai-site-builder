@@ -1,6 +1,17 @@
 const GOOGLE_PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
 const GOOGLE_PLACES_DETAILS_URL = 'https://places.googleapis.com/v1/places';
 
+export class GooglePlacesError extends Error {
+  status: number;
+  bodyExcerpt: string | null;
+
+  constructor(message: string, status: number, bodyExcerpt: string | null) {
+    super(message);
+    this.status = status;
+    this.bodyExcerpt = bodyExcerpt;
+  }
+}
+
 type GoogleAutocompleteResponse = {
   suggestions?: Array<{
     placePrediction?: {
@@ -106,7 +117,10 @@ function getCityFromAddressComponents(
   return sublocality?.longText ?? null;
 }
 
-export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlaceDetails> {
+export async function fetchPlaceDetails(
+  placeId: string,
+  options?: { signal?: AbortSignal },
+): Promise<NormalizedPlaceDetails> {
   const apiKey = getServerKey();
   const response = await fetch(`${GOOGLE_PLACES_DETAILS_URL}/${encodeURIComponent(placeId)}`, {
     headers: {
@@ -115,10 +129,13 @@ export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlac
         'id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,regularOpeningHours,location,addressComponents',
     },
     cache: 'no-store',
+    signal: options?.signal,
   });
 
   if (!response.ok) {
-    throw new Error('Google Places details request failed.');
+    const bodyText = await response.text().catch(() => '');
+    const excerpt = bodyText ? bodyText.slice(0, 200) : null;
+    throw new GooglePlacesError('Google Places details request failed.', response.status, excerpt);
   }
 
   const place = (await response.json()) as GooglePlaceDetailsResponse;
