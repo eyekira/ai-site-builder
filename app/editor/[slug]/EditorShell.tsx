@@ -60,7 +60,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
   const [lastSavedBySection, setLastSavedBySection] = useState<Record<number, string>>(() =>
     Object.fromEntries(sections.map((section) => [section.id, normalizeSectionContent(section, section.contentJson)])),
   );
-  const [previewVersion, setPreviewVersion] = useState(Date.now());
+  const [previewKey, setPreviewKey] = useState(Date.now());
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -132,7 +132,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
         await updateSection(siteId, selectedSection.id, normalized);
         setDraftsBySection((prev) => ({ ...prev, [selectedSection.id]: normalized }));
         setLastSavedBySection((prev) => ({ ...prev, [selectedSection.id]: normalized }));
-        setPreviewVersion(Date.now());
+        setPreviewKey(Date.now());
         setSaveState('saved');
         router.refresh();
       } catch {
@@ -165,7 +165,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       );
       setSaveState('idle');
       setSaveError(null);
-      setPreviewVersion(Date.now());
+      setPreviewKey(Date.now());
       router.refresh();
     });
   };
@@ -175,7 +175,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       await addSection(siteId, type);
       setSaveState('idle');
       setSaveError(null);
-      setPreviewVersion(Date.now());
+      setPreviewKey(Date.now());
       router.refresh();
     });
   };
@@ -245,8 +245,8 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       <main className="border-r border-zinc-200 bg-zinc-50 p-4">
         <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
           <iframe
-            key={previewVersion}
-            src={`/s/${slug}?v=${previewVersion}`}
+            key={previewKey}
+            src={`/s/${slug}?embed=1&v=${previewKey}`}
             title="Live preview"
             className="h-full w-full rounded-xl"
           />
