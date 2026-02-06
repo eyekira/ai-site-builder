@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 
-import { getDraftIdsFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 
@@ -52,10 +51,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Site not found.' }, { status: 404 });
   }
 
-  const draftIds = getDraftIdsFromRequest(request);
-  const canPublish = site.ownerId === user.id || (site.ownerId === null && draftIds.includes(site.id));
-
-  if (!canPublish) {
+  if (site.ownerId !== user.id) {
     return NextResponse.json({ error: 'Not allowed to publish this site.' }, { status: 403 });
   }
 

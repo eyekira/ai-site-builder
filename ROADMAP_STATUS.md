@@ -19,6 +19,7 @@ User can:
 - [x] Edit content
 - [x] Reorder sections
 - [x] Save changes
+- [x] Reopen draft on same device
 
 User cannot:
 - [ ] Publish the site
@@ -40,7 +41,7 @@ CTA shown clearly:
 - [ ] Publish remains locked
 
 CTA:
-- [ ] “Subscribe to publish your site”
+- [x] “Subscribe to publish your site”
 
 ---
 
@@ -108,6 +109,7 @@ Tasks:
 - [x] Disable:
   - [x] Publish action (UI + API)
 - [x] Show clear upgrade CTA in editor
+- [x] Anonymous draft ownership via anon session cookie
 
 ---
 
@@ -120,6 +122,7 @@ Tasks:
 - [x] Auth system (basic login)
 - [x] Draft claim:
   - [x] Assign `site.ownerId` on login
+- [x] Logout flow (clear session and return to anonymous mode)
 - [x] Dashboard:
   - [x] List of user’s sites
   - [x] Draft / Published badge

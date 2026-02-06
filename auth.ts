@@ -3,7 +3,7 @@ import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
 import { cookies } from 'next/headers';
 
-import { DRAFT_COOKIE, parseDraftCookie } from '@/lib/auth';
+import { ANON_SESSION_COOKIE, getAnonSessionIdFromCookies } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 type CredentialsPayload = {
@@ -44,21 +44,21 @@ async function upsertUser(email: string, name: string | null) {
 
 async function claimDraftsForUser(userId: number) {
   const cookieStore = await cookies();
-  const draftIds = parseDraftCookie(cookieStore.get(DRAFT_COOKIE)?.value);
+  const anonSessionId = getAnonSessionIdFromCookies(cookieStore);
 
-  if (draftIds.length === 0) {
+  if (!anonSessionId) {
     return 0;
   }
 
   const result = await prisma.site.updateMany({
     where: {
-      id: { in: draftIds },
+      anonSessionId,
       ownerId: null,
     },
-    data: { ownerId: userId },
+    data: { ownerId: userId, anonSessionId: null },
   });
 
-  cookieStore.set(DRAFT_COOKIE, '', {
+  cookieStore.set(ANON_SESSION_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',

@@ -1,14 +1,14 @@
 import { notFound } from 'next/navigation';
 
 import EditorShell from './EditorShell';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { canAccessSite, getViewerContext } from '@/lib/rbac';
 import { type SectionType } from '@/lib/section-content';
 
 export default async function EditorPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const session = await auth();
-  const userId = session?.user?.id ? Number(session.user.id) : null;
+  const viewer = await getViewerContext();
+  const userId = viewer.userId;
 
   const site = await prisma.site.findUnique({
     where: { slug },
@@ -20,6 +20,10 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
   });
 
   if (!site) {
+    notFound();
+  }
+
+  if (!canAccessSite(site, viewer)) {
     notFound();
   }
 

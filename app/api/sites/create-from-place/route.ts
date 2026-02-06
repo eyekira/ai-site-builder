@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SectionType, SiteStatus } from '@prisma/client';
 
-import { DRAFT_COOKIE, buildDraftCookieValue, getDraftIdsFromRequest } from '@/lib/auth';
+import { auth } from '@/auth';
+import {
+  ANON_SESSION_COOKIE,
+  ANON_SESSION_MAX_AGE_SECONDS,
+  createAnonSessionId,
+  getAnonSessionIdFromRequest,
+} from '@/lib/auth';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
 
@@ -121,25 +127,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const existingSite = await prisma.site.findFirst({
-      where: { placeId },
-      orderBy: { id: 'desc' },
-      select: { id: true, slug: true, ownerId: true },
-    });
-    if (existingSite) {
-      const response = NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
-      if (!existingSite.ownerId) {
-        const draftCookie = buildDraftCookieValue(getDraftIdsFromRequest(request), existingSite.id);
-        response.cookies.set(DRAFT_COOKIE, draftCookie, {
-          httpOnly: true,
-          sameSite: 'lax',
-          path: '/',
-        });
-      }
-      return response;
-    }
-
     const place = await resolvePlaceForCreation(placeId);
+    const session = await auth();
+    const ownerId = session?.user?.id ? Number(session.user.id) : null;
+    const isLoggedIn = Boolean(ownerId && !Number.isNaN(ownerId));
+    const anonSessionId = !isLoggedIn ? getAnonSessionIdFromRequest(request) ?? createAnonSessionId() : null;
 
     await prisma.place.upsert({
       where: { id: place.id },
@@ -172,7 +164,8 @@ export async function POST(request: NextRequest) {
         title: place.name,
         status: SiteStatus.DRAFT,
         themeJson: null,
-        ownerId: null,
+        ownerId: isLoggedIn ? ownerId : null,
+        anonSessionId: isLoggedIn ? null : anonSessionId,
         placeId: place.id,
         sections: {
           create: [
@@ -208,12 +201,14 @@ export async function POST(request: NextRequest) {
     });
 
     const response = NextResponse.json({ siteId: site.id, slug: site.slug });
-    const draftCookie = buildDraftCookieValue(getDraftIdsFromRequest(request), site.id);
-    response.cookies.set(DRAFT_COOKIE, draftCookie, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-    });
+    if (!isLoggedIn && anonSessionId) {
+      response.cookies.set(ANON_SESSION_COOKIE, anonSessionId, {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: ANON_SESSION_MAX_AGE_SECONDS,
+      });
+    }
     return response;
   } catch {
     return NextResponse.json({ error: 'Failed to create site from place.' }, { status: 502 });

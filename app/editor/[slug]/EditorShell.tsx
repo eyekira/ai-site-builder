@@ -311,7 +311,7 @@ export default function EditorShell({ siteId, slug, siteStatus, isLoggedIn, isSu
           ) : isLoggedIn ? (
             <p className="mt-1">Subscribe to publish your site.</p>
           ) : (
-            <p className="mt-1">Publish requires login and an active subscription.</p>
+            <p className="mt-1">Log in and subscribe to publish your site.</p>
           )}
           <button
             type="button"
