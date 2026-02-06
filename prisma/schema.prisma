@@ -34,7 +34,7 @@ model Site {
   slug      String     @unique
   title     String
   status    SiteStatus @default(DRAFT)
-  themeJson String
+  themeJson String?
   ownerId   Int
   placeId   String?
 
