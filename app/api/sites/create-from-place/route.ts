@@ -127,15 +127,6 @@ export async function POST(request: NextRequest) {
 
     const place = await resolvePlaceForCreation(placeId);
 
-    const user = await prisma.user.upsert({
-      where: { email: 'demo@local' },
-      create: {
-        email: 'demo@local',
-        name: 'Demo User',
-      },
-      update: {},
-    });
-
     await prisma.place.upsert({
       where: { id: place.id },
       update: {
@@ -167,7 +158,7 @@ export async function POST(request: NextRequest) {
         title: place.name,
         status: SiteStatus.DRAFT,
         themeJson: null,
-        ownerId: user.id,
+        ownerId: null,
         placeId: place.id,
         sections: {
           create: [

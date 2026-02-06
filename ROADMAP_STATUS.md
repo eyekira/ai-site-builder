@@ -83,14 +83,14 @@ Goal:
 “Select a business → land in the editor every time”
 
 Tasks:
-- [ ] `/api/sites/create-from-place`
-  - [ ] Public endpoint (no auth)
-  - [ ] Creates a DRAFT site
-  - [ ] `ownerId = null`
-- [ ] Redirect behavior:
-  - [ ] Always redirect to `/editor/[slug]`
-- [ ] Existing site selection:
-  - [ ] Always open editor (never `/s/[slug]`)
+- [x] `/api/sites/create-from-place`
+  - [x] Public endpoint (no auth)
+  - [x] Creates a DRAFT site
+  - [x] `ownerId = null`
+- [x] Redirect behavior:
+  - [x] Always redirect to `/editor/[slug]`
+- [x] Existing site selection:
+  - [x] Always open editor (never `/s/[slug]`)
 
 ---
 
