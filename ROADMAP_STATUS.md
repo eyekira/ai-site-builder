@@ -22,16 +22,16 @@ Reference point: current working tree on the `work` branch.
   - `PlaceSearch` supports query input, loading/empty/error states, and renders selectable results.
 - [~] “Creating site...” state and redirect to draft editor page after selection
   - “Creating site...” feedback is implemented.
-  - Redirect behavior is only partially aligned: new sites route to `/s/[slug]` and existing sites route to `/editor/[slug]`, but no editor route currently exists.
+  - Redirect behavior is still partially aligned: new sites route to `/s/[slug]` and existing sites route to `/editor/[slug]`.
 
 ### 1.3 Server APIs
 - [x] `/api/places/autocomplete?q=...` implemented
 - [x] `/api/places/details?place_id=...` implemented
 - [x] `/api/sites/create-from-place` implemented
   - Fetches place details, upserts place record, creates/returns a draft site, and seeds default sections.
-- [~] End-to-end flow (search → select → draft creation) partially completed
-  - Search and draft creation are wired.
-  - Final editor handoff is incomplete because `/editor/[slug]` is missing.
+- [x] End-to-end flow (search → select → draft creation) implemented
+  - Search, place selection, and draft site creation are wired through to persisted site records.
+  - Both public site view (`/s/[slug]`) and draft editor route (`/editor/[slug]`) are available.
 
 ## Phase 2. “Automatic Site Generation”
 - [x] Section generation rules (Hero/About/Contact baseline) implemented
@@ -43,14 +43,14 @@ Reference point: current working tree on the `work` branch.
 
 ## Phase 3. Customize Editor
 - [ ] Site title/subtitle editing not implemented
-- [ ] Section reordering not implemented
-- [ ] About/CTA editing not implemented
+- [x] Section reordering implemented
+- [x] About/CTA editing implemented
 - [ ] Theme editing not implemented
 - [ ] Menu CRUD/file upload/menu section rendering not implemented
-- [ ] Draft editor route (`/editor/[slug]`) not implemented
+- [x] Draft editor route (`/editor/[slug]`) implemented
 
 ## Key Current-State Summary
 1. **Foundation status**: Next.js App Router structure is in place with a functional home search UI and server-backed Places integration routes.
 2. **Database readiness**: Prisma schema provides core MVP entities and enums.
 3. **Implemented core flow**: Autocomplete, place details lookup, and site creation from a selected place are now connected.
-4. **Primary remaining gap**: Draft editing/publishing capabilities (including `/editor/[slug]`) are still missing.
+4. **Primary remaining gap**: publishing workflow/status transitions and richer section/theme features remain incomplete.
