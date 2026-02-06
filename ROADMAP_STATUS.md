@@ -99,9 +99,9 @@ Tasks:
   - Public endpoint (no auth)
   - Creates a DRAFT site
   - ownerId = null
-- Redirect behavior:
+- Redirect behavior (DONE):
   - Always redirect to /editor/[slug]
-- Existing site selection:
+- Existing site selection (DONE):
   - Always open editor (never /s/[slug])
 
 ----------------------------------------
