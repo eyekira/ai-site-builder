@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 
+import { auth } from '@/auth';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 import './globals.css';
 
@@ -14,7 +17,11 @@ export const metadata: Metadata = {
   description: 'Next.js App Router project scaffold',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const session = await auth();
+  const buttonBase =
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+
   return (
     <html lang="en">
       <body className={inter.className}>
@@ -24,7 +31,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a className="text-lg font-semibold tracking-tight" href="/">
                 AI Site Builder
               </a>
-              <Badge variant="secondary">MVP</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">MVP</Badge>
+                <Link
+                  href={session?.user?.id ? '/dashboard' : '/login'}
+                  className={cn(buttonBase, 'h-9 px-3 border border-transparent bg-primary text-primary-foreground hover:bg-primary/90')}
+                >
+                  {session?.user?.id ? 'Dashboard' : 'Login'}
+                </Link>
+              </div>
             </div>
           </header>
           <Separator />

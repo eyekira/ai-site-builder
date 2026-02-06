@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SectionType, SiteStatus } from '@prisma/client';
 
+import { DRAFT_COOKIE, buildDraftCookieValue, getDraftIdsFromRequest } from '@/lib/auth';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
 
@@ -120,9 +121,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const existingSite = await prisma.site.findFirst({ where: { placeId }, orderBy: { id: 'desc' } });
+    const existingSite = await prisma.site.findFirst({
+      where: { placeId },
+      orderBy: { id: 'desc' },
+      select: { id: true, slug: true, ownerId: true },
+    });
     if (existingSite) {
-      return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+      const response = NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+      if (!existingSite.ownerId) {
+        const draftCookie = buildDraftCookieValue(getDraftIdsFromRequest(request), existingSite.id);
+        response.cookies.set(DRAFT_COOKIE, draftCookie, {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+        });
+      }
+      return response;
     }
 
     const place = await resolvePlaceForCreation(placeId);
@@ -193,7 +207,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ siteId: site.id, slug: site.slug });
+    const response = NextResponse.json({ siteId: site.id, slug: site.slug });
+    const draftCookie = buildDraftCookieValue(getDraftIdsFromRequest(request), site.id);
+    response.cookies.set(DRAFT_COOKIE, draftCookie, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+    return response;
   } catch {
     return NextResponse.json({ error: 'Failed to create site from place.' }, { status: 502 });
   }
