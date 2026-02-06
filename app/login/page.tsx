@@ -12,6 +12,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -43,6 +45,8 @@ export default function LoginPage() {
           redirect: false,
           email,
           name,
+          phone,
+          password,
         });
 
         if (result?.error) {
@@ -101,6 +105,26 @@ export default function LoginPage() {
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Your name"
+                required
+              />
+            </label>
+            <label className="block space-y-1 text-sm font-medium">
+              Phone
+              <Input
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="01012345678"
+                required
+              />
+            </label>
+            <label className="block space-y-1 text-sm font-medium">
+              Password
+              <Input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 6 characters"
+                required
               />
             </label>
             {error && <p className="text-sm text-destructive">{error}</p>}
