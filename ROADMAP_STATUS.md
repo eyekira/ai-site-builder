@@ -31,12 +31,12 @@ CTA shown clearly:
 ---
 
 ### Logged-In User (No Subscription)
-- [ ] Logs in
-- [ ] Draft site is claimed (owner assigned)
-- [ ] User gains access to:
-  - [ ] Dashboard
-  - [ ] Saved draft sites
-- [ ] User can still edit drafts
+- [x] Logs in
+- [x] Draft site is claimed (owner assigned)
+- [x] User gains access to:
+  - [x] Dashboard
+  - [x] Saved draft sites
+- [x] User can still edit drafts
 - [ ] Publish remains locked
 
 CTA:
@@ -117,12 +117,12 @@ Goal:
 “Draft becomes my site”
 
 Tasks:
-- [ ] Auth system (basic login)
-- [ ] Draft claim:
-  - [ ] Assign `site.ownerId` on login
-- [ ] Dashboard:
-  - [ ] List of user’s sites
-  - [ ] Draft / Published badge
+- [x] Auth system (basic login)
+- [x] Draft claim:
+  - [x] Assign `site.ownerId` on login
+- [x] Dashboard:
+  - [x] List of user’s sites
+  - [x] Draft / Published badge
 
 ---
 
