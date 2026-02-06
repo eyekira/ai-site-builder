@@ -48,17 +48,21 @@ npm ci --no-audit --no-fund
 
 ## Environment variables
 
-Create a `.env` file and set the Google Places server key:
+Create a `.env` file and set your Google Places keys:
 
 ```bash
 GOOGLE_PLACES_SERVER_KEY=your_server_key_here
+NEXT_PUBLIC_GOOGLE_PLACES_KEY=your_client_key_here # optional
 ```
 
-> The key is read only on the server (Route Handler), so it is not exposed to browser clients.
+- `GOOGLE_PLACES_SERVER_KEY`: **required** for server-side API calls from `app/api/test-places/route.ts`.
+- `NEXT_PUBLIC_GOOGLE_PLACES_KEY`: optional browser key for future direct client integrations.
+
+> Never expose `GOOGLE_PLACES_SERVER_KEY` to client-side code. Only `NEXT_PUBLIC_*` variables are meant for browser use.
 
 ## Structure
 
 - `app/*`: App Router pages/layouts (server components by default)
 - `app/components/*`: client components can use `"use client"`
 - `app/api/*`: server API route handlers
-- `src/app/api/test-places/route.ts`: test endpoint for Google Places (New) Text Search
+- `app/api/test-places/route.ts`: test endpoint for Google Places (New) Text Search
