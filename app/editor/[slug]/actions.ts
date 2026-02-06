@@ -9,16 +9,16 @@ import { defaultContentForType, parseSectionContent, type SectionType } from '@/
 async function requireOwnedSite(siteId: number) {
   const mvpUserId = await getMvpUserIdFromRequest();
 
-  if (!mvpUserId) {
-    throw new Error('Missing MVP user header.');
-  }
-
   const site = await prisma.site.findFirst({
-    where: { id: siteId, ownerId: mvpUserId },
-    select: { id: true },
+    where: { id: siteId },
+    select: { id: true, ownerId: true },
   });
 
   if (!site) {
+    throw new Error('Unauthorized site access.');
+  }
+
+  if (site.ownerId && site.ownerId !== mvpUserId) {
     throw new Error('Unauthorized site access.');
   }
 }

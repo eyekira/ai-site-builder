@@ -19,7 +19,8 @@ type EditorShellProps = {
   status: 'DRAFT' | 'PUBLISHED';
   publishedAt: string | null;
   previewToken: string | null;
-  mvpUserId: number;
+  mvpUserId: number | null;
+  isUnclaimed: boolean;
   sections: EditorSection[];
 };
 
@@ -65,6 +66,7 @@ export default function EditorShell({
   publishedAt: publishedAtProp,
   previewToken,
   mvpUserId,
+  isUnclaimed,
 }: EditorShellProps) {
   const router = useRouter();
   const [publishStatus, setPublishStatus] = useState<EditorShellProps['status']>(status);
@@ -200,6 +202,16 @@ export default function EditorShell({
   const publicUrl = `/s/${slug}`;
 
   const updatePublishStatus = async (nextAction: 'publish' | 'unpublish') => {
+    if (isUnclaimed) {
+      setPublishError('Unclaimed drafts cannot be published yet.');
+      return;
+    }
+
+    if (!mvpUserId) {
+      setPublishError('Missing owner credentials.');
+      return;
+    }
+
     setIsPublishing(true);
     setPublishError(null);
 
@@ -308,6 +320,11 @@ export default function EditorShell({
       </main>
 
       <aside className="bg-white p-4">
+        {isUnclaimed && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            Unclaimed draft (no owner). Publishing is disabled until claimed.
+          </div>
+        )}
         <div className="mb-4 rounded-xl border border-zinc-200 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Publishing</p>
           <div className="mt-2 flex items-center justify-between gap-2">

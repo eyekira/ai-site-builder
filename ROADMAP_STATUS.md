@@ -41,7 +41,7 @@ Reference point: current working tree on the `work` branch.
   - Dynamic page loads and renders stored sections.
 - [x] Draft access control and publish transition implemented
   - `/s/[slug]` gates draft access, preview tokens supported.
-  - `/editor/[slug]` and publish APIs require the MVP user header.
+  - `/editor/[slug]` allows unclaimed drafts; publish APIs require an owner.
 
 ## Phase 3. Customize Editor
 - [ ] Site title/subtitle editing not implemented

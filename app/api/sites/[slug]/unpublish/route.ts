@@ -22,6 +22,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Site not found.' }, { status: 404 });
   }
 
+  if (!site.ownerId) {
+    return NextResponse.json({ error: 'Unclaimed drafts cannot be unpublished.' }, { status: 403 });
+  }
+
   if (site.ownerId !== mvpUserId) {
     return NextResponse.json({ error: 'Not allowed to unpublish this site.' }, { status: 403 });
   }

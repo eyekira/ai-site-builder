@@ -10,12 +10,8 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const mvpUserId = await getMvpUserIdFromRequest();
 
-  if (!mvpUserId) {
-    notFound();
-  }
-
-  let site = await prisma.site.findFirst({
-    where: { slug, ownerId: mvpUserId },
+  let site = await prisma.site.findUnique({
+    where: { slug },
     include: {
       sections: {
         orderBy: { order: 'asc' },
@@ -24,6 +20,10 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
   });
 
   if (!site) {
+    notFound();
+  }
+
+  if (site.ownerId && site.ownerId !== mvpUserId) {
     notFound();
   }
 
@@ -47,6 +47,7 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
       publishedAt={site.publishedAt ? site.publishedAt.toISOString() : null}
       previewToken={site.previewToken}
       mvpUserId={mvpUserId}
+      isUnclaimed={!site.ownerId}
       sections={site.sections.map((section) => ({
         id: section.id,
         type: section.type as SectionType,
