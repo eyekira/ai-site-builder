@@ -1,22 +1,82 @@
-const MOCK_PLACES = [
-  { id: 'place_1', name: '을지로 김밥천국', address: '서울 중구 을지로 123' },
-  { id: 'place_2', name: '강남 파스타 하우스', address: '서울 강남구 테헤란로 45' },
-  { id: 'place_3', name: '홍대 스시바', address: '서울 마포구 와우산로 22' },
-  { id: 'place_4', name: '부산 해운대 밀면', address: '부산 해운대구 우동 777' },
-  { id: 'place_5', name: '제주 흑돼지 식당', address: '제주 제주시 애월읍 88' },
-];
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const input = searchParams.get('input')?.trim().toLowerCase() ?? '';
+type GooglePlace = {
+  id?: string;
+  displayName?: {
+    text?: string;
+  };
+  formattedAddress?: string;
+  location?: {
+    latitude?: number;
+    longitude?: number;
+  };
+};
 
-  const results = input
-    ? MOCK_PLACES.filter(
-        (place) =>
-          place.name.toLowerCase().includes(input) ||
-          (place.address ?? '').toLowerCase().includes(input),
-      )
-    : [];
+const GOOGLE_PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 
-  return Response.json({ results });
+export async function GET(request: NextRequest) {
+  const apiKey = process.env.GOOGLE_PLACES_SERVER_KEY;
+
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'Missing GOOGLE_PLACES_SERVER_KEY environment variable.' },
+      { status: 500 },
+    );
+  }
+
+  const input = request.nextUrl.searchParams.get('input')?.trim();
+  const keywordParam = request.nextUrl.searchParams.get('keyword')?.trim();
+  const keyword = input || keywordParam || 'Seoul Restaurant';
+
+  try {
+    const googleResponse = await fetch(GOOGLE_PLACES_TEXT_SEARCH_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask':
+          'places.id,places.displayName,places.formattedAddress,places.location',
+      },
+      body: JSON.stringify({
+        textQuery: keyword,
+      }),
+      cache: 'no-store',
+    });
+
+    if (!googleResponse.ok) {
+      const errorBody = await googleResponse.text();
+      return NextResponse.json(
+        {
+          error: 'Google Places API request failed.',
+          status: googleResponse.status,
+          details: errorBody,
+        },
+        { status: 500 },
+      );
+    }
+
+    const data = (await googleResponse.json()) as { places?: GooglePlace[] };
+
+    const results = (data.places ?? []).map((place) => ({
+      id: place.id ?? null,
+      name: place.displayName?.text ?? null,
+      address: place.formattedAddress ?? null,
+      location: place.location
+        ? {
+            latitude: place.location.latitude ?? null,
+            longitude: place.location.longitude ?? null,
+          }
+        : null,
+    }));
+
+    return NextResponse.json({ keyword, results });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: 'Unexpected error while calling Google Places API.',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 },
+    );
+  }
 }

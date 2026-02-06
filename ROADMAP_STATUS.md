@@ -3,15 +3,14 @@
 Reference point: current working tree on the `main` branch.
 
 ## Phase 0. Project Stabilization
-- [~] **Resolve Git issues / remove Vite leftovers**
-  - Next.js configuration and structure exist, but a Vite `index.html` still remains at the repository root.
+- [x] **Resolve Git issues / remove Vite leftovers**
+  - Root Vite leftover `index.html` removed.
 - [x] **Keep only Next.js App Router runtime structure**
   - `app/`-based routing and `next.config.ts` are present.
-- [~] **Environment variables / secrets setup guidance**
-  - `README` documents `GOOGLE_PLACES_SERVER_KEY`, but not `NEXT_PUBLIC_GOOGLE_PLACES_KEY`.
-- [~] **`/api/test-places` successful Places call (status 200)**
-  - Real Google Places call logic exists in `src/app/api/test-places/route.ts`,
-    but the route currently used by the app (`app/api/test-places/route.ts`) returns mock data.
+- [x] **Environment variables / secrets setup guidance**
+  - `README` documents both `GOOGLE_PLACES_SERVER_KEY` and optional `NEXT_PUBLIC_GOOGLE_PLACES_KEY`, including server-key safety guidance.
+- [x] **`/api/test-places` successful Places call (status 200)**
+  - Canonical `app/api/test-places/route.ts` now performs real Google Places calls via `GOOGLE_PLACES_SERVER_KEY`; duplicate mock/alternate route removed.
 
 ## Phase 1. “Business Selection” Flow
 ### 1.1 Data Model
@@ -41,7 +40,7 @@ Reference point: current working tree on the `main` branch.
 - [ ] Menu CRUD/file upload/menu section rendering not implemented
 
 ## Key Current-State Summary
-1. **Foundation status**: A Next.js App Router scaffold is in place, and a basic home screen + search UI + test API (mock) are functional.
+1. **Foundation status**: A Next.js App Router scaffold is in place, and a basic home screen + search UI + real server-backed test API route are functional.
 2. **Database readiness**: Prisma schema defines core MVP entities.
-3. **Primary gap**: Key product capabilities (real Places proxy integration, place selection persistence, draft generation/rendering/editing) are still at a pre-implementation stage.
-4. **Cleanup needed**: Root `index.html` (Vite leftover) and duplicate implementations in `src/app/api/test-places` vs `app/api/test-places` should be consolidated.
+3. **Primary gap**: Key product capabilities (place selection persistence, draft generation/rendering/editing) are still at a pre-implementation stage.
+4. **Cleanup status**: Root Vite leftovers and duplicate `test-places` route implementations have been consolidated.
