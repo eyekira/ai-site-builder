@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { SectionType, SiteStatus } from '@prisma/client';
 
@@ -166,6 +167,8 @@ export async function POST(request: NextRequest) {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
+        publishedAt: null,
+        previewToken: randomUUID(),
         themeJson: null,
         ownerId: user.id,
         placeId: place.id,

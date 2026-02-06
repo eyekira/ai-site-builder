@@ -21,6 +21,10 @@ pnpm-debug.log*
 # env files
 .env*
 
+# Prisma
+prisma/dev.db
+*.sqlite
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

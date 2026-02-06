@@ -16,6 +16,10 @@ type EditorSection = {
 type EditorShellProps = {
   siteId: number;
   slug: string;
+  status: 'DRAFT' | 'PUBLISHED';
+  publishedAt: string | null;
+  previewToken: string | null;
+  mvpUserId: number;
   sections: EditorSection[];
 };
 
@@ -53,8 +57,20 @@ function normalizeSectionContent(section: EditorSection, rawJson: string): strin
   return rawJson;
 }
 
-export default function EditorShell({ siteId, slug, sections }: EditorShellProps) {
+export default function EditorShell({
+  siteId,
+  slug,
+  sections,
+  status,
+  publishedAt: publishedAtProp,
+  previewToken,
+  mvpUserId,
+}: EditorShellProps) {
   const router = useRouter();
+  const [publishStatus, setPublishStatus] = useState<EditorShellProps['status']>(status);
+  const [publishedAt, setPublishedAt] = useState<string | null>(publishedAtProp);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sections[0]?.id ?? null);
   const [draftsBySection, setDraftsBySection] = useState<Record<number, string>>({});
   const [lastSavedBySection, setLastSavedBySection] = useState<Record<number, string>>(() =>
@@ -180,6 +196,44 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
     });
   };
 
+  const previewParams = previewToken ? `preview=1&token=${encodeURIComponent(previewToken)}` : 'preview=1';
+  const publicUrl = `/s/${slug}`;
+
+  const updatePublishStatus = async (nextAction: 'publish' | 'unpublish') => {
+    setIsPublishing(true);
+    setPublishError(null);
+
+    try {
+      const response = await fetch(`/api/sites/${slug}/${nextAction}`, {
+        method: 'POST',
+        headers: {
+          'x-mvp-user-id': String(mvpUserId),
+        },
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        throw new Error(payload.error ?? 'Failed to update publish status.');
+      }
+
+      const payload = (await response.json()) as {
+        site?: { status?: 'DRAFT' | 'PUBLISHED'; publishedAt?: string | null };
+      };
+
+      const nextStatus = payload.site?.status ?? (nextAction === 'publish' ? 'PUBLISHED' : 'DRAFT');
+      setPublishStatus(nextStatus);
+      setPublishedAt(payload.site?.publishedAt ?? (nextAction === 'publish' ? new Date().toISOString() : null));
+      router.refresh();
+    } catch (error) {
+      setPublishError((error as Error).message);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const onPublish = () => updatePublishStatus('publish');
+  const onUnpublish = () => updatePublishStatus('unpublish');
+
   return (
     <div className="grid h-screen grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
@@ -246,7 +300,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
         <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
           <iframe
             key={previewKey}
-            src={`/s/${slug}?embed=1&v=${previewKey}`}
+            src={`${publicUrl}?embed=1&${previewParams}&v=${previewKey}`}
             title="Live preview"
             className="h-full w-full rounded-xl"
           />
@@ -254,6 +308,47 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       </main>
 
       <aside className="bg-white p-4">
+        <div className="mb-4 rounded-xl border border-zinc-200 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Publishing</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                publishStatus === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}
+            >
+              {publishStatus === 'PUBLISHED' ? 'Published' : 'Draft'}
+            </span>
+            {publishStatus === 'PUBLISHED' ? (
+              <button
+                type="button"
+                onClick={onUnpublish}
+                disabled={isPublishing}
+                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPublishing ? 'Unpublishing…' : 'Unpublish'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onPublish}
+                disabled={isPublishing}
+                className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPublishing ? 'Publishing…' : 'Publish'}
+              </button>
+            )}
+          </div>
+          {publishStatus === 'PUBLISHED' && (
+            <div className="mt-2 space-y-1 text-xs text-zinc-500">
+              <p>Published {publishedAt ? new Date(publishedAt).toLocaleString() : 'just now'}.</p>
+              <a href={publicUrl} className="text-primary underline underline-offset-4">
+                View public site
+              </a>
+            </div>
+          )}
+          {publishError && <p className="mt-2 text-xs font-medium text-red-600">{publishError}</p>}
+        </div>
+
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-zinc-600">
             Inspector

@@ -20,9 +20,9 @@ Reference point: current working tree on the `work` branch.
 ### 1.2 UI
 - [x] Home search input + result list UI implemented
   - `PlaceSearch` supports query input, loading/empty/error states, and renders selectable results.
-- [~] “Creating site...” state and redirect to draft editor page after selection
+- [x] “Creating site...” state and redirect to draft editor page after selection
   - “Creating site...” feedback is implemented.
-  - Redirect behavior is still partially aligned: new sites route to `/s/[slug]` and existing sites route to `/editor/[slug]`.
+  - Both new and existing sites now route to `/editor/[slug]`.
 
 ### 1.3 Server APIs
 - [x] `/api/places/autocomplete?q=...` implemented
@@ -39,7 +39,9 @@ Reference point: current working tree on the `work` branch.
 - [ ] Gallery/menu/reviews section generation rules not implemented
 - [x] Public page routing `/s/[slug]` implemented
   - Dynamic page loads and renders stored sections.
-- [ ] Draft access control and publish transition not implemented
+- [x] Draft access control and publish transition implemented
+  - `/s/[slug]` gates draft access, preview tokens supported.
+  - `/editor/[slug]` and publish APIs require the MVP user header.
 
 ## Phase 3. Customize Editor
 - [ ] Site title/subtitle editing not implemented
@@ -53,4 +55,4 @@ Reference point: current working tree on the `work` branch.
 1. **Foundation status**: Next.js App Router structure is in place with a functional home search UI and server-backed Places integration routes.
 2. **Database readiness**: Prisma schema provides core MVP entities and enums.
 3. **Implemented core flow**: Autocomplete, place details lookup, and site creation from a selected place are now connected.
-4. **Primary remaining gap**: publishing workflow/status transitions and richer section/theme features remain incomplete.
+4. **Primary remaining gap**: richer section/theme features (gallery/menu/reviews/theme editing) remain incomplete.

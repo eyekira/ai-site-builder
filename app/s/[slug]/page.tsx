@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { SiteStatus } from '@prisma/client';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { prisma } from '@/lib/prisma';
@@ -6,13 +7,29 @@ import { parseAboutContent, parseContactContent, parseHeroContent } from '@/lib/
 
 type SitePageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ embed?: string | string[] }>;
+  searchParams: Promise<{ embed?: string | string[]; preview?: string | string[]; token?: string | string[] }>;
 };
 
 function isEmbedMode(embedParam: string | string[] | undefined): boolean {
   const embedValue = Array.isArray(embedParam) ? embedParam[0] : embedParam;
 
   return embedValue === '1' || embedValue === 'true';
+}
+
+function isPreviewAllowed(
+  previewParam: string | string[] | undefined,
+  tokenParam: string | string[] | undefined,
+  siteToken: string | null,
+): boolean {
+  const previewValue = Array.isArray(previewParam) ? previewParam[0] : previewParam;
+  if (previewValue !== '1' && previewValue !== 'true') {
+    return false;
+  }
+
+  const tokenValue = Array.isArray(tokenParam) ? tokenParam[0] : tokenParam;
+  const allowedTokens = [siteToken, process.env.PREVIEW_TOKEN].filter((token): token is string => Boolean(token));
+
+  return Boolean(tokenValue && allowedTokens.includes(tokenValue));
 }
 
 export default async function SitePage({ params, searchParams }: SitePageProps) {
@@ -32,6 +49,19 @@ export default async function SitePage({ params, searchParams }: SitePageProps) 
 
   if (!site) {
     notFound();
+  }
+
+  const canPreview = isPreviewAllowed(query.preview, query.token, site.previewToken);
+
+  if (site.status !== SiteStatus.PUBLISHED && !canPreview) {
+    return (
+      <section className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-3xl border border-dashed border-zinc-300 bg-white p-8 text-center">
+        <h1 className="text-2xl font-semibold">This site isn&apos;t published yet.</h1>
+        <p className="text-sm text-muted-foreground">
+          Ask the owner for a preview link or check back after publishing.
+        </p>
+      </section>
+    );
   }
 
   return (

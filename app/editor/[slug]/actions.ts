@@ -2,8 +2,26 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { getMvpUserIdFromRequest } from '@/lib/mvp-auth';
 import { prisma } from '@/lib/prisma';
 import { defaultContentForType, parseSectionContent, type SectionType } from '@/lib/section-content';
+
+async function requireOwnedSite(siteId: number) {
+  const mvpUserId = await getMvpUserIdFromRequest();
+
+  if (!mvpUserId) {
+    throw new Error('Missing MVP user header.');
+  }
+
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: mvpUserId },
+    select: { id: true },
+  });
+
+  if (!site) {
+    throw new Error('Unauthorized site access.');
+  }
+}
 
 async function normalizeSiteSectionOrders(siteId: number) {
   const sections = await prisma.section.findMany({
@@ -40,6 +58,7 @@ async function getSiteSection(siteId: number, sectionId: number) {
 }
 
 export async function updateSection(siteId: number, sectionId: number, contentJsonString: string) {
+  await requireOwnedSite(siteId);
   const section = await getSiteSection(siteId, sectionId);
 
   const normalizedContent = parseSectionContent(section.type as SectionType, contentJsonString);
@@ -56,6 +75,7 @@ export async function updateSection(siteId: number, sectionId: number, contentJs
 }
 
 export async function reorderSections(siteId: number, orderedSectionIds: number[]) {
+  await requireOwnedSite(siteId);
   const sections = await prisma.section.findMany({
     where: { siteId },
     include: { site: { select: { slug: true } } },
@@ -99,6 +119,7 @@ export async function reorderSections(siteId: number, orderedSectionIds: number[
 }
 
 export async function addSection(siteId: number, type: SectionType) {
+  await requireOwnedSite(siteId);
   if (!['HERO', 'ABOUT', 'CONTACT'].includes(type)) {
     throw new Error('Unsupported section type for editor MVP.');
   }
