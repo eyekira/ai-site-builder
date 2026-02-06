@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 
+import { Card, CardContent } from '@/components/ui/card';
 import { prisma } from '@/lib/prisma';
 
 type SectionContent = Record<string, unknown>;
@@ -30,52 +31,56 @@ export default async function SitePage({ params }: { params: Promise<{ slug: str
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-3xl space-y-6 px-6 py-12">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       {site.sections.map((section) => {
         const content = parseContent(section.contentJson);
 
         if (section.type === 'HERO') {
           return (
-            <section key={section.id} className="rounded-2xl bg-gray-900 p-8 text-white">
-              <h1 className="text-4xl font-bold">{String(content.headline ?? site.title)}</h1>
-              {content.subheadline && (
-                <p className="mt-2 text-gray-200">{String(content.subheadline)}</p>
-              )}
-            </section>
+            <Card key={section.id} className="rounded-2xl bg-gray-900 text-white">
+              <CardContent className="p-8">
+                <h1 className="text-4xl font-bold">{String(content.headline ?? site.title)}</h1>
+                {content.subheadline && <p className="mt-2 text-gray-200">{String(content.subheadline)}</p>}
+              </CardContent>
+            </Card>
           );
         }
 
         if (section.type === 'ABOUT') {
           return (
-            <section key={section.id} className="rounded-2xl border border-gray-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-gray-900">About</h2>
-              <p className="mt-2 text-gray-700">{String(content.body ?? '')}</p>
-            </section>
+            <Card key={section.id} className="rounded-2xl">
+              <CardContent className="p-6">
+                <h2 className="text-2xl font-semibold">About</h2>
+                <p className="mt-2 text-muted-foreground">{String(content.body ?? '')}</p>
+              </CardContent>
+            </Card>
           );
         }
 
         if (section.type === 'CONTACT') {
           return (
-            <section key={section.id} className="rounded-2xl border border-gray-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Contact</h2>
-              <div className="mt-3 space-y-1 text-gray-700">
-                {content.address && <p>Address: {String(content.address)}</p>}
-                {content.phone && <p>Phone: {String(content.phone)}</p>}
-                {content.website && (
-                  <p>
-                    Website:{' '}
-                    <a href={String(content.website)} className="text-blue-600 underline">
-                      {String(content.website)}
-                    </a>
-                  </p>
-                )}
-              </div>
-            </section>
+            <Card key={section.id} className="rounded-2xl">
+              <CardContent className="p-6">
+                <h2 className="text-2xl font-semibold">Contact</h2>
+                <div className="mt-3 space-y-1 text-muted-foreground">
+                  {content.address && <p>Address: {String(content.address)}</p>}
+                  {content.phone && <p>Phone: {String(content.phone)}</p>}
+                  {content.website && (
+                    <p>
+                      Website:{' '}
+                      <a href={String(content.website)} className="text-primary underline underline-offset-4">
+                        {String(content.website)}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           );
         }
 
         return null;
       })}
-    </main>
+    </section>
   );
 }
