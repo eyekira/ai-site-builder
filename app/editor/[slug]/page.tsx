@@ -1,18 +1,35 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
+import EditorShell from './EditorShell';
 import { prisma } from '@/lib/prisma';
+import { type SectionType } from '@/lib/section-content';
 
 export default async function EditorPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   const site = await prisma.site.findUnique({
     where: { slug },
-    select: { slug: true },
+    include: {
+      sections: {
+        orderBy: { order: 'asc' },
+      },
+    },
   });
 
   if (!site) {
     notFound();
   }
 
-  redirect(`/s/${site.slug}`);
+  return (
+    <EditorShell
+      siteId={site.id}
+      slug={site.slug}
+      sections={site.sections.map((section) => ({
+        id: section.id,
+        type: section.type as SectionType,
+        order: section.order,
+        contentJson: section.contentJson,
+      }))}
+    />
+  );
 }
