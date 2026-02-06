@@ -246,7 +246,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
         <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
           <iframe
             key={previewKey}
-            src={`/s/${slug}?embed=1&v=${previewKey}`}
+            src={`/editor/${slug}/preview?embed=1&v=${previewKey}`}
             title="Live preview"
             className="h-full w-full rounded-xl"
           />
@@ -254,6 +254,18 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       </main>
 
       <aside className="bg-white p-4">
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing locked</p>
+          <p className="mt-1">Publish requires login and an active subscription.</p>
+          <button
+            type="button"
+            disabled
+            className="mt-3 w-full rounded-md bg-amber-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-900 opacity-70"
+          >
+            Publish (locked)
+          </button>
+        </div>
+
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-zinc-600">
             Inspector
