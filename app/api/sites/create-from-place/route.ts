@@ -5,6 +5,47 @@ import { SectionType, SiteStatus } from '@prisma/client';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
 
+const LOCAL_ORIGINS = new Set(['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000']);
+
+function getAllowedOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get('origin');
+  if (!origin) {
+    return null;
+  }
+
+  if (LOCAL_ORIGINS.has(origin)) {
+    return origin;
+  }
+
+  const envOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  if (envOrigins.includes(origin)) {
+    return origin;
+  }
+
+  return null;
+}
+
+function buildCorsHeaders(request: NextRequest): HeadersInit {
+  const allowedOrigin = getAllowedOrigin(request);
+  if (!allowedOrigin) {
+    return {};
+  }
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, x-mvp-user-id',
+  };
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: buildCorsHeaders(request) });
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -106,24 +147,28 @@ function buildHeroCtas(place: ResolvedPlace): Array<{ label: string; href: strin
 }
 
 export async function POST(request: NextRequest) {
+  const corsHeaders = buildCorsHeaders(request);
   let body: { placeId?: string };
 
   try {
     body = (await request.json()) as { placeId?: string };
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400, headers: corsHeaders });
   }
 
   const placeId = body.placeId?.trim();
 
   if (!placeId) {
-    return NextResponse.json({ error: 'placeId is required.' }, { status: 400 });
+    return NextResponse.json({ error: 'placeId is required.' }, { status: 400, headers: corsHeaders });
   }
 
   try {
     const existingSite = await prisma.site.findFirst({ where: { placeId }, orderBy: { id: 'desc' } });
     if (existingSite) {
-      return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+      return NextResponse.json(
+        { siteId: existingSite.id, slug: existingSite.slug, existed: true },
+        { headers: corsHeaders },
+      );
     }
 
     const place = await resolvePlaceForCreation(placeId);
@@ -205,8 +250,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ siteId: site.id, slug: site.slug });
+    return NextResponse.json({ siteId: site.id, slug: site.slug }, { headers: corsHeaders });
   } catch {
-    return NextResponse.json({ error: 'Failed to create site from place.' }, { status: 502 });
+    return NextResponse.json({ error: 'Failed to create site from place.' }, { status: 502, headers: corsHeaders });
   }
 }
