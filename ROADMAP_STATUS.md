@@ -45,11 +45,11 @@ CTA:
 ---
 
 ### Subscribed User
-- [ ] Publish button becomes active
-- [ ] Site transitions:
-  - [ ] DRAFT → PUBLISHED
-- [ ] Public site becomes available:
-  - URL: `/s/[slug]`
+- [x] Publish button becomes active
+- [x] Site transitions:
+  - [x] DRAFT → PUBLISHED
+- [x] Public site becomes available:
+  - [x] URL: `/s/[slug]`
 
 User can:
 - [ ] Re-publish after edits
@@ -132,12 +132,12 @@ Goal:
 “Payment unlocks publishing”
 
 Tasks:
-- [ ] Subscription model (simple boolean or plan enum)
-- [ ] Publish API:
-  - [ ] Anonymous → 401
-  - [ ] Logged-in but not subscribed → 402 or clear custom error
-  - [ ] Subscribed → success
-- [ ] `/s/[slug]`:
+- [x] Subscription model (simple boolean or plan enum)
+- [x] Publish API:
+  - [x] Anonymous → 401
+  - [x] Logged-in but not subscribed → 402 or clear custom error
+  - [x] Subscribed → success
+- [x] `/s/[slug]`:
   - [x] Render only PUBLISHED sites
   - [x] Drafts return `notFound` or gated page
 
