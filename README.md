@@ -48,20 +48,13 @@ npm ci --no-audit --no-fund
 
 ## Environment variables
 
-Create a `.env` file and set your app binding + Google Places keys:
+Create a `.env` file and set your Google Places keys:
 
 ```bash
-# Required for hosted dev environments so the app is reachable
-HOST=0.0.0.0
-PORT=3000
-
-# Google Places API keys
 GOOGLE_PLACES_SERVER_KEY=your_server_key_here
 NEXT_PUBLIC_GOOGLE_PLACES_KEY=your_client_key_here # optional
 ```
 
-- `HOST`: set to `0.0.0.0` so `next dev` listens on all interfaces (not only localhost).
-- `PORT`: explicit dev port consumed by `npm run dev` (`next dev -H 0.0.0.0 -p ${PORT:-3000}`).
 - `GOOGLE_PLACES_SERVER_KEY`: **required** for server-side API calls from `app/api/test-places/route.ts`.
 - `NEXT_PUBLIC_GOOGLE_PLACES_KEY`: optional browser key for future direct client integrations.
 
