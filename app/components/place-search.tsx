@@ -1,7 +1,13 @@
 'use client';
 
+import { Loader2, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 type PlaceSuggestion = {
   placeId: string;
@@ -96,45 +102,57 @@ export function PlaceSearch() {
   };
 
   return (
-    <section className="w-full max-w-2xl">
-      <div className="rounded-full border border-gray-300 bg-white px-5 py-3 shadow-sm transition focus-within:border-blue-500 focus-within:shadow-md">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="식당 이름 또는 주소를 입력하세요"
-          className="w-full bg-transparent text-base text-gray-800 outline-none"
-          aria-label="식당 검색"
-          disabled={creating}
-        />
-      </div>
+    <Card className="w-full rounded-2xl">
+      <CardHeader>
+        <CardTitle className="text-left text-xl">장소 검색</CardTitle>
+        <CardDescription className="text-left">식당 이름 또는 주소를 입력해 사이트를 시작하세요.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="식당 이름 또는 주소를 입력하세요"
+            className="pl-9"
+            aria-label="식당 검색"
+            disabled={creating}
+          />
+        </div>
 
-      <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        {creating && <p className="text-sm text-blue-600">Creating site...</p>}
-        {!creating && loading && <p className="text-sm text-gray-500">검색 중...</p>}
-        {!loading && error && <p className="text-sm text-red-500">{error}</p>}
-        {!loading && !error && !hasQuery && (
-          <p className="text-sm text-gray-500">원하는 식당을 검색해보세요.</p>
+        {creating && (
+          <Badge variant="secondary" className="gap-1.5 rounded-full">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Creating site...
+          </Badge>
         )}
+
+        {!creating && loading && <p className="text-sm text-muted-foreground">검색 중...</p>}
+        {!loading && error && <p className="text-sm text-destructive">{error}</p>}
+        {!loading && !error && !hasQuery && <p className="text-sm text-muted-foreground">원하는 식당을 검색해보세요.</p>}
         {!loading && !error && hasQuery && results.length === 0 && (
-          <p className="text-sm text-gray-500">검색 결과가 없습니다.</p>
+          <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
         )}
+
         {!loading && !error && results.length > 0 && (
-          <ul className="space-y-3">
+          <ul className="space-y-2">
             {results.map((place) => (
               <li key={place.placeId}>
-                <button
+                <Button
                   type="button"
-                  className="w-full rounded-xl border border-gray-100 px-4 py-3 text-left transition hover:border-gray-300"
+                  variant="outline"
+                  className="h-auto w-full justify-start rounded-2xl px-4 py-3 text-left"
                   onClick={() => handleSelect(place.placeId)}
                   disabled={creating}
                 >
-                  <p className="font-medium text-gray-900">{place.description}</p>
-                </button>
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="line-clamp-2">{place.description}</span>
+                </Button>
               </li>
             ))}
           </ul>
         )}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

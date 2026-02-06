@@ -1,13 +1,20 @@
+import { Sparkles } from 'lucide-react';
+
 import { PlaceSearch } from '@/app/components/place-search';
+import { Badge } from '@/components/ui/badge';
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center bg-gray-50 px-6 py-24">
-      <div className="mb-10 text-center">
-        <h1 className="text-5xl font-semibold tracking-tight text-gray-900">Restaurant Finder</h1>
-        <p className="mt-3 text-gray-500">원하는 식당을 검색하고 사이트 제작에 바로 활용하세요.</p>
+    <section className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center">
+      <Badge variant="secondary" className="gap-1 rounded-full px-3 py-1 text-xs">
+        <Sparkles className="h-3.5 w-3.5" />
+        SaaS MVP UI Foundation
+      </Badge>
+      <div className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Restaurant Finder</h1>
+        <p className="text-muted-foreground">원하는 식당을 검색하고 사이트 제작에 바로 활용하세요.</p>
       </div>
       <PlaceSearch />
-    </main>
+    </section>
   );
 }
