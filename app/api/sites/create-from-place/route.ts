@@ -161,6 +161,13 @@ function buildHeroCtas(place: ResolvedPlace): Array<{ label: string; href: strin
   return [{ label: 'Learn more', href: '#' }];
 }
 
+function getPrismaCode(error: unknown) {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return String(error.code);
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const corsHeaders = buildCorsHeaders(request);
   const requestId = randomUUID();
@@ -216,7 +223,7 @@ export async function POST(request: NextRequest) {
     try {
       existingSite = await prisma.site.findFirst({ where: { placeId }, orderBy: { id: 'desc' } });
     } catch (error) {
-      const prismaCode = error && typeof error === 'object' && 'code' in error ? String(error.code) : null;
+      const prismaCode = getPrismaCode(error);
       console.error('create-from-place prisma find error', { requestId, prismaCode, error });
       return respondError(500, 'Database error', prismaCode ? `Prisma error code: ${prismaCode}` : 'Unknown error.');
     }
@@ -257,8 +264,8 @@ export async function POST(request: NextRequest) {
         return respondError(504, 'Google Places request timed out.', 'Try again later.');
       }
 
-      if (error && typeof error === 'object' && 'code' in error) {
-        const prismaCode = String(error.code);
+      const prismaCode = getPrismaCode(error);
+      if (prismaCode) {
         console.error('create-from-place prisma resolve error', { requestId, prismaCode, error });
         return respondError(500, 'Database error', `Prisma error code: ${prismaCode}`);
       }
@@ -302,7 +309,14 @@ export async function POST(request: NextRequest) {
 
     recordStep('create-site');
 
-    const slug = await generateUniqueSlug(place.name, place.id);
+    let slug: string;
+    try {
+      slug = await generateUniqueSlug(place.name, place.id);
+    } catch (error) {
+      const prismaCode = getPrismaCode(error);
+      console.error('create-from-place prisma slug error', { requestId, prismaCode, error });
+      return respondError(500, 'Database error', prismaCode ? `Prisma error code: ${prismaCode}` : 'Unknown error.');
+    }
 
     let site;
     try {
@@ -349,7 +363,7 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (error) {
-      const prismaCode = error && typeof error === 'object' && 'code' in error ? String(error.code) : null;
+      const prismaCode = getPrismaCode(error);
       console.error('create-from-place prisma create error', { requestId, prismaCode, error });
       return respondError(500, 'Database error', prismaCode ? `Prisma error code: ${prismaCode}` : 'Unknown error.');
     }
