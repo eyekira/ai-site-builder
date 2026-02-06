@@ -9,6 +9,43 @@ npm install
 npm run dev
 ```
 
+## npm mirror setup (Replit / CI)
+
+If your environment cannot access `registry.npmjs.org` directly, configure the project to use your company npm mirror.
+
+1. **Set secrets/variables**
+   - `MIRROR_URL`: full mirror registry URL (example: `https://npm.company.internal/repository/npm/`)
+   - `NPM_TOKEN`: token that can read from the mirror
+
+2. **Replit setup**
+   - Open **Tools → Secrets**
+   - Add secret `MIRROR_URL` with your mirror registry URL
+   - Add secret `NPM_TOKEN` with your auth token
+
+3. **CI setup (GitHub Actions example)**
+   - Add repository or organization secrets named `MIRROR_URL` and `NPM_TOKEN`
+   - Ensure the job exports them to environment variables before `npm ci`, for example:
+
+```yaml
+- name: Install dependencies
+  env:
+    MIRROR_URL: ${{ secrets.MIRROR_URL }}
+    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  run: npm ci --no-audit --no-fund
+```
+
+4. **Update `.npmrc` host placeholder once**
+   - In `.npmrc`, replace `YOUR_MIRROR_HOST` in this line:
+     - `//YOUR_MIRROR_HOST/:_authToken=${NPM_TOKEN}`
+   - Use only the host part from `MIRROR_URL` (no `https://`, no path).
+
+5. **Verify**
+
+```bash
+npm config get registry
+npm ci --no-audit --no-fund
+```
+
 ## Environment variables
 
 Create a `.env` file and set the Google Places server key:
