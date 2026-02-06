@@ -1,20 +1,13 @@
-import { ClientCounter } from "@/app/components/client-counter";
+import { PlaceSearch } from '@/app/components/place-search';
 
 export default function HomePage() {
-  const apiKey = process.env['NEXT_PUBLIC_GOOGLE_PLACES_KEY'];
-  const apiKey_02 = process.env['GOOGLE_PLACES_SERVER_KEY'];
-  if (apiKey) {
-    console.log("✅ 키가 로드되었습니다!");
-    console.log("키 시작 부분:", apiKey.substring(0, 8) + "****");
-    console.log("키 시작 부분:", apiKey_02?.substring(0, 8) + "****");
-  } else {
-    console.log("❌ 키를 찾을 수 없습니다. Secrets 설정을 확인하세요.");
-  }
   return (
-    <main>
-      <h1>Next.js App Router + TypeScript</h1>
-      <p>This project is scaffolded for server/client component separation.</p>
-      <ClientCounter />
+    <main className="flex min-h-screen flex-col items-center bg-gray-50 px-6 py-24">
+      <div className="mb-10 text-center">
+        <h1 className="text-5xl font-semibold tracking-tight text-gray-900">Restaurant Finder</h1>
+        <p className="mt-3 text-gray-500">원하는 식당을 검색하고 사이트 제작에 바로 활용하세요.</p>
+      </div>
+      <PlaceSearch />
     </main>
   );
 }
