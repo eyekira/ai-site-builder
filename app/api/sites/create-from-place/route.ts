@@ -26,6 +26,10 @@ function getAllowedOrigin(request: NextRequest): string | null {
     return origin;
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    return origin;
+  }
+
   return null;
 }
 
