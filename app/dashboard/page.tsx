@@ -1,17 +1,18 @@
 import Link from 'next/link';
 
-import { getCurrentUser } from '@/lib/auth';
+import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export default async function DashboardPage() {
-  const user = await getCurrentUser();
+  const session = await auth();
+  const userId = session?.user?.id ? Number(session.user.id) : null;
   const buttonBase =
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
 
-  if (!user) {
+  if (!userId) {
     return (
       <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 text-center">
         <Card className="rounded-2xl">
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
   }
 
   const sites = await prisma.site.findMany({
-    where: { ownerId: user.id },
+    where: { ownerId: userId },
     orderBy: { id: 'desc' },
     select: {
       id: true,
@@ -45,7 +46,7 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{user.name}님의 사이트를 확인하세요.</p>
+          <p className="text-sm text-muted-foreground">{session?.user?.name ?? '회원'}님의 사이트를 확인하세요.</p>
         </div>
         <Link
           href="/"

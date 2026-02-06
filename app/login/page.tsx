@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,24 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const response = await fetch('/api/auth/providers');
+        if (!response.ok) {
+          return;
+        }
+        const providers = (await response.json()) as Record<string, { id: string }>;
+        setGoogleEnabled(Boolean(providers.google));
+      } catch {
+        setGoogleEnabled(false);
+      }
+    };
+
+    loadProviders();
+  }, []);
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -20,15 +39,15 @@ export default function LoginPage() {
 
     startTransition(async () => {
       try {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, name }),
+        const result = await signIn('credentials', {
+          redirect: false,
+          email,
+          name,
         });
 
-        if (!response.ok) {
-          const data = (await response.json()) as { error?: string };
-          throw new Error(data.error ?? 'Login failed');
+        if (result?.error) {
+          const message = result.error === 'CredentialsSignin' ? '이메일을 확인해주세요.' : result.error;
+          throw new Error(message);
         }
 
         router.push('/dashboard');
@@ -48,6 +67,23 @@ export default function LoginPage() {
           <CardDescription>로그인하면 작성한 드래프트가 계정에 저장됩니다.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!googleEnabled || isPending}
+              onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+              className="w-full"
+            >
+              Continue with Google
+            </Button>
+            {!googleEnabled && <p className="text-xs text-muted-foreground">Google login is not configured yet.</p>}
+          </div>
+          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            or
+            <span className="h-px flex-1 bg-border" />
+          </div>
           <form className="space-y-4" onSubmit={onSubmit}>
             <label className="block space-y-1 text-sm font-medium">
               Email
@@ -69,7 +105,7 @@ export default function LoginPage() {
             </label>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? 'Signing in…' : 'Sign in'}
+              {isPending ? 'Signing in…' : 'Continue with email'}
             </Button>
           </form>
         </CardContent>
