@@ -1,56 +1,155 @@
-# MVP Roadmap Implementation Status (Current Codebase)
+# 🧭 MVP Roadmap (Updated – Builder SaaS Model)
 
-Reference point: current working tree on the `work` branch.
+## Product Principle
+Anyone can generate and edit a draft site.  
+Publishing requires login + subscription.
 
-## Phase 0. Project Stabilization
-- [x] **Resolve Git issues / remove Vite leftovers**
-  - Root Vite leftover `index.html` is not present in the current tree.
-- [x] **Keep only Next.js App Router runtime structure**
-  - `app/`-based routing and `next.config.ts` are present.
-- [x] **Environment variables / secrets setup guidance**
-  - `README.md` documents `GOOGLE_PLACES_SERVER_KEY` and optional `NEXT_PUBLIC_GOOGLE_PLACES_KEY`, with server-key guidance.
-- [x] **`/api/test-places` successful Places call (status 200)**
-  - `app/api/test-places/route.ts` performs a real Google Places call via `GOOGLE_PLACES_SERVER_KEY`.
+This keeps friction low for first-time users while creating a clear monetization gate.
 
-## Phase 1. “Business Selection” Flow
-### 1.1 Data Model
-- [x] Minimal schema is implemented (models corresponding to `users/sites/places/site_sections`)
-  - `User`, `Site`, `Place`, `Section`, and enums (`SiteStatus`, `SectionType`) are defined in Prisma.
+## User Flow Overview
 
-### 1.2 UI
-- [x] Home search input + result list UI implemented
-  - `PlaceSearch` supports query input, loading/empty/error states, and renders selectable results.
-- [~] “Creating site...” state and redirect to draft editor page after selection
-  - “Creating site...” feedback is implemented.
-  - Redirect behavior is still partially aligned: new sites route to `/s/[slug]` and existing sites route to `/editor/[slug]`.
+### Anonymous User (No Account)
+- [ ] Search for a business
+- [ ] Select a business
+- [ ] Website is auto-generated
+- [ ] User is redirected always to the editor
+  - URL: `/editor/[slug]`
 
-### 1.3 Server APIs
-- [x] `/api/places/autocomplete?q=...` implemented
-- [x] `/api/places/details?place_id=...` implemented
-- [x] `/api/sites/create-from-place` implemented
-  - Fetches place details, upserts place record, creates/returns a draft site, and seeds default sections.
-- [x] End-to-end flow (search → select → draft creation) implemented
-  - Search, place selection, and draft site creation are wired through to persisted site records.
-  - Both public site view (`/s/[slug]`) and draft editor route (`/editor/[slug]`) are available.
+User can:
+- [ ] Edit content
+- [ ] Reorder sections
+- [ ] Save changes
 
-## Phase 2. “Automatic Site Generation”
-- [x] Section generation rules (Hero/About/Contact baseline) implemented
-  - Initial section seed logic exists for HERO, ABOUT, and CONTACT.
-- [ ] Gallery/menu/reviews section generation rules not implemented
-- [x] Public page routing `/s/[slug]` implemented
-  - Dynamic page loads and renders stored sections.
-- [ ] Draft access control and publish transition not implemented
+User cannot:
+- [ ] Publish the site
+- [ ] Access a dashboard
+- [ ] Enable a public URL
 
-## Phase 3. Customize Editor
-- [ ] Site title/subtitle editing not implemented
-- [x] Section reordering implemented
-- [x] About/CTA editing implemented
-- [ ] Theme editing not implemented
-- [ ] Menu CRUD/file upload/menu section rendering not implemented
-- [x] Draft editor route (`/editor/[slug]`) implemented
+CTA shown clearly:
+- [ ] “Publish requires login and subscription”
 
-## Key Current-State Summary
-1. **Foundation status**: Next.js App Router structure is in place with a functional home search UI and server-backed Places integration routes.
-2. **Database readiness**: Prisma schema provides core MVP entities and enums.
-3. **Implemented core flow**: Autocomplete, place details lookup, and site creation from a selected place are now connected.
-4. **Primary remaining gap**: publishing workflow/status transitions and richer section/theme features remain incomplete.
+---
+
+### Logged-In User (No Subscription)
+- [ ] Logs in
+- [ ] Draft site is claimed (owner assigned)
+- [ ] User gains access to:
+  - [ ] Dashboard
+  - [ ] Saved draft sites
+- [ ] User can still edit drafts
+- [ ] Publish remains locked
+
+CTA:
+- [ ] “Subscribe to publish your site”
+
+---
+
+### Subscribed User
+- [ ] Publish button becomes active
+- [ ] Site transitions:
+  - [ ] DRAFT → PUBLISHED
+- [ ] Public site becomes available:
+  - URL: `/s/[slug]`
+
+User can:
+- [ ] Re-publish after edits
+- [ ] Manage sites from dashboard
+
+## Access Rules (RBAC Summary)
+
+| Action | Anonymous | Logged-in | Subscribed |
+| --- | --- | --- | --- |
+| Search business | ✅ | ✅ | ✅ |
+| Create site | ✅ | ✅ | ✅ |
+| Edit draft | ✅ | ✅ | ✅ |
+| Save draft | ✅ | ✅ | ✅ |
+| Publish | ❌ | ❌ | ✅ |
+| Public site | ❌ | ❌ | ✅ |
+| Dashboard | ❌ | ✅ | ✅ |
+
+## Phase Breakdown
+
+### Phase 0 — Project Stabilization (DONE)
+- [x] Next.js App Router only
+- [x] No Vite runtime
+- [x] Prisma schema initialized
+- [x] Google Places API working (`/api/test-places`)
+
+---
+
+### Phase 1 — Business Selection & Draft Creation
+
+Goal:  
+“Select a business → land in the editor every time”
+
+Tasks:
+- [ ] `/api/sites/create-from-place`
+  - [ ] Public endpoint (no auth)
+  - [ ] Creates a DRAFT site
+  - [ ] `ownerId = null`
+- [ ] Redirect behavior:
+  - [ ] Always redirect to `/editor/[slug]`
+- [ ] Existing site selection:
+  - [ ] Always open editor (never `/s/[slug]`)
+
+---
+
+### Phase 2 — Draft Editor (Free Experience)
+
+Goal:  
+“Let users fully experience the builder before paying”
+
+Tasks:
+- [ ] Allow editor access for unclaimed drafts
+- [ ] Enable:
+  - [ ] Content editing
+  - [ ] Section reordering
+  - [ ] Saving
+- [ ] Disable:
+  - [ ] Publish action (UI + API)
+- [ ] Show clear upgrade CTA in editor
+
+---
+
+### Phase 3 — Authentication & Ownership
+
+Goal:  
+“Draft becomes my site”
+
+Tasks:
+- [ ] Auth system (basic login)
+- [ ] Draft claim:
+  - [ ] Assign `site.ownerId` on login
+- [ ] Dashboard:
+  - [ ] List of user’s sites
+  - [ ] Draft / Published badge
+
+---
+
+### Phase 4 — Subscription & Publishing
+
+Goal:  
+“Payment unlocks publishing”
+
+Tasks:
+- [ ] Subscription model (simple boolean or plan enum)
+- [ ] Publish API:
+  - [ ] Anonymous → 401
+  - [ ] Logged-in but not subscribed → 402 or clear custom error
+  - [ ] Subscribed → success
+- [ ] `/s/[slug]`:
+  - [ ] Render only PUBLISHED sites
+  - [ ] Drafts return `notFound` or gated page
+
+---
+
+### Phase 5 — Post-MVP (Later)
+- [ ] Themes
+- [ ] Menu / Gallery / Reviews
+- [ ] Custom domains
+- [ ] SEO controls
+- [ ] Analytics
+
+---
+
+Summary: Updated the roadmap to match the Builder SaaS model with clear access rules, phased tasks, and checkbox tracking.
