@@ -95,7 +95,7 @@ Goal:
 “Select a business → land in the editor every time”
 
 Tasks:
-- /api/sites/create-from-place
+- /api/sites/create-from-place (DONE)
   - Public endpoint (no auth)
   - Creates a DRAFT site
   - ownerId = null
@@ -112,14 +112,14 @@ Goal:
 “Let users fully experience the builder before paying”
 
 Tasks:
-- Allow editor access for unclaimed drafts
+- Allow editor access for unclaimed drafts (DONE)
 - Enable:
-  - Content editing
-  - Section reordering
-  - Saving
+  - Content editing (DONE)
+  - Section reordering (DONE)
+  - Saving (DONE)
 - Disable:
-  - Publish action (UI + API)
-- Show clear upgrade CTA in editor
+  - Publish action (UI + API) (DONE)
+- Show clear upgrade CTA in editor (DONE)
 
 ----------------------------------------
 
@@ -150,8 +150,8 @@ Tasks:
   - Logged-in but not subscribed → 402 or clear custom error
   - Subscribed → success
 - /s/[slug]:
-  - Render only PUBLISHED sites
-  - Drafts return notFound or gated page
+  - Render only PUBLISHED sites (DONE)
+  - Drafts return notFound or gated page (DONE)
 
 ----------------------------------------
 

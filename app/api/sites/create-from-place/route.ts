@@ -110,31 +110,36 @@ export async function POST(request: NextRequest) {
   try {
     body = (await request.json()) as { placeId?: string };
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Invalid JSON body.' }, { status: 400 });
   }
 
   const placeId = body.placeId?.trim();
 
   if (!placeId) {
-    return NextResponse.json({ error: 'placeId is required.' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'placeId is required.' }, { status: 400 });
+  }
+
+  if (!process.env.GOOGLE_PLACES_SERVER_KEY) {
+    return NextResponse.json(
+      { ok: false, error: 'Missing GOOGLE_PLACES_SERVER_KEY environment variable.' },
+      { status: 500 },
+    );
   }
 
   try {
     const existingSite = await prisma.site.findFirst({ where: { placeId }, orderBy: { id: 'desc' } });
     if (existingSite) {
-      return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+      return NextResponse.json({
+        ok: true,
+        site: {
+          id: existingSite.id,
+          slug: existingSite.slug,
+          status: existingSite.status,
+        },
+      });
     }
 
     const place = await resolvePlaceForCreation(placeId);
-
-    const user = await prisma.user.upsert({
-      where: { email: 'demo@local' },
-      create: {
-        email: 'demo@local',
-        name: 'Demo User',
-      },
-      update: {},
-    });
 
     await prisma.place.upsert({
       where: { id: place.id },
@@ -167,7 +172,7 @@ export async function POST(request: NextRequest) {
         title: place.name,
         status: SiteStatus.DRAFT,
         themeJson: null,
-        ownerId: user.id,
+        ownerId: null,
         placeId: place.id,
         sections: {
           create: [
@@ -202,8 +207,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ siteId: site.id, slug: site.slug });
+    return NextResponse.json({
+      ok: true,
+      site: {
+        id: site.id,
+        slug: site.slug,
+        status: site.status,
+      },
+    });
   } catch {
-    return NextResponse.json({ error: 'Failed to create site from place.' }, { status: 502 });
+    return NextResponse.json({ ok: false, error: 'Failed to create site from place.' }, { status: 502 });
   }
 }

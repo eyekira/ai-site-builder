@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { SiteStatus } from '@prisma/client';
 
 import EditorShell from './EditorShell';
 import { prisma } from '@/lib/prisma';
@@ -20,10 +21,19 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
     notFound();
   }
 
+  const isDraft = site.status === SiteStatus.DRAFT;
+  const isUnclaimed = !site.ownerId && isDraft;
+
+  if (site.ownerId && !isUnclaimed) {
+    notFound();
+  }
+
   return (
     <EditorShell
       siteId={site.id}
       slug={site.slug}
+      isDraft={isDraft}
+      isUnclaimed={isUnclaimed}
       sections={site.sections.map((section) => ({
         id: section.id,
         type: section.type as SectionType,

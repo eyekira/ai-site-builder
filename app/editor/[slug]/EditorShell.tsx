@@ -16,6 +16,8 @@ type EditorSection = {
 type EditorShellProps = {
   siteId: number;
   slug: string;
+  isDraft: boolean;
+  isUnclaimed: boolean;
   sections: EditorSection[];
 };
 
@@ -53,7 +55,7 @@ function normalizeSectionContent(section: EditorSection, rawJson: string): strin
   return rawJson;
 }
 
-export default function EditorShell({ siteId, slug, sections }: EditorShellProps) {
+export default function EditorShell({ siteId, slug, isDraft, isUnclaimed, sections }: EditorShellProps) {
   const router = useRouter();
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sections[0]?.id ?? null);
   const [draftsBySection, setDraftsBySection] = useState<Record<number, string>>({});
@@ -246,7 +248,7 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
         <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
           <iframe
             key={previewKey}
-            src={`/s/${slug}?embed=1&v=${previewKey}`}
+            src={`/editor/${slug}/preview?v=${previewKey}`}
             title="Live preview"
             className="h-full w-full rounded-xl"
           />
@@ -254,21 +256,40 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
       </main>
 
       <aside className="bg-white p-4">
+        {isUnclaimed && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Draft mode: You can edit and save. Publish requires login + subscription.
+          </div>
+        )}
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-zinc-600">
             Inspector
             {hasAnyUnsavedChanges && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">Unsaved</span>}
           </h2>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={!selectedSection || saveState === 'saving' || isPending || !hasUnsavedChanges}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saveState === 'saving' ? 'Saving…' : 'Save'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={!selectedSection || saveState === 'saving' || isPending || !hasUnsavedChanges}
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saveState === 'saving' ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              disabled={true}
+              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-400"
+            >
+              Publish
+            </button>
+          </div>
         </div>
 
+        {isDraft && (
+          <p className="mb-3 text-xs font-medium text-zinc-500">
+            Publishing requires login and subscription.
+          </p>
+        )}
         {saveState === 'saved' && <p className="mb-3 text-xs font-medium text-emerald-600">Saved</p>}
         {saveState === 'error' && <p className="mb-3 text-xs font-medium text-red-600">{saveError ?? 'Error while saving'}</p>}
         {hasUnsavedChanges && <p className="mb-3 text-xs font-medium text-amber-600">Unsaved changes</p>}

@@ -35,10 +35,10 @@ model Site {
   title     String
   status    SiteStatus @default(DRAFT)
   themeJson String?
-  ownerId   Int
+  ownerId   Int?
   placeId   String?
 
-  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner    User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   place    Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
   sections Section[]
 }

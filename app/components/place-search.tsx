@@ -88,12 +88,12 @@ export function PlaceSearch() {
         throw new Error('Failed to create site.');
       }
 
-      const data = (await response.json()) as { slug?: string; existed?: boolean };
-      if (!data.slug) {
+      const data = (await response.json()) as { ok?: boolean; site?: { slug?: string } };
+      if (!data.ok || !data.site?.slug) {
         throw new Error('Missing slug in response.');
       }
 
-      router.push(`/editor/${data.slug}`);
+      router.push(`/editor/${data.site.slug}`);
     } catch {
       setError('사이트 생성에 실패했습니다. 다시 시도해주세요.');
     } finally {
