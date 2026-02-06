@@ -1,35 +1,44 @@
 # MVP Roadmap Implementation Status (Current Codebase)
 
-Reference point: current working tree on the `main` branch.
+Reference point: current working tree on the `work` branch.
 
 ## Phase 0. Project Stabilization
 - [x] **Resolve Git issues / remove Vite leftovers**
-  - Root Vite leftover `index.html` removed.
+  - Root Vite leftover `index.html` is not present in the current tree.
 - [x] **Keep only Next.js App Router runtime structure**
   - `app/`-based routing and `next.config.ts` are present.
 - [x] **Environment variables / secrets setup guidance**
-  - `README` documents both `GOOGLE_PLACES_SERVER_KEY` and optional `NEXT_PUBLIC_GOOGLE_PLACES_KEY`, including server-key safety guidance.
+  - `README.md` documents `GOOGLE_PLACES_SERVER_KEY` and optional `NEXT_PUBLIC_GOOGLE_PLACES_KEY`, with server-key guidance.
 - [x] **`/api/test-places` successful Places call (status 200)**
-  - Canonical `app/api/test-places/route.ts` now performs real Google Places calls via `GOOGLE_PLACES_SERVER_KEY`; duplicate mock/alternate route removed.
+  - `app/api/test-places/route.ts` performs a real Google Places call via `GOOGLE_PLACES_SERVER_KEY`.
 
 ## Phase 1. “Business Selection” Flow
 ### 1.1 Data Model
 - [x] Minimal schema is implemented (models corresponding to `users/sites/places/site_sections`)
-  - `User`, `Site`, `Place`, `Section`, and related enums are defined.
+  - `User`, `Site`, `Place`, `Section`, and enums (`SiteStatus`, `SectionType`) are defined in Prisma.
 
 ### 1.2 UI
 - [x] Home search input + result list UI implemented
-- [ ] “Creating site...” state and redirect to draft editor page after selection are not implemented
+  - `PlaceSearch` supports query input, loading/empty/error states, and renders selectable results.
+- [~] “Creating site...” state and redirect to draft editor page after selection
+  - “Creating site...” feedback is implemented.
+  - Redirect behavior is only partially aligned: new sites route to `/s/[slug]` and existing sites route to `/editor/[slug]`, but no editor route currently exists.
 
 ### 1.3 Server APIs
-- [ ] `/api/places/autocomplete?q=...` not implemented
-- [ ] `/api/places/details?place_id=...` not implemented
-- [ ] `/api/sites/create-from-place` not implemented
-- [ ] End-to-end flow (search → select → draft creation) not completed
+- [x] `/api/places/autocomplete?q=...` implemented
+- [x] `/api/places/details?place_id=...` implemented
+- [x] `/api/sites/create-from-place` implemented
+  - Fetches place details, upserts place record, creates/returns a draft site, and seeds default sections.
+- [~] End-to-end flow (search → select → draft creation) partially completed
+  - Search and draft creation are wired.
+  - Final editor handoff is incomplete because `/editor/[slug]` is missing.
 
 ## Phase 2. “Automatic Site Generation”
-- [ ] Section generation rules (Hero/About/Contact/Gallery) not implemented
-- [ ] Public page routing `/s/[slug]` not implemented
+- [x] Section generation rules (Hero/About/Contact baseline) implemented
+  - Initial section seed logic exists for HERO, ABOUT, and CONTACT.
+- [ ] Gallery/menu/reviews section generation rules not implemented
+- [x] Public page routing `/s/[slug]` implemented
+  - Dynamic page loads and renders stored sections.
 - [ ] Draft access control and publish transition not implemented
 
 ## Phase 3. Customize Editor
@@ -38,9 +47,10 @@ Reference point: current working tree on the `main` branch.
 - [ ] About/CTA editing not implemented
 - [ ] Theme editing not implemented
 - [ ] Menu CRUD/file upload/menu section rendering not implemented
+- [ ] Draft editor route (`/editor/[slug]`) not implemented
 
 ## Key Current-State Summary
-1. **Foundation status**: A Next.js App Router scaffold is in place, and a basic home screen + search UI + real server-backed test API route are functional.
-2. **Database readiness**: Prisma schema defines core MVP entities.
-3. **Primary gap**: Key product capabilities (place selection persistence, draft generation/rendering/editing) are still at a pre-implementation stage.
-4. **Cleanup status**: Root Vite leftovers and duplicate `test-places` route implementations have been consolidated.
+1. **Foundation status**: Next.js App Router structure is in place with a functional home search UI and server-backed Places integration routes.
+2. **Database readiness**: Prisma schema provides core MVP entities and enums.
+3. **Implemented core flow**: Autocomplete, place details lookup, and site creation from a selected place are now connected.
+4. **Primary remaining gap**: Draft editing/publishing capabilities (including `/editor/[slug]`) are still missing.
