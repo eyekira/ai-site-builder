@@ -36,6 +36,74 @@ async function generateUniqueSlug(name: string, placeId: string) {
   return `${initial}-${Date.now().toString(36)}`;
 }
 
+type ResolvedPlace = {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  hoursJson: Record<string, unknown> | null;
+  lat: number | null;
+  lng: number | null;
+  city: string | null;
+};
+
+async function resolvePlaceForCreation(placeId: string): Promise<ResolvedPlace> {
+  try {
+    return await fetchPlaceDetails(placeId);
+  } catch {
+    const existingPlace = await prisma.place.findUnique({ where: { id: placeId } });
+
+    if (existingPlace) {
+      return {
+        id: existingPlace.id,
+        name: existingPlace.name,
+        address: existingPlace.address,
+        phone: existingPlace.phone,
+        website: existingPlace.website,
+        hoursJson: (() => {
+          if (typeof existingPlace.hoursJson !== 'string') {
+            return null;
+          }
+
+          try {
+            return JSON.parse(existingPlace.hoursJson) as Record<string, unknown>;
+          } catch {
+            return null;
+          }
+        })(),
+        lat: existingPlace.lat,
+        lng: existingPlace.lng,
+        city: null,
+      };
+    }
+
+    return {
+      id: placeId,
+      name: 'New Site',
+      address: null,
+      phone: null,
+      website: null,
+      hoursJson: null,
+      lat: null,
+      lng: null,
+      city: null,
+    };
+  }
+}
+
+function buildHeroCtas(place: ResolvedPlace): Array<{ label: string; href: string }> {
+  if (place.phone) {
+    return [{ label: 'Call us', href: `tel:${place.phone}` }];
+  }
+
+  if (place.website) {
+    return [{ label: 'Visit website', href: place.website }];
+  }
+
+  return [{ label: 'Learn more', href: '#' }];
+}
+
 export async function POST(request: NextRequest) {
   let body: { placeId?: string };
 
@@ -57,7 +125,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
     }
 
-    const place = await fetchPlaceDetails(placeId);
+    const place = await resolvePlaceForCreation(placeId);
 
     const user = await prisma.user.upsert({
       where: { email: 'demo@local' },
@@ -108,18 +176,15 @@ export async function POST(request: NextRequest) {
               order: 1,
               contentJson: JSON.stringify({
                 headline: place.name,
-                subheadline: place.city,
-                ctas: [
-                  { type: 'CALL', value: place.phone },
-                  { type: 'DIRECTIONS', value: place.address },
-                ].filter((cta) => Boolean(cta.value)),
+                subheadline: place.city ?? '',
+                ctas: buildHeroCtas(place),
               }),
             },
             {
               type: SectionType.ABOUT,
               order: 2,
               contentJson: JSON.stringify({
-                body: `Welcome to ${place.name}${place.city ? ` in ${place.city}` : ''}. We’re glad you’re here.`,
+                text: `Welcome to ${place.name}${place.city ? ` in ${place.city}` : ''}. We’re glad you’re here.`,
               }),
             },
             {
@@ -129,9 +194,7 @@ export async function POST(request: NextRequest) {
                 address: place.address,
                 phone: place.phone,
                 website: place.website,
-                hoursJson: place.hoursJson,
-                lat: place.lat,
-                lng: place.lng,
+                hours: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
               }),
             },
           ],
