@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="flex min-h-screen flex-col">
           <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
             <div className="container flex h-16 items-center justify-between">
-              <p className="text-lg font-semibold tracking-tight">AI Site Builder</p>
+              <a className="text-lg font-semibold tracking-tight" href="/" >AI Site Builder</a>
               <Badge variant="secondary">MVP</Badge>
             </div>
           </header>
