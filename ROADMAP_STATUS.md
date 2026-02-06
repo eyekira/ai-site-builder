@@ -16,9 +16,9 @@ This keeps friction low for first-time users while creating a clear monetization
   - URL: `/editor/[slug]`
 
 User can:
-- [ ] Edit content
-- [ ] Reorder sections
-- [ ] Save changes
+- [x] Edit content
+- [x] Reorder sections
+- [x] Save changes
 
 User cannot:
 - [ ] Publish the site
@@ -26,7 +26,7 @@ User cannot:
 - [ ] Enable a public URL
 
 CTA shown clearly:
-- [ ] “Publish requires login and subscription”
+- [x] “Publish requires login and subscription”
 
 ---
 
@@ -100,14 +100,14 @@ Goal:
 “Let users fully experience the builder before paying”
 
 Tasks:
-- [ ] Allow editor access for unclaimed drafts
-- [ ] Enable:
-  - [ ] Content editing
-  - [ ] Section reordering
-  - [ ] Saving
-- [ ] Disable:
-  - [ ] Publish action (UI + API)
-- [ ] Show clear upgrade CTA in editor
+- [x] Allow editor access for unclaimed drafts
+- [x] Enable:
+  - [x] Content editing
+  - [x] Section reordering
+  - [x] Saving
+- [x] Disable:
+  - [x] Publish action (UI + API)
+- [x] Show clear upgrade CTA in editor
 
 ---
 
@@ -138,8 +138,8 @@ Tasks:
   - [ ] Logged-in but not subscribed → 402 or clear custom error
   - [ ] Subscribed → success
 - [ ] `/s/[slug]`:
-  - [ ] Render only PUBLISHED sites
-  - [ ] Drafts return `notFound` or gated page
+  - [x] Render only PUBLISHED sites
+  - [x] Drafts return `notFound` or gated page
 
 ---
 
