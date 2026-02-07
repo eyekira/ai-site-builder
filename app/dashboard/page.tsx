@@ -17,8 +17,8 @@ export default async function DashboardPage() {
       <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 text-center">
         <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>로그인이 필요합니다</CardTitle>
-            <CardDescription>대시보드에서 저장된 사이트를 확인하려면 로그인하세요.</CardDescription>
+            <CardTitle>Login required</CardTitle>
+            <CardDescription>Log in to view your saved sites on the dashboard.</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/login" className={cn(buttonBase, 'h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90')}>
@@ -46,21 +46,21 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{session?.user?.name ?? '회원'}님의 사이트를 확인하세요.</p>
+          <p className="text-sm text-muted-foreground">View the sites for {session?.user?.name ?? 'your account'}.</p>
         </div>
         <Link
           href="/"
           className={cn(buttonBase, 'h-10 px-4 py-2 border bg-background hover:bg-accent hover:text-accent-foreground')}
         >
-          새 사이트 만들기
+          Create new site
         </Link>
       </div>
 
       {sites.length === 0 ? (
         <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>아직 저장된 사이트가 없습니다</CardTitle>
-            <CardDescription>홈에서 장소를 검색해 새 사이트를 생성하세요.</CardDescription>
+            <CardTitle>No saved sites yet</CardTitle>
+            <CardDescription>Search for a place on the home page to create a new site.</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/" className={cn(buttonBase, 'h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90')}>

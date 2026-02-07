@@ -12,7 +12,7 @@ export default function HomePage() {
       </Badge>
       <div className="space-y-3">
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Restaurant Finder</h1>
-        <p className="text-muted-foreground">원하는 식당을 검색하고 사이트 제작에 바로 활용하세요.</p>
+        <p className="text-muted-foreground">Search for a restaurant and use it to build a site right away.</p>
       </div>
       <PlaceSearch />
     </section>
