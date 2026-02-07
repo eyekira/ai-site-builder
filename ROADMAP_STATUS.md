@@ -148,7 +148,7 @@ Tasks:
 
 ### Phase 5 — Post-MVP (Later)
 - [x] Themes
-- [ ] Menu / Gallery / Reviews
+- [x] Menu / Gallery / Reviews
 - [ ] Custom domains
 - [ ] SEO controls
 - [ ] Analytics
