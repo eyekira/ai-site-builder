@@ -132,7 +132,9 @@ export async function POST(request: NextRequest) {
     const place = await resolvePlaceForCreation(placeId);
     const session = await auth();
     const ownerId = session?.user?.id ? Number(session.user.id) : null;
-    const isLoggedIn = Boolean(ownerId && !Number.isNaN(ownerId));
+    const owner = ownerId && !Number.isNaN(ownerId) ? await prisma.user.findUnique({ where: { id: ownerId } }) : null;
+    const resolvedOwnerId = owner?.id ?? null;
+    const isLoggedIn = Boolean(resolvedOwnerId);
     const anonSessionId = !isLoggedIn ? getAnonSessionIdFromRequest(request) ?? createAnonSessionId() : null;
 
     await prisma.place.upsert({
@@ -160,13 +162,20 @@ export async function POST(request: NextRequest) {
 
     const slug = await generateUniqueSlug(place.name, place.id);
 
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[create-from-place] site.create ids', {
+        ownerId: resolvedOwnerId,
+        placeId: place.id,
+      });
+    }
+
     const site = await prisma.site.create({
       data: {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
         themeJson: serializeTheme('classic'),
-        ownerId: isLoggedIn ? ownerId : null,
+        ownerId: resolvedOwnerId,
         anonSessionId: isLoggedIn ? null : anonSessionId,
         placeId: place.id,
         sections: {
