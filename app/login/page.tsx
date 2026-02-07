@@ -36,9 +36,15 @@ export default function LoginPage() {
     loadProviders();
   }, []);
 
-  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
+const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  setError(null);
+
+  const trimmedPassword = password.trim();
+  if (trimmedPassword.length < 6) {
+    setError('비밀번호는 최소 6자 이상이어야 합니다.');
+    return;
+  }
 
     startTransition(async () => {
       try {
