@@ -1,31 +1,19 @@
+import type { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 
-export const DRAFT_COOKIE = 'aisb_drafts';
+export const ANON_SESSION_COOKIE = 'aisb_anon_session';
+export const ANON_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
-export type DraftCookiePayload = number[];
+export type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
-export function parseDraftCookie(value: string | undefined): DraftCookiePayload {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as DraftCookiePayload;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter((id) => Number.isInteger(id));
-  } catch {
-    return [];
-  }
+export function createAnonSessionId(): string {
+  return crypto.randomUUID();
 }
 
-export function getDraftIdsFromRequest(request: NextRequest): number[] {
-  return parseDraftCookie(request.cookies.get(DRAFT_COOKIE)?.value);
+export function getAnonSessionIdFromRequest(request: NextRequest): string | null {
+  return request.cookies.get(ANON_SESSION_COOKIE)?.value ?? null;
 }
 
-export function buildDraftCookieValue(existing: number[], nextId: number) {
-  const unique = Array.from(new Set([nextId, ...existing]));
-  return JSON.stringify(unique.slice(0, 20));
+export function getAnonSessionIdFromCookies(cookieStore: CookieStore): string | null {
+  return cookieStore.get(ANON_SESSION_COOKIE)?.value ?? null;
 }

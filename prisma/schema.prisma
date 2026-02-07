@@ -22,25 +22,30 @@ enum SectionType {
 }
 
 model User {
-  id    Int    @id @default(autoincrement())
-  email String @unique
-  name  String
+  id         Int     @id @default(autoincrement())
+  email      String  @unique
+  name       String
+  phone      String?
+  subscribed Boolean @default(false)
 
   sites Site[]
 }
 
 model Site {
-  id        Int        @id @default(autoincrement())
-  slug      String     @unique
-  title     String
-  status    SiteStatus @default(DRAFT)
-  themeJson String?
-  ownerId   Int?
-  placeId   String?
+  id             Int        @id @default(autoincrement())
+  slug           String     @unique
+  title          String
+  status         SiteStatus @default(DRAFT)
+  themeJson      String?
+  ownerId        Int?
+  anonSessionId  String?
+  placeId        String?
 
   owner    User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   place    Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
   sections Section[]
+
+  @@index([anonSessionId])
 }
 
 model Place {
