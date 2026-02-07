@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [step, setStep] = useState<'login' | 'signup'>('login');
+  const returnTo = searchParams.get('returnTo');
+  const safeReturnTo = returnTo && returnTo.startsWith('/') ? returnTo : '/dashboard';
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -84,7 +87,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
           throw new Error(message);
         }
 
-        router.push('/dashboard');
+        router.push(safeReturnTo);
         router.refresh();
       } catch (requestError) {
         const message = requestError instanceof Error ? requestError.message : 'Login failed';
@@ -106,7 +109,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
               type="button"
               variant="outline"
               disabled={!googleEnabled || isPending}
-              onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+              onClick={() => signIn('google', { callbackUrl: safeReturnTo })}
               className="w-full"
             >
               Continue with Google

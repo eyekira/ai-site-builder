@@ -25,21 +25,21 @@ export async function POST(request: NextRequest) {
   try {
     body = (await request.json()) as PublishPayload;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
+    return NextResponse.json({ error: 'INVALID_JSON' }, { status: 400 });
   }
 
   const siteId = parseSiteId(body.siteId);
   if (!siteId) {
-    return NextResponse.json({ error: 'siteId is required.' }, { status: 400 });
+    return NextResponse.json({ error: 'SITE_ID_REQUIRED' }, { status: 400 });
   }
 
   const user = await getAuthenticatedUser();
   if (!user) {
-    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
   if (!user.subscribed) {
-    return NextResponse.json({ error: 'Subscription required.' }, { status: 402 });
+    return NextResponse.json({ error: 'SUBSCRIPTION_REQUIRED' }, { status: 402 });
   }
 
   const site = await prisma.site.findUnique({
@@ -48,16 +48,20 @@ export async function POST(request: NextRequest) {
   });
 
   if (!site) {
-    return NextResponse.json({ error: 'Site not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'SITE_NOT_FOUND' }, { status: 404 });
+  }
+
+  if (!site.ownerId) {
+    return NextResponse.json({ error: 'SITE_UNCLAIMED' }, { status: 403 });
   }
 
   if (site.ownerId !== user.id) {
-    return NextResponse.json({ error: 'Not allowed to publish this site.' }, { status: 403 });
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
   }
 
   const updated = await prisma.site.update({
     where: { id: site.id },
-    data: { status: 'PUBLISHED' },
+    data: { status: 'PUBLISHED', publishedAt: new Date() },
     select: { id: true, slug: true, status: true },
   });
 
@@ -65,5 +69,5 @@ export async function POST(request: NextRequest) {
   revalidatePath(`/editor/${updated.slug}`);
   revalidatePath(`/editor/${updated.slug}/preview`);
 
-  return NextResponse.json({ siteId: updated.id, slug: updated.slug, status: updated.status });
+  return NextResponse.json({ ok: true, slug: updated.slug });
 }

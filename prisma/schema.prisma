@@ -37,6 +37,9 @@ model Site {
   slug           String     @unique
   title          String
   status         SiteStatus @default(DRAFT)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  publishedAt    DateTime?
   themeJson      String?
   ownerId        Int?
   anonSessionId  String?

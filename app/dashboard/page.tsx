@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -13,26 +14,12 @@ export default async function DashboardPage() {
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
 
   if (!userId) {
-    return (
-      <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 text-center">
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Login required</CardTitle>
-            <CardDescription>Log in to view your saved sites on the dashboard.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/login" className={cn(buttonBase, 'h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90')}>
-              Login
-            </Link>
-          </CardContent>
-        </Card>
-      </section>
-    );
+    redirect('/login?returnTo=/dashboard');
   }
 
   const sites = await prisma.site.findMany({
     where: { ownerId: userId },
-    orderBy: { id: 'desc' },
+    orderBy: { updatedAt: 'desc' },
     select: {
       id: true,
       slug: true,
@@ -77,14 +64,16 @@ export default async function DashboardPage() {
                   <CardTitle className="text-lg">{site.title}</CardTitle>
                   <CardDescription>/{site.slug}</CardDescription>
                 </div>
-                <Badge variant={site.status === 'PUBLISHED' ? 'default' : 'secondary'}>{site.status}</Badge>
+                <Badge variant={site.status === 'PUBLISHED' ? 'default' : 'secondary'}>
+                  {site.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+                </Badge>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 <Link
-                  href={`/editor/${site.slug}`}
+                  href={site.status === 'PUBLISHED' ? `/s/${site.slug}` : `/editor/${site.slug}`}
                   className={cn(buttonBase, 'h-9 rounded-xl px-3 bg-primary text-primary-foreground hover:bg-primary/90')}
                 >
-                  Open editor
+                  {site.status === 'PUBLISHED' ? 'View site' : 'Open editor'}
                 </Link>
               </CardContent>
             </Card>
