@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { prisma } from '@/lib/prisma';
+import { canAccessSite, getViewerContext } from '@/lib/rbac';
 import { defaultContentForType, parseSectionContent, type SectionType } from '@/lib/section-content';
 
 async function normalizeSiteSectionOrders(siteId: number) {
@@ -27,7 +28,7 @@ async function getSiteSection(siteId: number, sectionId: number) {
     where: { id: sectionId, siteId },
     include: {
       site: {
-        select: { slug: true },
+        select: { slug: true, ownerId: true, anonSessionId: true },
       },
     },
   });
@@ -40,7 +41,12 @@ async function getSiteSection(siteId: number, sectionId: number) {
 }
 
 export async function updateSection(siteId: number, sectionId: number, contentJsonString: string) {
+  const viewer = await getViewerContext();
   const section = await getSiteSection(siteId, sectionId);
+
+  if (!canAccessSite(section.site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
+  }
 
   const normalizedContent = parseSectionContent(section.type as SectionType, contentJsonString);
 
@@ -57,11 +63,16 @@ export async function updateSection(siteId: number, sectionId: number, contentJs
 }
 
 export async function reorderSections(siteId: number, orderedSectionIds: number[]) {
+  const viewer = await getViewerContext();
   const sections = await prisma.section.findMany({
     where: { siteId },
-    include: { site: { select: { slug: true } } },
+    include: { site: { select: { slug: true, ownerId: true, anonSessionId: true } } },
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
   });
+  const site = sections[0]?.site;
+  if (!site || !canAccessSite(site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
+  }
 
   const sectionIds = sections.map((section) => section.id);
   const payloadIds = new Set(orderedSectionIds);
@@ -105,13 +116,18 @@ export async function addSection(siteId: number, type: SectionType) {
     throw new Error('Unsupported section type for editor MVP.');
   }
 
+  const viewer = await getViewerContext();
   const site = await prisma.site.findUnique({
     where: { id: siteId },
-    select: { id: true, slug: true, _count: { select: { sections: true } } },
+    select: { id: true, slug: true, ownerId: true, anonSessionId: true, _count: { select: { sections: true } } },
   });
 
   if (!site) {
     throw new Error('Site not found.');
+  }
+
+  if (!canAccessSite(site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
   }
 
   await prisma.section.create({

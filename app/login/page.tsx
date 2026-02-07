@@ -11,10 +11,13 @@ import { Input } from '@/components/ui/input';
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [step, setStep] = useState<'login' | 'signup'>('login');
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -39,14 +42,39 @@ export default function LoginPage() {
 
     startTransition(async () => {
       try {
+        let shouldSignup = step === 'signup';
+        if (step === 'login') {
+          const checkResponse = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+          if (checkResponse.ok) {
+            const data = (await checkResponse.json()) as { exists?: boolean };
+            shouldSignup = !data.exists;
+          }
+        }
+
+        if (shouldSignup && step === 'login') {
+          setStep('signup');
+          setError('이름과 전화번호를 입력해 계정을 생성해주세요.');
+          return;
+        }
+
+        if (shouldSignup && (!name.trim() || !phone.trim())) {
+          setError('이름과 전화번호를 입력해 계정을 생성해주세요.');
+          return;
+        }
+
         const result = await signIn('credentials', {
           redirect: false,
           email,
-          name,
+          password,
+          ...(shouldSignup ? { name, phone } : {}),
         });
 
         if (result?.error) {
-          const message = result.error === 'CredentialsSignin' ? '이메일을 확인해주세요.' : result.error;
+          const message = shouldSignup
+            ? '회원가입에 실패했습니다. 정보를 확인해주세요.'
+            : result.error === 'CredentialsSignin'
+              ? '이메일 또는 비밀번호를 확인해주세요.'
+              : result.error;
           throw new Error(message);
         }
 
@@ -96,16 +124,45 @@ export default function LoginPage() {
               />
             </label>
             <label className="block space-y-1 text-sm font-medium">
-              Name
+              Password
               <Input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Your name"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 6 characters"
+                required
               />
             </label>
+            {step === 'login' && (
+              <p className="text-xs text-muted-foreground">
+                계정이 없다면 다음 단계에서 이름과 전화번호를 입력해 가입할 수 있어요.
+              </p>
+            )}
+            {step === 'signup' && (
+              <>
+                <label className="block space-y-1 text-sm font-medium">
+                  Name
+                  <Input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Your name"
+                    required
+                  />
+                </label>
+                <label className="block space-y-1 text-sm font-medium">
+                  Phone
+                  <Input
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    placeholder="01012345678"
+                    required
+                  />
+                </label>
+              </>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? 'Signing in…' : 'Continue with email'}
+              {isPending ? 'Signing in…' : step === 'signup' ? 'Create account' : 'Continue with email'}
             </Button>
           </form>
         </CardContent>

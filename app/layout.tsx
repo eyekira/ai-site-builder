@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 
 import { auth } from '@/auth';
+import LogoutButton from '@/components/auth/LogoutButton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -33,12 +34,30 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </a>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">MVP</Badge>
-                <Link
-                  href={session?.user?.id ? '/dashboard' : '/login'}
-                  className={cn(buttonBase, 'h-9 px-3 border border-transparent bg-primary text-primary-foreground hover:bg-primary/90')}
-                >
-                  {session?.user?.id ? 'Dashboard' : 'Login'}
-                </Link>
+                {session?.user?.id ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className={cn(
+                        buttonBase,
+                        'h-9 px-3 border border-transparent bg-primary text-primary-foreground hover:bg-primary/90',
+                      )}
+                    >
+                      Dashboard
+                    </Link>
+                    <LogoutButton className={cn(buttonBase, 'h-9 px-3 border border-input bg-background hover:bg-muted')} />
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    className={cn(
+                      buttonBase,
+                      'h-9 px-3 border border-transparent bg-primary text-primary-foreground hover:bg-primary/90',
+                    )}
+                  >
+                    Login
+                  </Link>
+                )}
               </div>
             </div>
           </header>
