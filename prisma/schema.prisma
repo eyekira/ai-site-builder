@@ -41,6 +41,7 @@ model Site {
   ownerId        Int?
   anonSessionId  String?
   placeId        String?
+  customDomain   String?    @unique
 
   owner    User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   place    Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)

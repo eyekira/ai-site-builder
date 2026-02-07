@@ -43,6 +43,7 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
       themeName={parseThemeJson(site.themeJson).name}
       isLoggedIn={Boolean(userId)}
       isSubscribed={Boolean(user?.subscribed)}
+      customDomain={site.customDomain}
       sections={site.sections.map((section) => ({
         id: section.id,
         type: section.type as SectionType,

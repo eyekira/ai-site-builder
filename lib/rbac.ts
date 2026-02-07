@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import { auth } from '@/auth';
 import { getAnonSessionIdFromCookies } from '@/lib/auth';
@@ -34,6 +34,16 @@ export async function getViewerContext(): Promise<ViewerContext> {
   const userId = session?.user?.id ? Number(session.user.id) : null;
   const cookieStore = await cookies();
   const anonSessionId = getAnonSessionIdFromCookies(cookieStore);
+  const headerStore = await headers();
+
+  if (process.env.DEBUG_VIEWER_CONTEXT === 'true') {
+    console.log('[viewer]', {
+      userId: !userId || Number.isNaN(userId) ? null : userId,
+      anonSessionId,
+      host: headerStore.get('host'),
+      origin: headerStore.get('origin'),
+    });
+  }
 
   return {
     userId: !userId || Number.isNaN(userId) ? null : userId,

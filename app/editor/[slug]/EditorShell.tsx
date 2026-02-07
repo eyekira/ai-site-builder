@@ -29,6 +29,7 @@ type EditorShellProps = {
   themeName: ThemeName;
   isLoggedIn: boolean;
   isSubscribed: boolean;
+  customDomain: string | null;
   sections: EditorSection[];
 };
 
@@ -98,6 +99,7 @@ export default function EditorShell({
   themeName,
   isLoggedIn,
   isSubscribed,
+  customDomain,
   sections,
 }: EditorShellProps) {
   const router = useRouter();
@@ -115,6 +117,9 @@ export default function EditorShell({
   const [currentTheme, setCurrentTheme] = useState<ThemeName>(themeName);
   const [themeState, setThemeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
+  const [domainInput, setDomainInput] = useState(customDomain ?? '');
+  const [domainState, setDomainState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [domainMessage, setDomainMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const orderedSections = useMemo(
@@ -289,6 +294,46 @@ export default function EditorShell({
     });
   };
 
+  const onSaveDomain = () => {
+    if (!isSubscribed) {
+      return;
+    }
+
+    setDomainState('saving');
+    setDomainMessage(null);
+
+    startTransition(async () => {
+      try {
+        const response = await fetch('/api/sites/custom-domain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId, domain: domainInput }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as { error?: string; customDomain?: string } | null;
+
+        if (!response.ok) {
+          const message =
+            payload?.error ??
+            (response.status === 401
+              ? 'Please log in to save a domain.'
+              : response.status === 402
+                ? 'Subscription required to use a custom domain.'
+                : 'Unable to save domain.');
+          throw new Error(message);
+        }
+
+        setDomainInput(payload?.customDomain ?? '');
+        setDomainState('saved');
+        setDomainMessage(payload?.customDomain ? 'Custom domain saved.' : 'Custom domain cleared.');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not save domain.';
+        setDomainState('error');
+        setDomainMessage(message);
+      }
+    });
+  };
+
   const onThemeChange = (nextTheme: ThemeName) => {
     if (nextTheme === currentTheme) {
       return;
@@ -444,6 +489,42 @@ export default function EditorShell({
               }`}
             >
               {publishMessage}
+            </p>
+          )}
+        </div>
+
+        <div className="mb-4 rounded-lg border border-zinc-200 bg-white p-3 text-xs text-zinc-700">
+          <p className="font-semibold uppercase tracking-wide text-zinc-500">Custom domain</p>
+          {isSubscribed ? (
+            <p className="mt-1 text-xs text-zinc-600">Connect a domain to show this published site on your own URL.</p>
+          ) : (
+            <p className="mt-1 text-xs text-amber-700">Subscribe to connect a custom domain.</p>
+          )}
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={domainInput}
+              onChange={(event) => setDomainInput(event.target.value)}
+              placeholder="yourdomain.com"
+              disabled={!isSubscribed || domainState === 'saving'}
+              className="flex-1 rounded-md border border-zinc-200 px-2 py-1.5 text-xs text-zinc-700 focus:border-zinc-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-100"
+            />
+            <button
+              type="button"
+              onClick={onSaveDomain}
+              disabled={!isSubscribed || domainState === 'saving'}
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
+            >
+              {domainState === 'saving' ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+          {domainMessage && (
+            <p
+              className={`mt-2 text-xs ${
+                domainState === 'error' ? 'text-red-600' : domainState === 'saved' ? 'text-emerald-600' : ''
+              }`}
+            >
+              {domainMessage}
             </p>
           )}
         </div>
