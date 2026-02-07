@@ -59,7 +59,7 @@ export function PlaceSearch() {
         if ((fetchError as Error).name === 'AbortError') {
           return;
         }
-        setError('검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        setError('Something went wrong while searching. Please try again soon.');
       } finally {
         setLoading(false);
       }
@@ -96,7 +96,7 @@ export function PlaceSearch() {
 
       router.push(`/editor/${data.slug}`);
     } catch {
-      setError('사이트 생성에 실패했습니다. 다시 시도해주세요.');
+      setError('Failed to create the site. Please try again.');
     } finally {
       setCreating(false);
     }
@@ -105,8 +105,8 @@ export function PlaceSearch() {
   return (
     <Card className="w-full rounded-2xl">
       <CardHeader>
-        <CardTitle className="text-left text-xl">장소 검색</CardTitle>
-        <CardDescription className="text-left">식당 이름 또는 주소를 입력해 사이트를 시작하세요.</CardDescription>
+        <CardTitle className="text-left text-xl">Search places</CardTitle>
+        <CardDescription className="text-left">Enter a restaurant name or address to start your site.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="relative">
@@ -114,9 +114,9 @@ export function PlaceSearch() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="식당 이름 또는 주소를 입력하세요"
+            placeholder="Enter a restaurant name or address"
             className="pl-9"
-            aria-label="식당 검색"
+            aria-label="Restaurant search"
             disabled={creating}
           />
         </div>
@@ -128,11 +128,13 @@ export function PlaceSearch() {
           </Badge>
         )}
 
-        {!creating && loading && <p className="text-sm text-muted-foreground">검색 중...</p>}
+        {!creating && loading && <p className="text-sm text-muted-foreground">Searching...</p>}
         {!loading && error && <p className="text-sm text-destructive">{error}</p>}
-        {!loading && !error && !hasQuery && <p className="text-sm text-muted-foreground">원하는 식당을 검색해보세요.</p>}
+        {!loading && !error && !hasQuery && (
+          <p className="text-sm text-muted-foreground">Search for a restaurant to get started.</p>
+        )}
         {!loading && !error && hasQuery && results.length === 0 && (
-          <p className="text-sm text-muted-foreground">검색 결과가 없습니다.</p>
+          <p className="text-sm text-muted-foreground">No results found.</p>
         )}
 
         {!loading && !error && results.length > 0 && (

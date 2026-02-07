@@ -42,7 +42,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 
   const trimmedPassword = password.trim();
   if (trimmedPassword.length < 6) {
-    setError('비밀번호는 최소 6자 이상이어야 합니다.');
+    setError('Password must be at least 6 characters.');
     return;
   }
 
@@ -59,12 +59,12 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 
         if (shouldSignup && step === 'login') {
           setStep('signup');
-          setError('이름과 전화번호를 입력해 계정을 생성해주세요.');
+          setError('Please enter your name and phone number to create an account.');
           return;
         }
 
         if (shouldSignup && (!name.trim() || !phone.trim())) {
-          setError('이름과 전화번호를 입력해 계정을 생성해주세요.');
+          setError('Please enter your name and phone number to create an account.');
           return;
         }
 
@@ -77,9 +77,9 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 
         if (result?.error) {
           const message = shouldSignup
-            ? '회원가입에 실패했습니다. 정보를 확인해주세요.'
+            ? 'Sign up failed. Please check your information.'
             : result.error === 'CredentialsSignin'
-              ? '이메일 또는 비밀번호를 확인해주세요.'
+              ? 'Please check your email or password.'
               : result.error;
           throw new Error(message);
         }
@@ -98,7 +98,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
       <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle>Login</CardTitle>
-          <CardDescription>로그인하면 작성한 드래프트가 계정에 저장됩니다.</CardDescription>
+          <CardDescription>Log in to save your drafts to your account.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -141,7 +141,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
             </label>
             {step === 'login' && (
               <p className="text-xs text-muted-foreground">
-                계정이 없다면 다음 단계에서 이름과 전화번호를 입력해 가입할 수 있어요.
+                If you do not have an account, enter your name and phone number in the next step to sign up.
               </p>
             )}
             {step === 'signup' && (
