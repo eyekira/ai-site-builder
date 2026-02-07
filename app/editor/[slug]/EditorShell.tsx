@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection } from './actions';
+import { addSection, reorderSections, updateSection, updateTheme } from './actions';
 import { parseAboutContent, parseContactContent, parseHeroContent, type SectionType } from '@/lib/section-content';
+import { THEME_OPTIONS, type ThemeName } from '@/lib/theme';
 
 type EditorSection = {
   id: number;
@@ -17,6 +18,7 @@ type EditorShellProps = {
   siteId: number;
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
+  themeName: ThemeName;
   isLoggedIn: boolean;
   isSubscribed: boolean;
   sections: EditorSection[];
@@ -57,19 +59,30 @@ function normalizeSectionContent(section: EditorSection, rawJson: string): strin
   return rawJson;
 }
 
-export default function EditorShell({ siteId, slug, siteStatus, isLoggedIn, isSubscribed, sections }: EditorShellProps) {
+export default function EditorShell({
+  siteId,
+  slug,
+  siteStatus,
+  themeName,
+  isLoggedIn,
+  isSubscribed,
+  sections,
+}: EditorShellProps) {
   const router = useRouter();
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sections[0]?.id ?? null);
   const [draftsBySection, setDraftsBySection] = useState<Record<number, string>>({});
   const [lastSavedBySection, setLastSavedBySection] = useState<Record<number, string>>(() =>
     Object.fromEntries(sections.map((section) => [section.id, normalizeSectionContent(section, section.contentJson)])),
   );
-  const [previewKey, setPreviewKey] = useState(Date.now());
+  const [previewKey, setPreviewKey] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [publishState, setPublishState] = useState<PublishState>('idle');
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
   const [currentStatus, setCurrentStatus] = useState<'DRAFT' | 'PUBLISHED'>(siteStatus);
+  const [currentTheme, setCurrentTheme] = useState<ThemeName>(themeName);
+  const [themeState, setThemeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [themeMessage, setThemeMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const orderedSections = useMemo(
@@ -102,6 +115,22 @@ export default function EditorShell({ siteId, slug, siteStatus, isLoggedIn, isSu
 
     return () => window.clearTimeout(timer);
   }, [saveState]);
+
+  useEffect(() => {
+    setPreviewKey(Date.now());
+  }, []);
+
+  useEffect(() => {
+    if (themeState !== 'saved') {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setThemeState('idle');
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [themeState]);
 
   const currentDraft = selectedSection
     ? draftsBySection[selectedSection.id] ?? normalizeSectionContent(selectedSection, selectedSection.contentJson)
@@ -228,6 +257,28 @@ export default function EditorShell({ siteId, slug, siteStatus, isLoggedIn, isSu
     });
   };
 
+  const onThemeChange = (nextTheme: ThemeName) => {
+    if (nextTheme === currentTheme) {
+      return;
+    }
+
+    setCurrentTheme(nextTheme);
+    setThemeState('saving');
+    setThemeMessage(null);
+
+    startTransition(async () => {
+      try {
+        await updateTheme(siteId, nextTheme);
+        setThemeState('saved');
+        setPreviewKey(Date.now());
+        router.refresh();
+      } catch {
+        setThemeState('error');
+        setThemeMessage('Unable to update theme. Please try again.');
+      }
+    });
+  };
+
   return (
     <div className="grid h-screen grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
@@ -302,6 +353,29 @@ export default function EditorShell({ siteId, slug, siteStatus, isLoggedIn, isSu
       </main>
 
       <aside className="bg-white p-4">
+        <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
+          <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {THEME_OPTIONS.map((theme) => (
+              <button
+                key={theme.name}
+                type="button"
+                onClick={() => onThemeChange(theme.name)}
+                className={`rounded-md border px-2 py-2 text-xs font-medium transition ${
+                  currentTheme === theme.name
+                    ? 'border-zinc-900 bg-white text-zinc-900'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
+                }`}
+              >
+                <div className={`mb-2 h-6 w-full rounded ${theme.previewClass}`} />
+                {theme.label}
+              </button>
+            ))}
+          </div>
+          {themeState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving theme…</p>}
+          {themeState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Theme saved.</p>}
+          {themeState === 'error' && <p className="mt-2 text-xs text-red-600">{themeMessage}</p>}
+        </div>
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing</p>
           {currentStatus === 'PUBLISHED' ? (
