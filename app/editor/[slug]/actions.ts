@@ -113,8 +113,8 @@ export async function reorderSections(siteId: number, orderedSectionIds: number[
 }
 
 export async function addSection(siteId: number, type: SectionType) {
-  if (!['HERO', 'ABOUT', 'CONTACT'].includes(type)) {
-    throw new Error('Unsupported section type for editor MVP.');
+  if (!['HERO', 'ABOUT', 'CONTACT', 'MENU', 'GALLERY', 'REVIEWS'].includes(type)) {
+    throw new Error('Unsupported section type for editor.');
   }
 
   const viewer = await getViewerContext();

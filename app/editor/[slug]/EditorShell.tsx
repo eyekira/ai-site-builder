@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { addSection, reorderSections, updateSection, updateTheme } from './actions';
-import { parseAboutContent, parseContactContent, parseHeroContent, type SectionType } from '@/lib/section-content';
+import {
+  parseAboutContent,
+  parseContactContent,
+  parseGalleryContent,
+  parseHeroContent,
+  parseMenuContent,
+  parseReviewsContent,
+  type SectionType,
+} from '@/lib/section-content';
 import { THEME_OPTIONS, type ThemeName } from '@/lib/theme';
 
 type EditorSection = {
@@ -40,6 +48,18 @@ function sectionTitle(section: EditorSection): string {
     return parseContactContent(section.contentJson).address ?? 'Contact details';
   }
 
+  if (section.type === 'MENU') {
+    return parseMenuContent(section.contentJson).title;
+  }
+
+  if (section.type === 'GALLERY') {
+    return parseGalleryContent(section.contentJson).title;
+  }
+
+  if (section.type === 'REVIEWS') {
+    return parseReviewsContent(section.contentJson).title;
+  }
+
   return section.type;
 }
 
@@ -54,6 +74,18 @@ function normalizeSectionContent(section: EditorSection, rawJson: string): strin
 
   if (section.type === 'CONTACT') {
     return JSON.stringify(parseContactContent(rawJson));
+  }
+
+  if (section.type === 'MENU') {
+    return JSON.stringify(parseMenuContent(rawJson));
+  }
+
+  if (section.type === 'GALLERY') {
+    return JSON.stringify(parseGalleryContent(rawJson));
+  }
+
+  if (section.type === 'REVIEWS') {
+    return JSON.stringify(parseReviewsContent(rawJson));
   }
 
   return rawJson;
@@ -206,7 +238,7 @@ export default function EditorShell({
     });
   };
 
-  const onAddSection = (type: 'HERO' | 'ABOUT' | 'CONTACT') => {
+  const onAddSection = (type: SectionType) => {
     startTransition(async () => {
       await addSection(siteId, type);
       setSaveState('idle');
@@ -307,7 +339,7 @@ export default function EditorShell({
         <div className="mt-6 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Add section</p>
           <div className="grid grid-cols-3 gap-2">
-            {(['HERO', 'ABOUT', 'CONTACT'] as const).map((type) => (
+            {(['HERO', 'ABOUT', 'CONTACT', 'MENU', 'GALLERY', 'REVIEWS'] as const).map((type) => (
               <button
                 key={type}
                 type="button"
@@ -477,8 +509,16 @@ export default function EditorShell({
           <ContactInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
         )}
 
-        {selectedSection && !['HERO', 'ABOUT', 'CONTACT'].includes(selectedSection.type) && (
-          <p className="text-sm text-zinc-500">Coming soon.</p>
+        {selectedSection?.type === 'MENU' && (
+          <MenuInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
+        )}
+
+        {selectedSection?.type === 'GALLERY' && (
+          <GalleryInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
+        )}
+
+        {selectedSection?.type === 'REVIEWS' && (
+          <ReviewsInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
         )}
 
         {selectedSection && (!hasAboutSection || !hasContactSection) && (
@@ -627,6 +667,267 @@ function ContactInspector({ json, onChange }: { json: string; onChange: (json: s
           />
         </label>
       ))}
+    </div>
+  );
+}
+
+function MenuInspector({ json, onChange }: { json: string; onChange: (json: string) => void }) {
+  const value = parseMenuContent(json);
+
+  return (
+    <div className="space-y-4">
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Title
+        <input
+          value={value.title}
+          onChange={(event) => onChange(JSON.stringify({ ...value, title: event.target.value }))}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Menu items</p>
+          <button
+            type="button"
+            onClick={() =>
+              onChange(
+                JSON.stringify({
+                  ...value,
+                  items: [...value.items, { name: 'New item', description: '', price: '' }],
+                }),
+              )
+            }
+            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+          >
+            + Add item
+          </button>
+        </div>
+        {value.items.map((item, index) => (
+          <div key={`${item.name}-${index}`} className="space-y-2 rounded-md border border-zinc-200 p-3">
+            <input
+              value={item.name}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, name: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="Item name"
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <textarea
+              value={item.description}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, description: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="Short description"
+              rows={3}
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <input
+              value={item.price}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, price: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="$"
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  if (value.items.length <= 1) {
+                    return;
+                  }
+
+                  onChange(JSON.stringify({ ...value, items: value.items.filter((_, itemIndex) => itemIndex !== index) }));
+                }}
+                disabled={value.items.length <= 1}
+                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GalleryInspector({ json, onChange }: { json: string; onChange: (json: string) => void }) {
+  const value = parseGalleryContent(json);
+
+  return (
+    <div className="space-y-4">
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Title
+        <input
+          value={value.title}
+          onChange={(event) => onChange(JSON.stringify({ ...value, title: event.target.value }))}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Gallery images</p>
+          <button
+            type="button"
+            onClick={() =>
+              onChange(
+                JSON.stringify({
+                  ...value,
+                  items: [...value.items, { url: 'https://placehold.co/600x400/png', caption: '' }],
+                }),
+              )
+            }
+            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+          >
+            + Add image
+          </button>
+        </div>
+        {value.items.map((item, index) => (
+          <div key={`${item.url}-${index}`} className="space-y-2 rounded-md border border-zinc-200 p-3">
+            <input
+              value={item.url}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, url: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="https://..."
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <input
+              value={item.caption}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, caption: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="Caption"
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  if (value.items.length <= 1) {
+                    return;
+                  }
+
+                  onChange(JSON.stringify({ ...value, items: value.items.filter((_, itemIndex) => itemIndex !== index) }));
+                }}
+                disabled={value.items.length <= 1}
+                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReviewsInspector({ json, onChange }: { json: string; onChange: (json: string) => void }) {
+  const value = parseReviewsContent(json);
+
+  return (
+    <div className="space-y-4">
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Title
+        <input
+          value={value.title}
+          onChange={(event) => onChange(JSON.stringify({ ...value, title: event.target.value }))}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Reviews</p>
+          <button
+            type="button"
+            onClick={() =>
+              onChange(
+                JSON.stringify({
+                  ...value,
+                  items: [...value.items, { author: 'Customer', quote: '', rating: 5 }],
+                }),
+              )
+            }
+            className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+          >
+            + Add review
+          </button>
+        </div>
+        {value.items.map((item, index) => (
+          <div key={`${item.author}-${index}`} className="space-y-2 rounded-md border border-zinc-200 p-3">
+            <input
+              value={item.author}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, author: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="Author"
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <textarea
+              value={item.quote}
+              onChange={(event) => {
+                const next = [...value.items];
+                next[index] = { ...item, quote: event.target.value };
+                onChange(JSON.stringify({ ...value, items: next }));
+              }}
+              placeholder="Quote"
+              rows={3}
+              className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+            />
+            <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Rating
+              <select
+                value={item.rating}
+                onChange={(event) => {
+                  const next = [...value.items];
+                  next[index] = { ...item, rating: Number(event.target.value) };
+                  onChange(JSON.stringify({ ...value, items: next }));
+                }}
+                className="mt-1 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm"
+              >
+                {[5, 4, 3, 2, 1].map((rating) => (
+                  <option key={rating} value={rating}>
+                    {rating} stars
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  if (value.items.length <= 1) {
+                    return;
+                  }
+
+                  onChange(JSON.stringify({ ...value, items: value.items.filter((_, itemIndex) => itemIndex !== index) }));
+                }}
+                disabled={value.items.length <= 1}
+                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

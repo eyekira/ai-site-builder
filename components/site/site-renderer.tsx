@@ -1,5 +1,12 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { parseAboutContent, parseContactContent, parseHeroContent } from '@/lib/section-content';
+import {
+  parseAboutContent,
+  parseContactContent,
+  parseGalleryContent,
+  parseHeroContent,
+  parseMenuContent,
+  parseReviewsContent,
+} from '@/lib/section-content';
 import { parseThemeJson } from '@/lib/theme';
 
 type SiteSection = {
@@ -98,6 +105,70 @@ export function SiteRenderer({ title, sections, themeJson, embedMode = false }: 
                       </p>
                     )}
                     {content.hours && <p>Hours: {content.hours}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          if (section.type === 'MENU') {
+            const content = parseMenuContent(section.contentJson);
+
+            return (
+              <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-semibold">{content.title}</h2>
+                  <div className="mt-4 space-y-4">
+                    {content.items.map((item, index) => (
+                      <div key={`${item.name}-${index}`} className="flex items-start justify-between gap-6">
+                        <div>
+                          <p className="text-base font-semibold">{item.name}</p>
+                          {item.description && <p className={`mt-1 text-sm ${theme.mutedTextClass}`}>{item.description}</p>}
+                        </div>
+                        {item.price && <span className="text-sm font-semibold text-zinc-900">{item.price}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          if (section.type === 'GALLERY') {
+            const content = parseGalleryContent(section.contentJson);
+
+            return (
+              <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-semibold">{content.title}</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {content.items.map((item, index) => (
+                      <figure key={`${item.url}-${index}`} className="overflow-hidden rounded-xl border border-zinc-200">
+                        <img src={item.url} alt={item.caption || 'Gallery image'} className="h-48 w-full object-cover" />
+                        {item.caption && <figcaption className={`px-3 py-2 text-sm ${theme.mutedTextClass}`}>{item.caption}</figcaption>}
+                      </figure>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          if (section.type === 'REVIEWS') {
+            const content = parseReviewsContent(section.contentJson);
+
+            return (
+              <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-semibold">{content.title}</h2>
+                  <div className="mt-4 grid gap-4">
+                    {content.items.map((item, index) => (
+                      <div key={`${item.author}-${index}`} className="rounded-xl border border-zinc-200 p-4">
+                        <div className="text-sm font-semibold text-amber-500">{'★'.repeat(item.rating)}</div>
+                        {item.quote && <p className={`mt-2 text-sm ${theme.mutedTextClass}`}>{item.quote}</p>}
+                        <p className="mt-3 text-sm font-semibold text-zinc-900">{item.author}</p>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>

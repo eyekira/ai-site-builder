@@ -19,6 +19,38 @@ export type ContactContent = {
   hours: string | null;
 };
 
+export type MenuItem = {
+  name: string;
+  description: string;
+  price: string;
+};
+
+export type MenuContent = {
+  title: string;
+  items: MenuItem[];
+};
+
+export type GalleryItem = {
+  url: string;
+  caption: string;
+};
+
+export type GalleryContent = {
+  title: string;
+  items: GalleryItem[];
+};
+
+export type ReviewItem = {
+  author: string;
+  quote: string;
+  rating: number;
+};
+
+export type ReviewsContent = {
+  title: string;
+  items: ReviewItem[];
+};
+
 export const DEFAULT_HERO_CONTENT: HeroContent = {
   headline: 'Welcome to our business',
   subheadline: 'We help our customers with great service.',
@@ -34,6 +66,56 @@ export const DEFAULT_CONTACT_CONTENT: ContactContent = {
   phone: null,
   website: null,
   hours: null,
+};
+
+export const DEFAULT_MENU_CONTENT: MenuContent = {
+  title: 'Menu',
+  items: [
+    {
+      name: 'Signature Item',
+      description: 'Our most popular offering, made fresh daily.',
+      price: '$12',
+    },
+    {
+      name: 'Seasonal Special',
+      description: 'Limited-time flavors with local ingredients.',
+      price: '$15',
+    },
+  ],
+};
+
+export const DEFAULT_GALLERY_CONTENT: GalleryContent = {
+  title: 'Gallery',
+  items: [
+    {
+      url: 'https://placehold.co/600x400/png',
+      caption: 'Storefront',
+    },
+    {
+      url: 'https://placehold.co/600x400/png',
+      caption: 'Signature dish',
+    },
+    {
+      url: 'https://placehold.co/600x400/png',
+      caption: 'Team at work',
+    },
+  ],
+};
+
+export const DEFAULT_REVIEWS_CONTENT: ReviewsContent = {
+  title: 'Reviews',
+  items: [
+    {
+      author: 'Alex P.',
+      quote: 'Friendly service and incredible attention to detail.',
+      rating: 5,
+    },
+    {
+      author: 'Jordan M.',
+      quote: 'Loved the atmosphere and the quality. We will be back.',
+      rating: 4,
+    },
+  ],
 };
 
 function parseJson(raw: string): unknown {
@@ -104,7 +186,111 @@ export function parseContactContent(raw: string): ContactContent {
   };
 }
 
-export function parseSectionContent(type: SectionType, raw: string): HeroContent | AboutContent | ContactContent | Record<string, never> {
+function parseMenuItems(value: unknown): MenuItem[] {
+  if (!Array.isArray(value)) {
+    return DEFAULT_MENU_CONTENT.items;
+  }
+
+  const items = value
+    .filter((entry) => typeof entry === 'object' && entry !== null)
+    .map((entry) => {
+      const item = entry as Record<string, unknown>;
+
+      return {
+        name: cleanString(item.name, 'Menu item'),
+        description: cleanString(item.description, ''),
+        price: cleanString(item.price, ''),
+      };
+    })
+    .filter((item) => item.name.trim().length > 0);
+
+  return items.length > 0 ? items : DEFAULT_MENU_CONTENT.items;
+}
+
+function parseGalleryItems(value: unknown): GalleryItem[] {
+  if (!Array.isArray(value)) {
+    return DEFAULT_GALLERY_CONTENT.items;
+  }
+
+  const items = value
+    .filter((entry) => typeof entry === 'object' && entry !== null)
+    .map((entry) => {
+      const item = entry as Record<string, unknown>;
+
+      return {
+        url: cleanString(item.url, 'https://placehold.co/600x400/png'),
+        caption: cleanString(item.caption, ''),
+      };
+    })
+    .filter((item) => item.url.trim().length > 0);
+
+  return items.length > 0 ? items : DEFAULT_GALLERY_CONTENT.items;
+}
+
+function parseReviewItems(value: unknown): ReviewItem[] {
+  if (!Array.isArray(value)) {
+    return DEFAULT_REVIEWS_CONTENT.items;
+  }
+
+  const items = value
+    .filter((entry) => typeof entry === 'object' && entry !== null)
+    .map((entry) => {
+      const item = entry as Record<string, unknown>;
+      const rating = typeof item.rating === 'number' ? item.rating : Number(item.rating);
+      const normalizedRating = Number.isFinite(rating) ? Math.min(Math.max(Math.round(rating), 1), 5) : 5;
+
+      return {
+        author: cleanString(item.author, 'Happy customer'),
+        quote: cleanString(item.quote, ''),
+        rating: normalizedRating,
+      };
+    })
+    .filter((item) => item.quote.trim().length > 0 || item.author.trim().length > 0);
+
+  return items.length > 0 ? items : DEFAULT_REVIEWS_CONTENT.items;
+}
+
+export function parseMenuContent(raw: string): MenuContent {
+  const parsed = parseJson(raw);
+  const record = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+
+  return {
+    title: cleanString(record.title, DEFAULT_MENU_CONTENT.title),
+    items: parseMenuItems(record.items),
+  };
+}
+
+export function parseGalleryContent(raw: string): GalleryContent {
+  const parsed = parseJson(raw);
+  const record = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+
+  return {
+    title: cleanString(record.title, DEFAULT_GALLERY_CONTENT.title),
+    items: parseGalleryItems(record.items),
+  };
+}
+
+export function parseReviewsContent(raw: string): ReviewsContent {
+  const parsed = parseJson(raw);
+  const record = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+
+  return {
+    title: cleanString(record.title, DEFAULT_REVIEWS_CONTENT.title),
+    items: parseReviewItems(record.items),
+  };
+}
+
+export function parseSectionContent(
+  type: SectionType,
+  raw: string,
+):
+  | HeroContent
+  | AboutContent
+  | ContactContent
+  | MenuContent
+  | GalleryContent
+  | ReviewsContent
+  | Record<string, never> {
   if (type === 'HERO') {
     return parseHeroContent(raw);
   }
@@ -115,6 +301,18 @@ export function parseSectionContent(type: SectionType, raw: string): HeroContent
 
   if (type === 'CONTACT') {
     return parseContactContent(raw);
+  }
+
+  if (type === 'MENU') {
+    return parseMenuContent(raw);
+  }
+
+  if (type === 'GALLERY') {
+    return parseGalleryContent(raw);
+  }
+
+  if (type === 'REVIEWS') {
+    return parseReviewsContent(raw);
   }
 
   return {};
@@ -131,6 +329,18 @@ export function defaultContentForType(type: SectionType): string {
 
   if (type === 'CONTACT') {
     return JSON.stringify(DEFAULT_CONTACT_CONTENT);
+  }
+
+  if (type === 'MENU') {
+    return JSON.stringify(DEFAULT_MENU_CONTENT);
+  }
+
+  if (type === 'GALLERY') {
+    return JSON.stringify(DEFAULT_GALLERY_CONTENT);
+  }
+
+  if (type === 'REVIEWS') {
+    return JSON.stringify(DEFAULT_REVIEWS_CONTENT);
   }
 
   return JSON.stringify({});
