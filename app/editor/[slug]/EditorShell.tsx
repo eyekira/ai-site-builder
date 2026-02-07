@@ -16,10 +16,14 @@ type EditorSection = {
 type EditorShellProps = {
   siteId: number;
   slug: string;
+  siteStatus: 'DRAFT' | 'PUBLISHED';
+  isLoggedIn: boolean;
+  isSubscribed: boolean;
   sections: EditorSection[];
 };
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+type PublishState = 'idle' | 'publishing' | 'success' | 'error';
 
 function sectionTitle(section: EditorSection): string {
   if (section.type === 'HERO') {
@@ -53,7 +57,7 @@ function normalizeSectionContent(section: EditorSection, rawJson: string): strin
   return rawJson;
 }
 
-export default function EditorShell({ siteId, slug, sections }: EditorShellProps) {
+export default function EditorShell({ siteId, slug, siteStatus, isLoggedIn, isSubscribed, sections }: EditorShellProps) {
   const router = useRouter();
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sections[0]?.id ?? null);
   const [draftsBySection, setDraftsBySection] = useState<Record<number, string>>({});
@@ -63,6 +67,9 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
   const [previewKey, setPreviewKey] = useState(Date.now());
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [publishState, setPublishState] = useState<PublishState>('idle');
+  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<'DRAFT' | 'PUBLISHED'>(siteStatus);
   const [isPending, startTransition] = useTransition();
 
   const orderedSections = useMemo(
@@ -180,6 +187,47 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
     });
   };
 
+  const onPublish = () => {
+    if (!isSubscribed || currentStatus === 'PUBLISHED') {
+      return;
+    }
+
+    setPublishState('publishing');
+    setPublishMessage(null);
+
+    startTransition(async () => {
+      try {
+        const response = await fetch('/api/sites/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as { error?: string; slug?: string } | null;
+
+        if (!response.ok) {
+          const message =
+            payload?.error ??
+            (response.status === 401
+              ? 'Please log in to publish.'
+              : response.status === 402
+                ? 'Subscription required to publish.'
+                : 'Unable to publish right now.');
+          throw new Error(message);
+        }
+
+        setCurrentStatus('PUBLISHED');
+        setPublishState('success');
+        setPublishMessage(`Published! Your site is live at /s/${payload?.slug ?? slug}.`);
+        router.refresh();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not publish.';
+        setPublishState('error');
+        setPublishMessage(message);
+      }
+    });
+  };
+
   return (
     <div className="grid h-screen grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
@@ -255,15 +303,43 @@ export default function EditorShell({ siteId, slug, sections }: EditorShellProps
 
       <aside className="bg-white p-4">
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing locked</p>
-          <p className="mt-1">Publish requires login and an active subscription.</p>
+          <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing</p>
+          {currentStatus === 'PUBLISHED' ? (
+            <p className="mt-1">This site is already live.</p>
+          ) : isSubscribed ? (
+            <p className="mt-1">You are ready to publish.</p>
+          ) : isLoggedIn ? (
+            <p className="mt-1">Subscribe to publish your site.</p>
+          ) : (
+            <p className="mt-1">Log in and subscribe to publish your site.</p>
+          )}
           <button
             type="button"
-            disabled
-            className="mt-3 w-full rounded-md bg-amber-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-900 opacity-70"
+            onClick={onPublish}
+            disabled={!isSubscribed || publishState === 'publishing' || currentStatus === 'PUBLISHED'}
+            className={`mt-3 w-full rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide ${
+              isSubscribed && currentStatus !== 'PUBLISHED'
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-amber-200 text-amber-900 opacity-70'
+            }`}
           >
-            Publish (locked)
+            {currentStatus === 'PUBLISHED'
+              ? 'Published'
+              : publishState === 'publishing'
+                ? 'Publishing…'
+                : isSubscribed
+                  ? 'Publish'
+                  : 'Publish (locked)'}
           </button>
+          {publishMessage && (
+            <p
+              className={`mt-2 text-xs ${
+                publishState === 'error' ? 'text-red-600' : publishState === 'success' ? 'text-emerald-700' : ''
+              }`}
+            >
+              {publishMessage}
+            </p>
+          )}
         </div>
 
         <div className="mb-4 flex items-center justify-between gap-2">

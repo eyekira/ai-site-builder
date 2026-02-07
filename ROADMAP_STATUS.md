@@ -19,6 +19,7 @@ User can:
 - [x] Edit content
 - [x] Reorder sections
 - [x] Save changes
+- [x] Reopen draft on same device
 
 User cannot:
 - [ ] Publish the site
@@ -40,16 +41,16 @@ CTA shown clearly:
 - [ ] Publish remains locked
 
 CTA:
-- [ ] “Subscribe to publish your site”
+- [x] “Subscribe to publish your site”
 
 ---
 
 ### Subscribed User
-- [ ] Publish button becomes active
-- [ ] Site transitions:
-  - [ ] DRAFT → PUBLISHED
-- [ ] Public site becomes available:
-  - URL: `/s/[slug]`
+- [x] Publish button becomes active
+- [x] Site transitions:
+  - [x] DRAFT → PUBLISHED
+- [x] Public site becomes available:
+  - [x] URL: `/s/[slug]`
 
 User can:
 - [ ] Re-publish after edits
@@ -108,6 +109,7 @@ Tasks:
 - [x] Disable:
   - [x] Publish action (UI + API)
 - [x] Show clear upgrade CTA in editor
+- [x] Anonymous draft ownership via anon session cookie
 
 ---
 
@@ -120,6 +122,7 @@ Tasks:
 - [x] Auth system (basic login)
 - [x] Draft claim:
   - [x] Assign `site.ownerId` on login
+- [x] Logout flow (clear session and return to anonymous mode)
 - [x] Dashboard:
   - [x] List of user’s sites
   - [x] Draft / Published badge
@@ -132,12 +135,12 @@ Goal:
 “Payment unlocks publishing”
 
 Tasks:
-- [ ] Subscription model (simple boolean or plan enum)
-- [ ] Publish API:
-  - [ ] Anonymous → 401
-  - [ ] Logged-in but not subscribed → 402 or clear custom error
-  - [ ] Subscribed → success
-- [ ] `/s/[slug]`:
+- [x] Subscription model (simple boolean or plan enum)
+- [x] Publish API:
+  - [x] Anonymous → 401
+  - [x] Logged-in but not subscribed → 402 or clear custom error
+  - [x] Subscribed → success
+- [x] `/s/[slug]`:
   - [x] Render only PUBLISHED sites
   - [x] Drafts return `notFound` or gated page
 
