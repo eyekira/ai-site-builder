@@ -8,6 +8,7 @@ import {
   createAnonSessionId,
   getAnonSessionIdFromRequest,
 } from '@/lib/auth';
+import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
 
@@ -192,7 +193,7 @@ export async function POST(request: NextRequest) {
                 address: place.address,
                 phone: place.phone,
                 website: place.website,
-                hours: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
+                hours: formatHoursFromJson(place.hoursJson),
               }),
             },
           ],

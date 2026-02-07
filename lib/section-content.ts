@@ -1,3 +1,5 @@
+import { normalizeHoursText } from '@/lib/hours';
+
 export type SectionType = 'HERO' | 'ABOUT' | 'CONTACT' | 'MENU' | 'GALLERY' | 'REVIEWS';
 
 export type HeroContent = {
@@ -98,7 +100,7 @@ export function parseContactContent(raw: string): ContactContent {
     address: cleanNullableString(record.address),
     phone: cleanNullableString(record.phone),
     website: cleanNullableString(record.website),
-    hours: cleanNullableString(record.hours),
+    hours: normalizeHoursText(cleanNullableString(record.hours)),
   };
 }
 
