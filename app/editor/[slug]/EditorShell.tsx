@@ -74,7 +74,7 @@ export default function EditorShell({
   const [lastSavedBySection, setLastSavedBySection] = useState<Record<number, string>>(() =>
     Object.fromEntries(sections.map((section) => [section.id, normalizeSectionContent(section, section.contentJson)])),
   );
-  const [previewKey, setPreviewKey] = useState(Date.now());
+  const [previewKey, setPreviewKey] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [publishState, setPublishState] = useState<PublishState>('idle');
@@ -115,6 +115,10 @@ export default function EditorShell({
 
     return () => window.clearTimeout(timer);
   }, [saveState]);
+
+  useEffect(() => {
+    setPreviewKey(Date.now());
+  }, []);
 
   useEffect(() => {
     if (themeState !== 'saved') {
