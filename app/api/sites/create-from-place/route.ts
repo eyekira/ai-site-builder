@@ -11,6 +11,7 @@ import {
 import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
+import { serializeTheme } from '@/lib/theme';
 
 function slugify(value: string) {
   return value
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
-        themeJson: null,
+        themeJson: serializeTheme('classic'),
         ownerId: isLoggedIn ? ownerId : null,
         anonSessionId: isLoggedIn ? null : anonSessionId,
         placeId: place.id,

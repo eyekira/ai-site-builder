@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { parseAboutContent, parseContactContent, parseHeroContent } from '@/lib/section-content';
+import { parseThemeJson } from '@/lib/theme';
 
 type SiteSection = {
   id: number;
@@ -10,10 +11,13 @@ type SiteSection = {
 type SiteRendererProps = {
   title: string;
   sections: SiteSection[];
+  themeJson?: string | null;
   embedMode?: boolean;
 };
 
-export function SiteRenderer({ title, sections, embedMode = false }: SiteRendererProps) {
+export function SiteRenderer({ title, sections, themeJson, embedMode = false }: SiteRendererProps) {
+  const theme = parseThemeJson(themeJson);
+
   return (
     <>
       {embedMode && (
@@ -33,23 +37,25 @@ export function SiteRenderer({ title, sections, embedMode = false }: SiteRendere
 
       <section
         data-site-embed={embedMode ? 'true' : undefined}
-        className={`flex w-full flex-col gap-6 ${embedMode ? 'mx-0 max-w-none bg-zinc-100 p-6' : 'mx-auto max-w-3xl'}`}
+        className={`flex w-full flex-col gap-6 ${
+          embedMode ? `mx-0 max-w-none p-6 ${theme.sectionBackgroundClass}` : 'mx-auto max-w-3xl'
+        }`}
       >
         {sections.map((section) => {
           if (section.type === 'HERO') {
             const content = parseHeroContent(section.contentJson);
 
             return (
-              <Card key={section.id} className="rounded-2xl bg-gray-900 text-white">
+              <Card key={section.id} className={`rounded-2xl ${theme.heroClass}`}>
                 <CardContent className="p-8">
                   <h1 className="text-4xl font-bold">{content.headline || title}</h1>
-                  {content.subheadline && <p className="mt-2 text-gray-200">{content.subheadline}</p>}
+                  {content.subheadline && <p className="mt-2 text-white/80">{content.subheadline}</p>}
                   <div className="mt-5 flex flex-wrap gap-3">
                     {content.ctas.map((cta, index) => (
                       <a
                         key={`${cta.label}-${cta.href}-${index}`}
                         href={cta.href}
-                        className="rounded-md bg-white px-4 py-2 text-sm font-medium text-zinc-900"
+                        className={`rounded-md px-4 py-2 text-sm font-medium ${theme.buttonClass}`}
                       >
                         {cta.label}
                       </a>
@@ -64,10 +70,10 @@ export function SiteRenderer({ title, sections, embedMode = false }: SiteRendere
             const content = parseAboutContent(section.contentJson);
 
             return (
-              <Card key={section.id} className="rounded-2xl">
+              <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
                 <CardContent className="p-6">
                   <h2 className="text-2xl font-semibold">About</h2>
-                  <p className="mt-2 text-muted-foreground">{content.text}</p>
+                  <p className={`mt-2 ${theme.mutedTextClass}`}>{content.text}</p>
                 </CardContent>
               </Card>
             );
@@ -77,16 +83,16 @@ export function SiteRenderer({ title, sections, embedMode = false }: SiteRendere
             const content = parseContactContent(section.contentJson);
 
             return (
-              <Card key={section.id} className="rounded-2xl">
+              <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
                 <CardContent className="p-6">
                   <h2 className="text-2xl font-semibold">Contact</h2>
-                  <div className="mt-3 space-y-1 text-muted-foreground">
+                  <div className={`mt-3 space-y-1 ${theme.mutedTextClass}`}>
                     {content.address && <p>Address: {content.address}</p>}
                     {content.phone && <p>Phone: {content.phone}</p>}
                     {content.website && (
                       <p>
                         Website:{' '}
-                        <a href={content.website} className="text-primary underline underline-offset-4">
+                        <a href={content.website} className={`underline underline-offset-4 ${theme.accentTextClass}`}>
                           {content.website}
                         </a>
                       </p>
@@ -99,10 +105,10 @@ export function SiteRenderer({ title, sections, embedMode = false }: SiteRendere
           }
 
           return (
-            <Card key={section.id} className="rounded-2xl">
+            <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
               <CardContent className="p-6">
                 <h2 className="text-xl font-semibold">{section.type}</h2>
-                <p className="mt-2 text-muted-foreground">Coming soon.</p>
+                <p className={`mt-2 ${theme.mutedTextClass}`}>Coming soon.</p>
               </CardContent>
             </Card>
           );

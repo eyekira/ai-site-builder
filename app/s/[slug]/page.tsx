@@ -34,5 +34,5 @@ export default async function SitePage({ params, searchParams }: SitePageProps) 
     notFound();
   }
 
-  return <SiteRenderer title={site.title} sections={site.sections} embedMode={embedMode} />;
+  return <SiteRenderer title={site.title} sections={site.sections} themeJson={site.themeJson} embedMode={embedMode} />;
 }

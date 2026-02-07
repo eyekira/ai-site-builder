@@ -19,5 +19,5 @@ export default async function EditorPreviewPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  return <SiteRenderer title={site.title} sections={site.sections} embedMode />;
+  return <SiteRenderer title={site.title} sections={site.sections} themeJson={site.themeJson} embedMode />;
 }
