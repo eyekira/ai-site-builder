@@ -114,6 +114,10 @@ export default function EditorShell({
   const [publishState, setPublishState] = useState<PublishState>('idle');
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
   const [currentStatus, setCurrentStatus] = useState<'DRAFT' | 'PUBLISHED'>(siteStatus);
+  const [hasSubscription, setHasSubscription] = useState(isSubscribed);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeState, setUpgradeState] = useState<'idle' | 'subscribing' | 'error'>('idle');
+  const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
   const [currentTheme, setCurrentTheme] = useState<ThemeName>(themeName);
   const [themeState, setThemeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
@@ -253,49 +257,107 @@ export default function EditorShell({
     });
   };
 
-  const onPublish = () => {
-    if (!isSubscribed || currentStatus === 'PUBLISHED') {
-      return;
-    }
-
+  const publishSite = async () => {
     setPublishState('publishing');
     setPublishMessage(null);
 
+    try {
+      const response = await fetch('/api/sites/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string; slug?: string } | null;
+
+      if (!response.ok) {
+        const errorCode = payload?.error;
+        const message =
+          errorCode === 'UNAUTHORIZED'
+            ? 'Please log in to publish.'
+            : errorCode === 'SUBSCRIPTION_REQUIRED'
+              ? 'Subscription required to publish.'
+              : errorCode === 'SITE_UNCLAIMED'
+                ? 'This draft must be claimed before publishing.'
+                : errorCode === 'FORBIDDEN'
+                  ? 'You are not allowed to publish this site.'
+                  : response.status === 401
+                    ? 'Please log in to publish.'
+                    : response.status === 402
+                      ? 'Subscription required to publish.'
+                      : response.status === 403
+                        ? 'You are not allowed to publish this site.'
+                        : 'Unable to publish right now.';
+        const messageWithCode = errorCode ? `${message} (${errorCode})` : message;
+        throw new Error(messageWithCode);
+      }
+
+      setCurrentStatus('PUBLISHED');
+      setPublishState('success');
+      setPublishMessage(`Published! Your site is live at /s/${payload?.slug ?? slug}.`);
+      router.push(`/s/${payload?.slug ?? slug}`);
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not publish.';
+      setPublishState('error');
+      setPublishMessage(message);
+    }
+  };
+
+  const onPublish = () => {
+    if (currentStatus === 'PUBLISHED') {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      router.push(`/login?returnTo=${encodeURIComponent(`/editor/${slug}`)}`);
+      return;
+    }
+
+    if (!hasSubscription) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    startTransition(async () => {
+      await publishSite();
+    });
+  };
+
+  const onSubscribeAndPublish = () => {
+    setUpgradeState('subscribing');
+    setUpgradeMessage(null);
+
     startTransition(async () => {
       try {
-        const response = await fetch('/api/sites/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ siteId }),
-        });
-
-        const payload = (await response.json().catch(() => null)) as { error?: string; slug?: string } | null;
+        const response = await fetch('/api/billing/subscribe', { method: 'POST' });
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
         if (!response.ok) {
-          const message =
-            payload?.error ??
-            (response.status === 401
-              ? 'Please log in to publish.'
-              : response.status === 402
-                ? 'Subscription required to publish.'
-                : 'Unable to publish right now.');
-          throw new Error(message);
+          const errorCode = payload?.error ?? 'SUBSCRIPTION_FAILED';
+          throw new Error(`Subscription failed. (${errorCode})`);
         }
 
-        setCurrentStatus('PUBLISHED');
-        setPublishState('success');
-        setPublishMessage(`Published! Your site is live at /s/${payload?.slug ?? slug}.`);
-        router.refresh();
+        setHasSubscription(true);
+        setShowUpgradeModal(false);
+        setUpgradeState('idle');
+        await publishSite();
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Could not publish.';
-        setPublishState('error');
-        setPublishMessage(message);
+        const message = error instanceof Error ? error.message : 'Unable to subscribe.';
+        setUpgradeState('error');
+        setUpgradeMessage(message);
       }
     });
   };
 
+  const closeUpgradeModal = () => {
+    setShowUpgradeModal(false);
+    setUpgradeState('idle');
+    setUpgradeMessage(null);
+  };
+
   const onSaveDomain = () => {
-    if (!isSubscribed) {
+    if (!hasSubscription) {
       return;
     }
 
@@ -457,7 +519,7 @@ export default function EditorShell({
           <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing</p>
           {currentStatus === 'PUBLISHED' ? (
             <p className="mt-1">This site is already live.</p>
-          ) : isSubscribed ? (
+          ) : hasSubscription ? (
             <p className="mt-1">You are ready to publish.</p>
           ) : isLoggedIn ? (
             <p className="mt-1">Subscribe to publish your site.</p>
@@ -467,9 +529,9 @@ export default function EditorShell({
           <button
             type="button"
             onClick={onPublish}
-            disabled={!isSubscribed || publishState === 'publishing' || currentStatus === 'PUBLISHED'}
+            disabled={publishState === 'publishing' || currentStatus === 'PUBLISHED'}
             className={`mt-3 w-full rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide ${
-              isSubscribed && currentStatus !== 'PUBLISHED'
+              hasSubscription && currentStatus !== 'PUBLISHED'
                 ? 'bg-amber-500 text-white hover:bg-amber-600'
                 : 'bg-amber-200 text-amber-900 opacity-70'
             }`}
@@ -478,9 +540,11 @@ export default function EditorShell({
               ? 'Published'
               : publishState === 'publishing'
                 ? 'Publishing…'
-                : isSubscribed
-                  ? 'Publish'
-                  : 'Publish (locked)'}
+                : !isLoggedIn
+                  ? 'Login to publish'
+                  : hasSubscription
+                    ? 'Publish'
+                    : 'Subscribe to publish'}
           </button>
           {publishMessage && (
             <p
@@ -495,7 +559,7 @@ export default function EditorShell({
 
         <div className="mb-4 rounded-lg border border-zinc-200 bg-white p-3 text-xs text-zinc-700">
           <p className="font-semibold uppercase tracking-wide text-zinc-500">Custom domain</p>
-          {isSubscribed ? (
+          {hasSubscription ? (
             <p className="mt-1 text-xs text-zinc-600">Connect a domain to show this published site on your own URL.</p>
           ) : (
             <p className="mt-1 text-xs text-amber-700">Subscribe to connect a custom domain.</p>
@@ -506,13 +570,13 @@ export default function EditorShell({
               value={domainInput}
               onChange={(event) => setDomainInput(event.target.value)}
               placeholder="yourdomain.com"
-              disabled={!isSubscribed || domainState === 'saving'}
+              disabled={!hasSubscription || domainState === 'saving'}
               className="flex-1 rounded-md border border-zinc-200 px-2 py-1.5 text-xs text-zinc-700 focus:border-zinc-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-100"
             />
             <button
               type="button"
               onClick={onSaveDomain}
-              disabled={!isSubscribed || domainState === 'saving'}
+              disabled={!hasSubscription || domainState === 'saving'}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
             >
               {domainState === 'saving' ? 'Saving…' : 'Save'}
@@ -631,6 +695,47 @@ export default function EditorShell({
           </div>
         )}
       </aside>
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-zinc-900">Subscribe to publish</h3>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Publishing is available on the Builder MVP plan. Subscribe to publish this site now.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeUpgradeModal}
+                className="rounded-full border border-zinc-200 px-2 py-1 text-xs font-semibold text-zinc-500 hover:text-zinc-800"
+              >
+                Close
+              </button>
+            </div>
+            {upgradeMessage && (
+              <p className="mt-3 text-sm text-red-600">{upgradeMessage}</p>
+            )}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeUpgradeModal}
+                className="rounded-md border border-zinc-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600 hover:border-zinc-300"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={onSubscribeAndPublish}
+                disabled={upgradeState === 'subscribing'}
+                className="rounded-md bg-amber-500 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-200"
+              >
+                {upgradeState === 'subscribing' ? 'Subscribing…' : 'Subscribe & Publish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
