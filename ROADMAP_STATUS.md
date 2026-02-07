@@ -149,7 +149,7 @@ Tasks:
 ### Phase 5 — Post-MVP (Later)
 - [x] Themes
 - [x] Menu / Gallery / Reviews
-- [ ] Custom domains
+- [x] Custom domains
 - [ ] SEO controls
 - [ ] Analytics
 

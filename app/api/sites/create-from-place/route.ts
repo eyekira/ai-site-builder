@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
         sameSite: 'lax',
         path: '/',
         maxAge: ANON_SESSION_MAX_AGE_SECONDS,
+        secure: process.env.NODE_ENV === 'production',
       });
     }
     return response;
