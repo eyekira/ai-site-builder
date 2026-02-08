@@ -18,15 +18,11 @@ export function canAccessSite(
   site: { ownerId: number | null; anonSessionId: string | null },
   viewer: ViewerContext,
 ): boolean {
-  if (site.ownerId) {
-    return site.ownerId === viewer.userId;
+  if (!viewer.userId) {
+    return false;
   }
 
-  if (site.anonSessionId) {
-    return site.anonSessionId === viewer.anonSessionId;
-  }
-
-  return false;
+  return site.ownerId === viewer.userId;
 }
 
 export async function getViewerContext(): Promise<ViewerContext> {

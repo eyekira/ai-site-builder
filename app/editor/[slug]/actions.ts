@@ -24,9 +24,9 @@ async function normalizeSiteSectionOrders(siteId: number) {
   );
 }
 
-async function getSiteSection(siteId: number, sectionId: number) {
+async function getSiteSection(siteId: number, sectionId: number, ownerId: number) {
   const section = await prisma.section.findFirst({
-    where: { id: sectionId, siteId },
+    where: { id: sectionId, siteId, site: { ownerId } },
     include: {
       site: {
         select: { slug: true, ownerId: true, anonSessionId: true },
@@ -43,7 +43,10 @@ async function getSiteSection(siteId: number, sectionId: number) {
 
 export async function updateSection(siteId: number, sectionId: number, contentJsonString: string) {
   const viewer = await getViewerContext();
-  const section = await getSiteSection(siteId, sectionId);
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+  const section = await getSiteSection(siteId, sectionId, viewer.userId);
 
   if (!canAccessSite(section.site, viewer)) {
     throw new Error('Not authorized to edit this site.');
@@ -66,8 +69,11 @@ export async function updateSection(siteId: number, sectionId: number, contentJs
 
 export async function reorderSections(siteId: number, orderedSectionIds: number[]) {
   const viewer = await getViewerContext();
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
   const sections = await prisma.section.findMany({
-    where: { siteId },
+    where: { siteId, site: { ownerId: viewer.userId } },
     include: { site: { select: { slug: true, ownerId: true, anonSessionId: true } } },
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
   });
@@ -120,8 +126,11 @@ export async function addSection(siteId: number, type: SectionType) {
   }
 
   const viewer = await getViewerContext();
-  const site = await prisma.site.findUnique({
-    where: { id: siteId },
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: viewer.userId },
     select: { id: true, slug: true, ownerId: true, anonSessionId: true, _count: { select: { sections: true } } },
   });
 
@@ -152,8 +161,11 @@ export async function addSection(siteId: number, type: SectionType) {
 
 export async function updateTheme(siteId: number, themeName: ThemeName) {
   const viewer = await getViewerContext();
-  const site = await prisma.site.findUnique({
-    where: { id: siteId },
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: viewer.userId },
     select: { id: true, slug: true, ownerId: true, anonSessionId: true },
   });
 

@@ -89,7 +89,11 @@ export function PlaceSearch() {
         throw new Error('Failed to create site.');
       }
 
-      const data = (await response.json()) as { slug?: string; existed?: boolean };
+      const data = (await response.json()) as { slug?: string; previewId?: string };
+      if (data.previewId) {
+        router.push(`/preview/${data.previewId}`);
+        return;
+      }
       if (!data.slug) {
         throw new Error('Missing slug in response.');
       }
