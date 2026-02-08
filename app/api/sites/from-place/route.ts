@@ -222,16 +222,39 @@ function formatHoursText(hoursJson: Record<string, unknown> | null): string | nu
   return null;
 }
 
-export async function POST(_request: NextRequest) {
-  let body: { placeId?: string };
+async function parsePlaceId(request: NextRequest): Promise<string | null> {
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+
+  if (contentType.includes('application/json')) {
+    const body = (await request.json()) as { placeId?: string };
+    return body.placeId?.trim() ?? null;
+  }
+
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const text = await request.text();
+    const params = new URLSearchParams(text);
+    return params.get('placeId')?.trim() ?? null;
+  }
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const value = formData.get('placeId');
+    return typeof value === 'string' ? value.trim() : null;
+  }
+
+  const body = (await request.json()) as { placeId?: string };
+  return body.placeId?.trim() ?? null;
+}
+
+export async function POST(request: NextRequest) {
+  let placeId: string | null;
 
   try {
-    body = (await request.json()) as { placeId?: string };
+    placeId = await parsePlaceId(request);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }
 
-  const placeId = body.placeId?.trim();
   if (!placeId) {
     return NextResponse.json({ error: 'placeId is required.' }, { status: 400 });
   }
