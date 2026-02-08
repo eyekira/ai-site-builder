@@ -30,3 +30,5 @@ dev.db
 dev.db*
 dev.db-journal
 prisma/dev.db*
+prisma/dev.db-wal
+prisma/dev.db-shm
