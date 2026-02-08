@@ -1,6 +1,6 @@
 import { normalizeHoursText } from '@/lib/hours';
 
-export type SectionType = 'HERO' | 'ABOUT' | 'CONTACT' | 'MENU' | 'GALLERY' | 'REVIEWS';
+export type SectionType = 'HERO' | 'ABOUT' | 'CONTACT' | 'PHOTOS' | 'MENU' | 'GALLERY' | 'REVIEWS';
 
 export type HeroContent = {
   headline: string;
@@ -9,6 +9,9 @@ export type HeroContent = {
 };
 
 export type AboutContent = {
+  title: string;
+  body: string;
+  bullets: string[];
   text: string;
 };
 
@@ -17,6 +20,9 @@ export type ContactContent = {
   phone: string | null;
   website: string | null;
   hours: string | null;
+  title: string;
+  body: string;
+  ctaLabel: string;
 };
 
 export type MenuItem = {
@@ -40,6 +46,10 @@ export type GalleryContent = {
   items: GalleryItem[];
 };
 
+export type PhotosContent = {
+  assetIds: number[];
+};
+
 export type ReviewItem = {
   author: string;
   quote: string;
@@ -58,6 +68,9 @@ export const DEFAULT_HERO_CONTENT: HeroContent = {
 };
 
 export const DEFAULT_ABOUT_CONTENT: AboutContent = {
+  title: 'About us',
+  body: 'Tell visitors what makes your business special.',
+  bullets: ['Locally owned', 'Warm atmosphere', 'Quality ingredients'],
   text: 'Tell visitors what makes your business special.',
 };
 
@@ -66,6 +79,9 @@ export const DEFAULT_CONTACT_CONTENT: ContactContent = {
   phone: null,
   website: null,
   hours: null,
+  title: 'Plan your visit',
+  body: 'We would love to welcome you. Reach out with any questions.',
+  ctaLabel: 'Get in touch',
 };
 
 export const DEFAULT_MENU_CONTENT: MenuContent = {
@@ -118,6 +134,10 @@ export const DEFAULT_REVIEWS_CONTENT: ReviewsContent = {
   ],
 };
 
+export const DEFAULT_PHOTOS_CONTENT: PhotosContent = {
+  assetIds: [],
+};
+
 function parseJson(raw: string): unknown {
   try {
     return JSON.parse(raw);
@@ -168,9 +188,16 @@ export function parseHeroContent(raw: string): HeroContent {
 export function parseAboutContent(raw: string): AboutContent {
   const parsed = parseJson(raw);
   const record = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+  const bullets = Array.isArray(record.bullets)
+    ? record.bullets.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : [];
+  const body = cleanString(record.body ?? record.text, DEFAULT_ABOUT_CONTENT.body);
 
   return {
-    text: cleanString(record.text ?? record.body, DEFAULT_ABOUT_CONTENT.text),
+    title: cleanString(record.title, DEFAULT_ABOUT_CONTENT.title),
+    body,
+    bullets: bullets.length > 0 ? bullets : DEFAULT_ABOUT_CONTENT.bullets,
+    text: cleanString(record.text ?? body, DEFAULT_ABOUT_CONTENT.text),
   };
 }
 
@@ -183,6 +210,21 @@ export function parseContactContent(raw: string): ContactContent {
     phone: cleanNullableString(record.phone),
     website: cleanNullableString(record.website),
     hours: normalizeHoursText(cleanNullableString(record.hours)),
+    title: cleanString(record.title, DEFAULT_CONTACT_CONTENT.title),
+    body: cleanString(record.body, DEFAULT_CONTACT_CONTENT.body),
+    ctaLabel: cleanString(record.ctaLabel ?? record.cta_label, DEFAULT_CONTACT_CONTENT.ctaLabel),
+  };
+}
+
+export function parsePhotosContent(raw: string): PhotosContent {
+  const parsed = parseJson(raw);
+  const record = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
+  const assetIds = Array.isArray(record.assetIds)
+    ? record.assetIds.filter((entry) => typeof entry === 'number' && Number.isInteger(entry))
+    : [];
+
+  return {
+    assetIds,
   };
 }
 
@@ -287,6 +329,7 @@ export function parseSectionContent(
   | HeroContent
   | AboutContent
   | ContactContent
+  | PhotosContent
   | MenuContent
   | GalleryContent
   | ReviewsContent
@@ -301,6 +344,10 @@ export function parseSectionContent(
 
   if (type === 'CONTACT') {
     return parseContactContent(raw);
+  }
+
+  if (type === 'PHOTOS') {
+    return parsePhotosContent(raw);
   }
 
   if (type === 'MENU') {
@@ -329,6 +376,10 @@ export function defaultContentForType(type: SectionType): string {
 
   if (type === 'CONTACT') {
     return JSON.stringify(DEFAULT_CONTACT_CONTENT);
+  }
+
+  if (type === 'PHOTOS') {
+    return JSON.stringify(DEFAULT_PHOTOS_CONTENT);
   }
 
   if (type === 'MENU') {

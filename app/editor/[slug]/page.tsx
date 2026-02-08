@@ -17,6 +17,9 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
       sections: {
         orderBy: { order: 'asc' },
       },
+      assets: {
+        orderBy: { id: 'asc' },
+      },
     },
   });
 
@@ -49,6 +52,14 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
         type: section.type as SectionType,
         order: section.order,
         contentJson: section.contentJson,
+      }))}
+      assets={site.assets.map((asset) => ({
+        id: asset.id,
+        kind: asset.kind,
+        source: asset.source,
+        ref: asset.ref,
+        width: asset.width,
+        height: asset.height,
       }))}
     />
   );

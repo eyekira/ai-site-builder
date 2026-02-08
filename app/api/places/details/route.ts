@@ -1,27 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 
 export async function GET(request: NextRequest) {
-  const placeId = request.nextUrl.searchParams.get('place_id')?.trim() ?? '';
+  const rawPlaceId =
+    request.nextUrl.searchParams.get('placeId')?.trim() ??
+    request.nextUrl.searchParams.get('place_id')?.trim() ??
+    '';
 
-  if (!placeId) {
-    return NextResponse.json({ error: 'place_id is required.' }, { status: 400 });
+  if (!rawPlaceId) {
+    return NextResponse.json({ error: 'placeId is required.' }, { status: 400 });
   }
 
   try {
-    const place = await fetchPlaceDetails(placeId);
+    const place = await fetchPlaceDetails(rawPlaceId);
+
+    const hoursText =
+      place.hoursJson && typeof place.hoursJson === 'object' ? formatHoursFromJson(place.hoursJson) : null;
 
     return NextResponse.json({
       place: {
         id: place.id,
-        name: place.name,
+        businessTitle: place.name,
+        title: place.name,
         address: place.address,
+        formattedAddress: place.address,
         phone: place.phone,
         website: place.website,
         hoursJson: place.hoursJson,
+        hoursText,
         lat: place.lat,
         lng: place.lng,
+        photos: place.photos,
       },
     });
   } catch {

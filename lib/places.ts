@@ -21,6 +21,14 @@ type GooglePlaceDetailsResponse = {
   nationalPhoneNumber?: string;
   websiteUri?: string;
   regularOpeningHours?: unknown;
+  photos?: Array<{
+    name?: string;
+    widthPx?: number;
+    heightPx?: number;
+    authorAttributions?: Array<{
+      displayName?: string;
+    }>;
+  }>;
   location?: {
     latitude?: number;
     longitude?: number;
@@ -47,12 +55,13 @@ export type NormalizedPlaceDetails = {
   lat: number | null;
   lng: number | null;
   city: string | null;
+  photos: Array<{ ref: string; width: number | null; height: number | null }>;
 };
 
 function getServerKey() {
-  const apiKey = process.env.GOOGLE_PLACES_SERVER_KEY;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_PLACES_SERVER_KEY;
   if (!apiKey) {
-    throw new Error('Missing GOOGLE_PLACES_SERVER_KEY environment variable.');
+    throw new Error('Missing GOOGLE_MAPS_API_KEY environment variable.');
   }
 
   return apiKey;
@@ -112,7 +121,7 @@ export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlac
     headers: {
       'X-Goog-Api-Key': apiKey,
       'X-Goog-FieldMask':
-        'id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,regularOpeningHours,location,addressComponents',
+        'id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,regularOpeningHours,location,addressComponents,photos',
     },
     cache: 'no-store',
   });
@@ -122,6 +131,13 @@ export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlac
   }
 
   const place = (await response.json()) as GooglePlaceDetailsResponse;
+  const photos = (place.photos ?? [])
+    .map((photo) => ({
+      ref: photo.name?.replace('places/', '').replace('/photos/', '') ?? '',
+      width: typeof photo.widthPx === 'number' ? photo.widthPx : null,
+      height: typeof photo.heightPx === 'number' ? photo.heightPx : null,
+    }))
+    .filter((photo) => photo.ref);
 
   return {
     id: place.id ?? placeId,
@@ -136,5 +152,6 @@ export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlac
     lat: place.location?.latitude ?? null,
     lng: place.location?.longitude ?? null,
     city: getCityFromAddressComponents(place.addressComponents),
+    photos,
   };
 }

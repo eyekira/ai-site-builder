@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ suggestions });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    if (message.includes('GOOGLE_PLACES_SERVER_KEY')) {
+    if (message.includes('GOOGLE_MAPS_API_KEY') || message.includes('GOOGLE_PLACES_SERVER_KEY')) {
       return NextResponse.json({ suggestions: [], warning: 'places_not_configured' });
     }
     return NextResponse.json({ error: 'Failed to fetch place suggestions.' }, { status: 502 });

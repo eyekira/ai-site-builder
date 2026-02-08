@@ -76,7 +76,7 @@ export function PlaceSearch() {
       setCreating(true);
       setError(null);
 
-      const response = await fetch('/api/sites/create-from-place', {
+      const response = await fetch('/api/sites/from-place', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

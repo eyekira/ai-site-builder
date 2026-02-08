@@ -16,9 +16,18 @@ enum SectionType {
   HERO
   ABOUT
   CONTACT
+  PHOTOS
   MENU
   GALLERY
   REVIEWS
+}
+
+enum AssetKind {
+  PHOTO
+}
+
+enum AssetSource {
+  GOOGLE_PLACES
 }
 
 model User {
@@ -36,6 +45,13 @@ model Site {
   id             Int        @id @default(autoincrement())
   slug           String     @unique
   title          String
+  businessTitle  String?
+  formattedAddress String?
+  phone          String?
+  website        String?
+  lat            Float?
+  lng            Float?
+  hoursJson      String?
   status         SiteStatus @default(DRAFT)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
@@ -43,12 +59,13 @@ model Site {
   themeJson      String?
   ownerId        Int?
   anonSessionId  String?
-  placeId        String?
+  placeId        String?    @unique
   customDomain   String?    @unique
 
   owner    User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   place    Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
   sections Section[]
+  assets   Asset[]
 
   @@index([anonSessionId])
 }
@@ -72,8 +89,25 @@ model Section {
   type        SectionType
   contentJson String
   order       Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@index([siteId, order])
+}
+
+model Asset {
+  id        Int         @id @default(autoincrement())
+  siteId    Int
+  kind      AssetKind
+  source    AssetSource
+  ref       String
+  width     Int?
+  height    Int?
+  createdAt DateTime    @default(now())
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
 }
