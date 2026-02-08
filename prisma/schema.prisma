@@ -111,3 +111,12 @@ model Asset {
 
   @@index([siteId])
 }
+
+model PreviewSession {
+  id        String   @id @default(cuid())
+  dataJson  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}

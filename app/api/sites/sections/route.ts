@@ -37,8 +37,17 @@ export async function PATCH(request: NextRequest) {
   }
 
   const viewer = await getViewerContext();
+  if (!viewer.userId) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   const section = await prisma.section.findFirst({
-    where: { id: sectionId, siteId },
+    where: {
+      id: sectionId,
+      siteId,
+      site: {
+        ownerId: viewer.userId,
+      },
+    },
     include: {
       site: {
         select: { slug: true, ownerId: true, anonSessionId: true },

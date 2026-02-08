@@ -21,8 +21,8 @@ export default async function SitePage({ params, searchParams }: SitePageProps) 
   const query = await searchParams;
   const embedMode = isEmbedMode(query.embed);
 
-  const site = await prisma.site.findUnique({
-    where: { slug },
+  const site = await prisma.site.findFirst({
+    where: { slug, status: SiteStatus.PUBLISHED },
     include: {
       sections: {
         orderBy: { order: 'asc' },
@@ -30,7 +30,7 @@ export default async function SitePage({ params, searchParams }: SitePageProps) 
     },
   });
 
-  if (!site || site.status !== SiteStatus.PUBLISHED) {
+  if (!site) {
     notFound();
   }
 

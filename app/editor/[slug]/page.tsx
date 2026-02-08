@@ -11,8 +11,12 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
   const viewer = await getViewerContext();
   const userId = viewer.userId;
 
-  const site = await prisma.site.findUnique({
-    where: { slug },
+  if (!userId) {
+    notFound();
+  }
+
+  const site = await prisma.site.findFirst({
+    where: { slug, ownerId: userId },
     include: {
       sections: {
         orderBy: { order: 'asc' },

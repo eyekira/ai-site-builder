@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SectionType, SiteStatus } from '@prisma/client';
 
-import { auth } from '@/auth';
-import {
-  ANON_SESSION_COOKIE,
-  ANON_SESSION_MAX_AGE_SECONDS,
-  createAnonSessionId,
-  getAnonSessionIdFromRequest,
-} from '@/lib/auth';
+import { getAuthenticatedUser } from '@/lib/rbac';
 import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
@@ -128,14 +122,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'placeId is required.' }, { status: 400 });
   }
 
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
+
   try {
     const place = await resolvePlaceForCreation(placeId);
-    const session = await auth();
-    const ownerId = session?.user?.id ? Number(session.user.id) : null;
-    const owner = ownerId && !Number.isNaN(ownerId) ? await prisma.user.findUnique({ where: { id: ownerId } }) : null;
-    const resolvedOwnerId = owner?.id ?? null;
-    const isLoggedIn = Boolean(resolvedOwnerId);
-    const anonSessionId = !isLoggedIn ? getAnonSessionIdFromRequest(request) ?? createAnonSessionId() : null;
+    const ownerId = user.id;
+
+    const existingSite = await prisma.site.findUnique({
+      where: { placeId },
+      select: { id: true, slug: true, ownerId: true },
+    });
+    if (existingSite) {
+      if (existingSite.ownerId === ownerId) {
+        return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+      }
+      return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
+    }
 
     await prisma.place.upsert({
       where: { id: place.id },
@@ -164,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('[create-from-place] site.create ids', {
-        ownerId: resolvedOwnerId,
+        ownerId,
         placeId: place.id,
       });
     }
@@ -175,8 +180,7 @@ export async function POST(request: NextRequest) {
         title: place.name,
         status: SiteStatus.DRAFT,
         themeJson: serializeTheme('classic'),
-        ownerId: resolvedOwnerId,
-        anonSessionId: isLoggedIn ? null : anonSessionId,
+        ownerId,
         placeId: place.id,
         sections: {
           create: [
@@ -211,17 +215,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const response = NextResponse.json({ siteId: site.id, slug: site.slug });
-    if (!isLoggedIn && anonSessionId) {
-      response.cookies.set(ANON_SESSION_COOKIE, anonSessionId, {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: ANON_SESSION_MAX_AGE_SECONDS,
-        secure: process.env.NODE_ENV === 'production',
-      });
-    }
-    return response;
+    return NextResponse.json({ siteId: site.id, slug: site.slug });
   } catch (error) {
     console.error('Failed to create site from place', error);
     return NextResponse.json(

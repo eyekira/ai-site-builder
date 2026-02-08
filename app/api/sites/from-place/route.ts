@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SectionType, SiteStatus } from '@prisma/client';
 
-import { auth } from '@/auth';
-import {
-  ANON_SESSION_COOKIE,
-  ANON_SESSION_MAX_AGE_SECONDS,
-  createAnonSessionId,
-  getAnonSessionIdFromRequest,
-} from '@/lib/auth';
 import { fetchPlaceDetails } from '@/lib/places';
+import { createPreviewSession } from '@/lib/preview-session';
 import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/rbac';
+import type { SiteForRender } from '@/lib/site';
 import { serializeTheme } from '@/lib/theme';
 
 type PlacePhoto = {
@@ -226,7 +222,7 @@ function formatHoursText(hoursJson: Record<string, unknown> | null): string | nu
   return null;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   let body: { placeId?: string };
 
   try {
@@ -241,21 +237,27 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const existingSite = await prisma.site.findUnique({ where: { placeId } });
-    if (existingSite) {
-      return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+    const user = await getAuthenticatedUser();
+    const ownerId = user?.id ?? null;
+    const isLoggedIn = Boolean(ownerId);
+
+    if (isLoggedIn) {
+      const existingSite = await prisma.site.findUnique({
+        where: { placeId },
+        select: { id: true, slug: true, ownerId: true },
+      });
+      if (existingSite) {
+        if (existingSite.ownerId === ownerId) {
+          return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+        }
+        return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
+      }
     }
 
     const place = await fetchPlaceDetails(placeId);
     const placeTitle = place.name;
     const limitedPhotos = pickPhotos(place.photos);
     console.log('DEBUG first photo object:', limitedPhotos[0]);
-    const session = await auth();
-    const ownerId = session?.user?.id ? Number(session.user.id) : null;
-    const owner = ownerId && !Number.isNaN(ownerId) ? await prisma.user.findUnique({ where: { id: ownerId } }) : null;
-    const resolvedOwnerId = owner?.id ?? null;
-    const isLoggedIn = Boolean(resolvedOwnerId);
-    const anonSessionId = !isLoggedIn ? getAnonSessionIdFromRequest(request) ?? createAnonSessionId() : null;
 
     const slug = await generateUniqueSlug(placeTitle, place.city);
     const hoursText = formatHoursText(place.hoursJson);
@@ -268,6 +270,87 @@ export async function POST(request: NextRequest) {
     });
 
     const heroCtaHref = buildCtaHref(place.phone, place.website);
+
+    if (!isLoggedIn) {
+      const assets = limitedPhotos.map((photo, index) => ({
+        id: index + 1,
+        ref: photo.ref,
+      }));
+      const assetIds = assets.map((asset) => asset.id);
+      const sectionsPayload = [
+        {
+          id: 1,
+          type: SectionType.HERO,
+          contentJson: JSON.stringify({
+            headline: copy.hero.headline,
+            subheadline: copy.hero.subheadline,
+            ctas: [{ label: copy.hero.primaryCtaLabel, href: heroCtaHref }],
+          }),
+        },
+        {
+          id: 2,
+          type: SectionType.ABOUT,
+          contentJson: JSON.stringify({
+            title: copy.about.title,
+            body: copy.about.body,
+            bullets: copy.about.bullets,
+            text: copy.about.body,
+          }),
+        },
+        {
+          id: 3,
+          type: SectionType.PHOTOS,
+          contentJson: JSON.stringify({
+            assetIds,
+          }),
+        },
+        {
+          id: 4,
+          type: SectionType.CONTACT,
+          contentJson: JSON.stringify({
+            title: copy.cta.title,
+            body: copy.cta.body,
+            ctaLabel: copy.cta.ctaLabel,
+            address: place.address,
+            phone: place.phone,
+            website: place.website,
+            hours: hoursText,
+          }),
+        },
+      ];
+
+      const previewSite: SiteForRender = {
+        id: 0,
+        slug,
+        title: placeTitle,
+        businessTitle: placeTitle,
+        status: SiteStatus.DRAFT,
+        formattedAddress: place.address,
+        phone: place.phone,
+        hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
+        lat: place.lat,
+        lng: place.lng,
+        sections: sectionsPayload.map((section, index) => ({
+          id: section.id ?? index + 1,
+          type: section.type,
+          contentJson: section.contentJson,
+        })),
+        assets,
+        place: {
+          address: place.address,
+          phone: place.phone,
+          hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
+          lat: place.lat,
+          lng: place.lng,
+        },
+      };
+
+      const previewSession = await createPreviewSession(previewSite);
+      return NextResponse.json({
+        previewId: previewSession.id,
+        expiresAt: previewSession.expiresAt.toISOString(),
+      });
+    }
 
     const created = await prisma.$transaction(async (tx) => {
       await tx.place.upsert({
@@ -306,8 +389,7 @@ export async function POST(request: NextRequest) {
           hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
           status: SiteStatus.DRAFT,
           themeJson: serializeTheme('classic'),
-          ownerId: resolvedOwnerId,
-          anonSessionId: isLoggedIn ? null : anonSessionId,
+          ownerId,
           placeId: place.id,
         },
       });
@@ -381,17 +463,7 @@ export async function POST(request: NextRequest) {
       return site;
     });
 
-    const response = NextResponse.json({ siteId: created.id, slug: created.slug });
-    if (!isLoggedIn && anonSessionId) {
-      response.cookies.set(ANON_SESSION_COOKIE, anonSessionId, {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: ANON_SESSION_MAX_AGE_SECONDS,
-        secure: process.env.NODE_ENV === 'production',
-      });
-    }
-    return response;
+    return NextResponse.json({ siteId: created.id, slug: created.slug });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Failed to create site from place', error);
