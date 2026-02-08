@@ -79,8 +79,8 @@ export function SiteRenderer({ title, sections, themeJson, embedMode = false }: 
             return (
               <Card key={section.id} className={`rounded-2xl ${theme.cardClass}`}>
                 <CardContent className="p-6">
-                  <h2 className="text-2xl font-semibold">About</h2>
-                  <p className={`mt-2 ${theme.mutedTextClass}`}>{content.text}</p>
+                  <h2 className="text-2xl font-semibold">{content.title || 'About'}</h2>
+                  <p className={`mt-2 ${theme.mutedTextClass}`}>{content.body || content.text}</p>
                 </CardContent>
               </Card>
             );

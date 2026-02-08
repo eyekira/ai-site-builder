@@ -10,6 +10,7 @@ import {
   parseGalleryContent,
   parseHeroContent,
   parseMenuContent,
+  parsePhotosContent,
   parseReviewsContent,
   type SectionType,
 } from '@/lib/section-content';
@@ -22,6 +23,15 @@ type EditorSection = {
   contentJson: string;
 };
 
+type EditorAsset = {
+  id: number;
+  kind: string;
+  source: string;
+  ref: string;
+  width: number | null;
+  height: number | null;
+};
+
 type EditorShellProps = {
   siteId: number;
   slug: string;
@@ -31,6 +41,7 @@ type EditorShellProps = {
   isSubscribed: boolean;
   customDomain: string | null;
   sections: EditorSection[];
+  assets: EditorAsset[];
 };
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -42,11 +53,17 @@ function sectionTitle(section: EditorSection): string {
   }
 
   if (section.type === 'ABOUT') {
-    return parseAboutContent(section.contentJson).text;
+    const content = parseAboutContent(section.contentJson);
+    return content.title || content.body || content.text;
   }
 
   if (section.type === 'CONTACT') {
-    return parseContactContent(section.contentJson).address ?? 'Contact details';
+    const content = parseContactContent(section.contentJson);
+    return content.title || content.body || content.address || 'Contact details';
+  }
+
+  if (section.type === 'PHOTOS') {
+    return 'Photos';
   }
 
   if (section.type === 'MENU') {
@@ -77,6 +94,10 @@ function normalizeSectionContent(section: EditorSection, rawJson: string): strin
     return JSON.stringify(parseContactContent(rawJson));
   }
 
+  if (section.type === 'PHOTOS') {
+    return JSON.stringify(parsePhotosContent(rawJson));
+  }
+
   if (section.type === 'MENU') {
     return JSON.stringify(parseMenuContent(rawJson));
   }
@@ -101,6 +122,7 @@ export default function EditorShell({
   isSubscribed,
   customDomain,
   sections,
+  assets,
 }: EditorShellProps) {
   const router = useRouter();
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sections[0]?.id ?? null);
@@ -294,8 +316,8 @@ export default function EditorShell({
 
       setCurrentStatus('PUBLISHED');
       setPublishState('success');
-      setPublishMessage(`Published! Your site is live at /s/${payload?.slug ?? slug}.`);
-      router.push(`/s/${payload?.slug ?? slug}`);
+      setPublishMessage(`Published! Your site is live at /${payload?.slug ?? slug}.`);
+      router.push(`/${payload?.slug ?? slug}`);
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not publish.';
@@ -446,7 +468,7 @@ export default function EditorShell({
         <div className="mt-6 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Add section</p>
           <div className="grid grid-cols-3 gap-2">
-            {(['HERO', 'ABOUT', 'CONTACT', 'MENU', 'GALLERY', 'REVIEWS'] as const).map((type) => (
+            {(['HERO', 'ABOUT', 'CONTACT', 'PHOTOS', 'MENU', 'GALLERY', 'REVIEWS'] as const).map((type) => (
               <button
                 key={type}
                 type="button"
@@ -654,6 +676,14 @@ export default function EditorShell({
           <ContactInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
         )}
 
+        {selectedSection?.type === 'PHOTOS' && (
+          <PhotosInspector
+            json={currentDraft}
+            assets={assets}
+            onChange={(next) => updateDraft(selectedSection.id, next)}
+          />
+        )}
+
         {selectedSection?.type === 'MENU' && (
           <MenuInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
         )}
@@ -826,15 +856,73 @@ function AboutInspector({ json, onChange }: { json: string; onChange: (json: str
   const value = parseAboutContent(json);
 
   return (
-    <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
-      Text
-      <textarea
-        value={value.text}
-        onChange={(event) => onChange(JSON.stringify({ ...value, text: event.target.value }))}
-        rows={8}
-        className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-      />
-    </label>
+    <div className="space-y-3">
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Title
+        <input
+          value={value.title}
+          onChange={(event) => onChange(JSON.stringify({ ...value, title: event.target.value }))}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Body
+        <textarea
+          value={value.body}
+          onChange={(event) =>
+            onChange(JSON.stringify({ ...value, body: event.target.value, text: event.target.value }))
+          }
+          rows={6}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Bullets</p>
+        {value.bullets.map((bulletText, index) => (
+          <div key={`bullet-${index}`} className="flex items-center gap-2">
+            <input
+              value={bulletText}
+              onChange={(event) => {
+                const nextBullets = [...value.bullets];
+                nextBullets[index] = event.target.value;
+                onChange(JSON.stringify({ ...value, bullets: nextBullets }));
+              }}
+              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (value.bullets.length <= 1) {
+                  return;
+                }
+                const nextBullets = value.bullets.filter((_, bulletIndex) => bulletIndex !== index);
+                onChange(JSON.stringify({ ...value, bullets: nextBullets }));
+              }}
+              disabled={value.bullets.length <= 1}
+              className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => onChange(JSON.stringify({ ...value, bullets: [...value.bullets, 'New bullet'] }))}
+          className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700"
+        >
+          + Add bullet
+        </button>
+      </div>
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Legacy text
+        <textarea
+          value={value.text}
+          onChange={(event) => onChange(JSON.stringify({ ...value, text: event.target.value }))}
+          rows={3}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+    </div>
   );
 }
 
@@ -843,16 +931,149 @@ function ContactInspector({ json, onChange }: { json: string; onChange: (json: s
 
   return (
     <div className="space-y-3">
-      {(['address', 'phone', 'website', 'hours'] as const).map((field) => (
-        <label key={field} className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
-          {field}
-          <input
-            value={value[field] ?? ''}
-            onChange={(event) => onChange(JSON.stringify({ ...value, [field]: event.target.value || null }))}
-            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-          />
-        </label>
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Title
+        <input
+          value={value.title}
+          onChange={(event) => onChange(JSON.stringify({ ...value, title: event.target.value }))}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Body
+        <textarea
+          value={value.body}
+          onChange={(event) => onChange(JSON.stringify({ ...value, body: event.target.value }))}
+          rows={4}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        CTA label
+        <input
+          value={value.ctaLabel}
+          onChange={(event) => onChange(JSON.stringify({ ...value, ctaLabel: event.target.value }))}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+      <div className="pt-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Contact details</p>
+        {(['address', 'phone', 'website', 'hours'] as const).map((field) => (
+          <label key={field} className="mt-2 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+            {field}
+            <input
+              value={value[field] ?? ''}
+              onChange={(event) => onChange(JSON.stringify({ ...value, [field]: event.target.value || null }))}
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PhotosInspector({
+  json,
+  assets,
+  onChange,
+}: {
+  json: string;
+  assets: EditorAsset[];
+  onChange: (json: string) => void;
+}) {
+  const value = parsePhotosContent(json);
+  const selectedIds = value.assetIds;
+
+  const toggleAsset = (assetId: number) => {
+    const isSelected = selectedIds.includes(assetId);
+    const nextIds = isSelected ? selectedIds.filter((id) => id !== assetId) : [...selectedIds, assetId];
+    onChange(JSON.stringify({ ...value, assetIds: nextIds }));
+  };
+
+  const moveAsset = (assetId: number, direction: 'up' | 'down') => {
+    const index = selectedIds.indexOf(assetId);
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= selectedIds.length) {
+      return;
+    }
+    const nextIds = [...selectedIds];
+    const [moved] = nextIds.splice(index, 1);
+    nextIds.splice(targetIndex, 0, moved);
+    onChange(JSON.stringify({ ...value, assetIds: nextIds }));
+  };
+
+  const selectedAssets = selectedIds
+    .map((assetId) => assets.find((asset) => asset.id === assetId))
+    .filter((assetItem): assetItem is EditorAsset => Boolean(assetItem));
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Selected photos</p>
+      {selectedAssets.length === 0 && <p className="text-sm text-zinc-600">No photos selected yet.</p>}
+      {selectedAssets.map((assetItem) => (
+        <div key={assetItem.id} className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 p-2">
+          <div className="flex items-center gap-2">
+            <img
+              src={`/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=200`}
+              alt="Selected photo"
+              className="h-12 w-16 rounded object-cover"
+            />
+            <div>
+              <p className="text-xs font-medium text-zinc-700">Photo {assetItem.id}</p>
+              <p className="text-[10px] text-zinc-500">{assetItem.width ?? '—'} × {assetItem.height ?? '—'}</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => moveAsset(assetItem.id, 'up')}
+              className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700"
+            >
+              Up
+            </button>
+            <button
+              type="button"
+              onClick={() => moveAsset(assetItem.id, 'down')}
+              className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700"
+            >
+              Down
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleAsset(assetItem.id)}
+              className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
       ))}
+      <div className="pt-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Available photos</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {assets.map((assetItem) => {
+            const isSelected = selectedIds.includes(assetItem.id);
+            return (
+              <button
+                key={assetItem.id}
+                type="button"
+                onClick={() => toggleAsset(assetItem.id)}
+                className={`rounded-md border p-2 text-left text-[10px] ${
+                  isSelected ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700'
+                }`}
+              >
+                <img
+                  src={`/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=200`}
+                  alt="Available photo"
+                  className="mb-2 h-20 w-full rounded object-cover"
+                />
+                <span>Photo {assetItem.id}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
