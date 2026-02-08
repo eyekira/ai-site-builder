@@ -131,13 +131,15 @@ export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlac
   }
 
   const place = (await response.json()) as GooglePlaceDetailsResponse;
-  const photos = (place.photos ?? [])
-    .map((photo) => ({
-      ref: photo.name?.replace('places/', '').replace('/photos/', '') ?? '',
-      width: typeof photo.widthPx === 'number' ? photo.widthPx : null,
-      height: typeof photo.heightPx === 'number' ? photo.heightPx : null,
-    }))
-    .filter((photo) => photo.ref);
+const photos = (place.photos ?? [])
+  .map((photo) => ({
+    // Keep the v1 photo resource name exactly as Google returns it:
+    // e.g. "places/PLACE_ID/photos/PHOTO_ID"
+    ref: photo.name ?? '',
+    width: typeof photo.widthPx === 'number' ? photo.widthPx : null,
+    height: typeof photo.heightPx === 'number' ? photo.heightPx : null,
+  }))
+  .filter((photo) => Boolean(photo.ref));
 
   return {
     id: place.id ?? placeId,

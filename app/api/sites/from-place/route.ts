@@ -35,51 +35,47 @@ type CopyPayload = {
     ctaLabel: string;
   };
 };
-
 const COPY_SCHEMA = {
-  name: 'site_copy',
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      hero: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          headline: { type: 'string' },
-          subheadline: { type: 'string' },
-          primaryCtaLabel: { type: 'string' },
-        },
-        required: ['headline', 'subheadline', 'primaryCtaLabel'],
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    hero: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        headline: { type: 'string' },
+        subheadline: { type: 'string' },
+        primaryCtaLabel: { type: 'string' },
       },
-      about: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string' },
-          body: { type: 'string' },
-          bullets: {
-            type: 'array',
-            minItems: 3,
-            maxItems: 5,
-            items: { type: 'string' },
-          },
-        },
-        required: ['title', 'body', 'bullets'],
-      },
-      cta: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string' },
-          body: { type: 'string' },
-          ctaLabel: { type: 'string' },
-        },
-        required: ['title', 'body', 'ctaLabel'],
-      },
+      required: ['headline', 'subheadline', 'primaryCtaLabel'],
     },
-    required: ['hero', 'about', 'cta'],
+    about: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        title: { type: 'string' },
+        body: { type: 'string' },
+        bullets: {
+          type: 'array',
+          minItems: 3,
+          maxItems: 5,
+          items: { type: 'string' },
+        },
+      },
+      required: ['title', 'body', 'bullets'],
+    },
+    cta: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        title: { type: 'string' },
+        body: { type: 'string' },
+        ctaLabel: { type: 'string' },
+      },
+      required: ['title', 'body', 'ctaLabel'],
+    },
   },
+  required: ['hero', 'about', 'cta'],
 } as const;
 
 function getOpenAiKey(): string {
@@ -173,16 +169,29 @@ async function generateCopy(payload: {
           content: `Generate structured JSON for the landing page copy.\n\nFacts:\n${promptFacts}`,
         },
       ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: COPY_SCHEMA,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'site_copy',
+          schema: COPY_SCHEMA,
+          strict: true,
+        },
       },
+
     }),
   });
+console.log('OpenAI key exists:', !!process.env.OPENAI_API_KEY);
+ if (!response.ok) {
+  const status = response.status;
+  const text = await response.text().catch(() => '');
+  console.error('OpenAI copy generation failed:', {
+    status,
+    statusText: response.statusText,
+    body: text,
+  });
+  throw new Error(`OpenAI copy generation failed: ${status} ${response.statusText}`);
+}
 
-  if (!response.ok) {
-    throw new Error('OpenAI copy generation failed.');
-  }
 
   const data = (await response.json()) as {
     output?: Array<{
@@ -240,6 +249,7 @@ export async function POST(request: NextRequest) {
     const place = await fetchPlaceDetails(placeId);
     const placeTitle = place.name;
     const limitedPhotos = pickPhotos(place.photos);
+    console.log('DEBUG first photo object:', limitedPhotos[0]);
     const session = await auth();
     const ownerId = session?.user?.id ? Number(session.user.id) : null;
     const owner = ownerId && !Number.isNaN(ownerId) ? await prisma.user.findUnique({ where: { id: ownerId } }) : null;

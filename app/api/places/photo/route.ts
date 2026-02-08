@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GOOGLE_PHOTO_ENDPOINT = 'https://maps.googleapis.com/maps/api/place/photo';
-
-function getGoogleMapsKey(): string {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_PLACES_SERVER_KEY;
-  if (!apiKey) {
-    throw new Error('Missing GOOGLE_MAPS_API_KEY environment variable.');
-  }
-  return apiKey;
+function getGoogleMapsKey(): string | null {
+  return process.env.GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_PLACES_SERVER_KEY ?? null;
 }
 
 export async function GET(request: NextRequest) {
-  const photoRef = request.nextUrl.searchParams.get('ref')?.trim() ?? '';
+  const rawRef = request.nextUrl.searchParams.get('ref') ?? '';
   const maxWidthParam = request.nextUrl.searchParams.get('maxwidth')?.trim() ?? '1200';
   const maxWidth = Number(maxWidthParam);
 
-  if (!photoRef) {
+  // Decode once just in case the client sends encoded text
+  const ref = (() => {
+    try {
+      return decodeURIComponent(rawRef).trim();
+    } catch {
+      return rawRef.trim();
+    }
+  })();
+
+  if (!ref) {
     return NextResponse.json({ error: 'ref is required.' }, { status: 400 });
   }
 
@@ -23,32 +26,63 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'maxwidth must be a positive number.' }, { status: 400 });
   }
 
+  const apiKey = getGoogleMapsKey();
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Missing GOOGLE_MAPS_API_KEY environment variable.' }, { status: 500 });
+  }
+
+  // ref should look like: "places/PLACE_ID/photos/PHOTO_ID"
+  const normalizedRef = ref.startsWith('places/') ? ref : `places/${ref}`;
+
+  const upstreamUrl = new URL(`https://places.googleapis.com/v1/${normalizedRef}/media`);
+  upstreamUrl.searchParams.set('maxWidthPx', Math.min(maxWidth, 1600).toString());
+  upstreamUrl.searchParams.set('skipHttpRedirect', 'false');
+  console.log('DEBUG photo route hit'); 
+  console.log('DEBUG photo ref raw:', rawRef);
+  console.log('DEBUG photo ref decoded:', ref);
+  console.log('DEBUG photo upstreamUrl:', upstreamUrl.toString());
+
+  let upstream: Response;
   try {
-    const apiKey = getGoogleMapsKey();
-    const endpoint = new URL(GOOGLE_PHOTO_ENDPOINT);
-    endpoint.searchParams.set('photoreference', photoRef);
-    endpoint.searchParams.set('maxwidth', Math.min(maxWidth, 1600).toString());
-    endpoint.searchParams.set('key', apiKey);
-
-    const response = await fetch(endpoint.toString(), {
+    upstream = await fetch(upstreamUrl.toString(), {
       cache: 'no-store',
-    });
-
-    if (!response.ok || !response.body) {
-      return NextResponse.json({ error: 'Failed to fetch photo.' }, { status: 502 });
-    }
-
-    const contentType = response.headers.get('content-type') ?? 'image/jpeg';
-
-    return new NextResponse(response.body, {
-      status: 200,
+      redirect: 'follow',
       headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400',
+        'X-Goog-Api-Key': apiKey,
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: 'Failed to fetch photo.', detail: message }, { status: 500 });
+    console.error('Places v1 photo fetch network error:', error);
+    return NextResponse.json({ error: 'Failed to fetch photo (network error).' }, { status: 502 });
   }
+
+  if (!upstream.ok) {
+    const bodyText = await upstream.text().catch(() => '');
+    console.error('Places v1 photo upstream error:', {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      bodyPreview: bodyText.slice(0, 500),
+    });
+
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch photo from Places v1.',
+        upstreamStatus: upstream.status,
+        upstreamStatusText: upstream.statusText,
+        detail: bodyText,
+      },
+      { status: upstream.status },
+    );
+  }
+
+  const contentType = upstream.headers.get('content-type') ?? 'image/jpeg';
+  const bytes = await upstream.arrayBuffer();
+
+  return new NextResponse(bytes, {
+    status: 200,
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400',
+    },
+  });
 }
