@@ -6,6 +6,7 @@ import { getAuthenticatedUser } from '@/lib/rbac';
 
 type PublishPayload = {
   siteId?: unknown;
+  slug?: unknown;
 };
 
 function parseSiteId(value: unknown): number | null {
@@ -29,7 +30,8 @@ export async function POST(request: NextRequest) {
   }
 
   const siteId = parseSiteId(body.siteId);
-  if (!siteId) {
+  const slug = typeof body.slug === 'string' ? body.slug.trim() : '';
+  if (!siteId && !slug) {
     return NextResponse.json({ error: 'SITE_ID_REQUIRED' }, { status: 400 });
   }
 
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
   }
 
   const site = await prisma.site.findUnique({
-    where: { id: siteId },
+    where: siteId ? { id: siteId } : { slug },
     select: { id: true, slug: true, ownerId: true, status: true },
   });
 
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
     select: { id: true, slug: true, status: true },
   });
 
+  revalidatePath(`/${updated.slug}`);
   revalidatePath(`/s/${updated.slug}`);
   revalidatePath(`/editor/${updated.slug}`);
   revalidatePath(`/editor/${updated.slug}/preview`);
