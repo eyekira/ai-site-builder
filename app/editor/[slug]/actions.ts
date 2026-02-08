@@ -58,6 +58,7 @@ export async function updateSection(siteId: number, sectionId: number, contentJs
     },
   });
 
+  revalidatePath(`/${section.site.slug}`);
   revalidatePath(`/editor/${section.site.slug}`);
   revalidatePath(`/editor/${section.site.slug}/preview`);
   revalidatePath(`/s/${section.site.slug}`);
@@ -106,6 +107,7 @@ export async function reorderSections(siteId: number, orderedSectionIds: number[
 
   const slug = sections[0]?.site.slug;
   if (slug) {
+    revalidatePath(`/${slug}`);
     revalidatePath(`/editor/${slug}`);
     revalidatePath(`/editor/${slug}/preview`);
     revalidatePath(`/s/${slug}`);
@@ -113,7 +115,7 @@ export async function reorderSections(siteId: number, orderedSectionIds: number[
 }
 
 export async function addSection(siteId: number, type: SectionType) {
-  if (!['HERO', 'ABOUT', 'CONTACT', 'MENU', 'GALLERY', 'REVIEWS'].includes(type)) {
+  if (!['HERO', 'ABOUT', 'CONTACT', 'PHOTOS', 'MENU', 'GALLERY', 'REVIEWS'].includes(type)) {
     throw new Error('Unsupported section type for editor.');
   }
 
@@ -142,6 +144,7 @@ export async function addSection(siteId: number, type: SectionType) {
 
   await normalizeSiteSectionOrders(siteId);
 
+  revalidatePath(`/${site.slug}`);
   revalidatePath(`/editor/${site.slug}`);
   revalidatePath(`/editor/${site.slug}/preview`);
   revalidatePath(`/s/${site.slug}`);
@@ -173,6 +176,7 @@ export async function updateTheme(siteId: number, themeName: ThemeName) {
     data: { themeJson: serializeTheme(theme.name) },
   });
 
+  revalidatePath(`/${site.slug}`);
   revalidatePath(`/editor/${site.slug}`);
   revalidatePath(`/editor/${site.slug}/preview`);
   revalidatePath(`/s/${site.slug}`);

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { SiteOnePage } from '@/components/site/site-one-page';
 import { prisma } from '@/lib/prisma';
 
-export default async function EditorPreviewPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicSitePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   const site = await prisma.site.findUnique({
@@ -19,7 +19,7 @@ export default async function EditorPreviewPage({ params }: { params: Promise<{ 
     },
   });
 
-  if (!site) {
+  if (!site || site.status !== 'PUBLISHED') {
     notFound();
   }
 
@@ -32,7 +32,10 @@ export default async function EditorPreviewPage({ params }: { params: Promise<{ 
       lat={site.lat ?? site.place?.lat ?? null}
       lng={site.lng ?? site.place?.lng ?? null}
       sections={site.sections}
-      assets={site.assets.map((assetItem) => ({ id: assetItem.id, ref: assetItem.ref }))}
+      assets={site.assets.map((assetItem) => ({
+        id: assetItem.id,
+        ref: assetItem.ref,
+      }))}
     />
   );
 }
