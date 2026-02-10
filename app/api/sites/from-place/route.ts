@@ -498,20 +498,24 @@ export async function POST(request: NextRequest) {
       }
 
       let photoSortOrder = 1;
-      for (const photo of limitedPhotos) {
-        const classification = await classifyPhoto({ googleRef: photo.ref });
-        await tx.photo.create({
-          data: {
-            siteId: site.id,
-            source: 'google',
-            url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
-            category: classification.category,
-            confidence: classification.confidence,
-            tagsJson: JSON.stringify(classification.tags),
-            sortOrder: photoSortOrder,
-          },
-        });
-        photoSortOrder += 1;
+      try {
+        for (const photo of limitedPhotos) {
+          const classification = await classifyPhoto({ googleRef: photo.ref });
+          await tx.photo.create({
+            data: {
+              siteId: site.id,
+              source: 'google',
+              url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+              category: classification.category,
+              confidence: classification.confidence,
+              tagsJson: JSON.stringify(classification.tags),
+              sortOrder: photoSortOrder,
+            },
+          });
+          photoSortOrder += 1;
+        }
+      } catch (photoError) {
+        console.warn('Skipping photo table writes during site creation.', photoError);
       }
 
       const sectionsPayload = [

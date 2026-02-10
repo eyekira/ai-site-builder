@@ -52,24 +52,9 @@ export default function LoginPage() {
 
     startTransition(async () => {
       try {
-        const result = await signIn('google', {
-          redirect: false,
-          callbackUrl: safeReturnTo,
-        });
-
-        if (result?.error) {
-          throw new Error('Google login is not configured correctly. Please use email login for now.');
-        }
-
-        if (result?.url) {
-          router.push(result.url);
-          return;
-        }
-
-        throw new Error('Google login is currently unavailable. Please use email login for now.');
-      } catch (googleError) {
-        const message = googleError instanceof Error ? googleError.message : 'Google login failed.';
-        setError(message);
+        await signIn('google', { callbackUrl: safeReturnTo });
+      } catch {
+        setError('Google login is currently unavailable. Please use email login for now.');
       }
     });
   };
