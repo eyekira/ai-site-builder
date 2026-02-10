@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { getCsrfToken, signIn } from 'next-auth/react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,18 +47,6 @@ export default function LoginPage() {
   }, []);
 
 
-  const onGoogleSignIn = () => {
-    setError(null);
-
-    startTransition(async () => {
-      try {
-        await signIn('google', { callbackUrl: safeReturnTo });
-      } catch {
-        setError('Google login is currently unavailable. Please use email login for now.');
-      }
-    });
-  };
-
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -96,11 +84,17 @@ export default function LoginPage() {
           return;
         }
 
+        const csrfToken = await getCsrfToken();
+        if (!csrfToken) {
+          throw new Error('Session expired. Please refresh and try again.');
+        }
+
         const result = await signIn('credentials', {
           redirect: false,
-          email,
+          email: email.trim(),
           password,
-          ...(shouldSignup ? { name, phone } : {}),
+          csrfToken,
+          ...(shouldSignup ? { name: name.trim(), phone: phone.trim() } : {}),
         });
 
         if (result?.error) {
@@ -108,7 +102,9 @@ export default function LoginPage() {
             ? 'Sign up failed. Please check your information.'
             : result.error === 'CredentialsSignin'
               ? 'Please check your email or password.'
-              : result.error;
+              : result.error === 'MissingCSRF'
+                ? 'Session expired. Please refresh and try again.'
+                : result.error;
           throw new Error(message);
         }
 
@@ -134,7 +130,7 @@ export default function LoginPage() {
               type="button"
               variant="outline"
               disabled={!googleEnabled || isPending}
-              onClick={onGoogleSignIn}
+              onClick={() => signIn('google', { callbackUrl: safeReturnTo })}
               className="w-full"
             >
               Continue with Google
