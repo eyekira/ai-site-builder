@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 import type { SiteForRender } from '@/lib/site';
 import { serializeTheme } from '@/lib/theme';
+import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
 
 type PlacePhoto = {
   ref: string;
@@ -74,12 +75,8 @@ const COPY_SCHEMA = {
   required: ['hero', 'about', 'cta'],
 } as const;
 
-function getOpenAiKey(): string {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing OPENAI_API_KEY environment variable.');
-  }
-  return apiKey;
+function getOpenAiKey(): string | null {
+  return process.env.OPENAI_API_KEY ?? null;
 }
 
 function slugify(value: string): string {
@@ -113,11 +110,37 @@ async function generateUniqueSlug(baseTitle: string, city: string | null): Promi
   return `${baseSlug}-${Date.now().toString(36)}`;
 }
 
+function generatePreviewSlug(baseTitle: string, city: string | null): string {
+  const rawBase = [baseTitle, city].filter(Boolean).join(' ');
+  const baseSlug = slugify(rawBase) || 'site';
+  return `${baseSlug}-${Date.now().toString(36)}`;
+}
+
 function pickPhotos(photos: PlacePhoto[]): PlacePhoto[] {
   if (photos.length <= 10) {
     return photos;
   }
   return photos.slice(0, 10);
+}
+
+
+async function resolvePlaceForCreation(placeId: string) {
+  try {
+    return await fetchPlaceDetails(placeId);
+  } catch {
+    return {
+      id: placeId,
+      name: 'New Site',
+      address: null,
+      phone: null,
+      website: null,
+      hoursJson: null,
+      lat: null,
+      lng: null,
+      city: null,
+      photos: [] as PlacePhoto[],
+    };
+  }
 }
 
 function buildCtaHref(placePhone: string | null, placeWebsite: string | null): string {
@@ -130,6 +153,39 @@ function buildCtaHref(placePhone: string | null, placeWebsite: string | null): s
   return '#';
 }
 
+
+function buildFallbackCopy(payload: {
+  businessTitle: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+}): CopyPayload {
+  const locationText = payload.address ? ` at ${payload.address}` : '';
+  const contactLine = payload.phone
+    ? `Call us at ${payload.phone}.`
+    : payload.website
+      ? `Visit us online at ${payload.website}.`
+      : 'Reach out to learn more.';
+
+  return {
+    hero: {
+      headline: payload.businessTitle,
+      subheadline: payload.address ?? 'Local business serving the community.',
+      primaryCtaLabel: payload.phone ? 'Call now' : payload.website ? 'Visit website' : 'Learn more',
+    },
+    about: {
+      title: `About ${payload.businessTitle}`,
+      body: `Welcome to ${payload.businessTitle}${locationText}. We focus on quality and friendly service.`,
+      bullets: ['Friendly service', 'Quality offerings', 'Local favorite'],
+    },
+    cta: {
+      title: 'Plan your visit',
+      body: contactLine,
+      ctaLabel: payload.phone ? 'Call us' : payload.website ? 'Visit website' : 'Contact us',
+    },
+  };
+}
+
 async function generateCopy(payload: {
   businessTitle: string;
   address: string | null;
@@ -138,6 +194,10 @@ async function generateCopy(payload: {
   hoursText: string | null;
 }): Promise<CopyPayload> {
   const apiKey = getOpenAiKey();
+  if (!apiKey) {
+    return buildFallbackCopy(payload);
+  }
+
   const promptFacts = [
     `Business title: ${payload.businessTitle}`,
     payload.address ? `Address: ${payload.address}` : 'Address: (not provided)',
@@ -176,16 +236,15 @@ async function generateCopy(payload: {
 
     }),
   });
-console.log('OpenAI key exists:', !!process.env.OPENAI_API_KEY);
  if (!response.ok) {
   const status = response.status;
   const text = await response.text().catch(() => '');
-  console.error('OpenAI copy generation failed:', {
+  console.error('OpenAI copy generation failed, using fallback copy:', {
     status,
     statusText: response.statusText,
     body: text,
   });
-  throw new Error(`OpenAI copy generation failed: ${status} ${response.statusText}`);
+  return buildFallbackCopy(payload);
 }
 
 
@@ -203,10 +262,14 @@ console.log('OpenAI key exists:', !!process.env.OPENAI_API_KEY);
 
   const textContent = outputContent.find((entry) => entry.type === 'output_text')?.text ?? '';
   if (!textContent) {
-    throw new Error('OpenAI response did not include structured JSON.');
+    return buildFallbackCopy(payload);
   }
 
-  return JSON.parse(textContent) as CopyPayload;
+  try {
+    return JSON.parse(textContent) as CopyPayload;
+  } catch {
+    return buildFallbackCopy(payload);
+  }
 }
 
 function formatHoursText(hoursJson: Record<string, unknown> | null): string | null {
@@ -277,12 +340,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const place = await fetchPlaceDetails(placeId);
+    const place = await resolvePlaceForCreation(placeId);
     const placeTitle = place.name;
     const limitedPhotos = pickPhotos(place.photos);
-    console.log('DEBUG first photo object:', limitedPhotos[0]);
 
-    const slug = await generateUniqueSlug(placeTitle, place.city);
+    const slug = isLoggedIn
+      ? await generateUniqueSlug(placeTitle, place.city)
+      : generatePreviewSlug(placeTitle, place.city);
     const hoursText = formatHoursText(place.hoursJson);
     const copy = await generateCopy({
       businessTitle: placeTitle,
@@ -300,6 +364,12 @@ export async function POST(request: NextRequest) {
         ref: photo.ref,
       }));
       const assetIds = assets.map((asset) => asset.id);
+      const previewClassifications = await classifyPlacePhotosBatch(
+        limitedPhotos.map((photo, index) => ({
+          googlePhotoRef: photo.ref,
+          metadata: { index },
+        })),
+      );
       const sectionsPayload = [
         {
           id: 1,
@@ -359,6 +429,19 @@ export async function POST(request: NextRequest) {
           contentJson: section.contentJson,
         })),
         assets,
+        photos: limitedPhotos.map((photo, index) => {
+          const cls = previewClassifications[index];
+          return {
+            id: index + 1,
+            url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+            category: cls?.category ?? 'other',
+            isHero: index === 0,
+            sortOrder: index,
+            isDeleted: false,
+            categoryConfidence: cls?.confidence ?? 0.2,
+            googlePhotoRef: photo.ref,
+          };
+        }),
         place: {
           address: place.address,
           phone: place.phone,
@@ -432,6 +515,87 @@ export async function POST(request: NextRequest) {
         assetIds.push(asset.id);
       }
 
+      const existingPhotos = await tx.photo.findMany({
+        where: {
+          siteId: site.id,
+          googlePhotoRef: { in: limitedPhotos.map((photo) => photo.ref) },
+        },
+        select: { id: true, googlePhotoRef: true, category: true, categoryConfidence: true },
+      });
+
+      const existingByRef = new Map(
+        existingPhotos
+          .filter((photo) => typeof photo.googlePhotoRef === 'string' && photo.googlePhotoRef.length > 0)
+          .map((photo) => [photo.googlePhotoRef as string, photo]),
+      );
+
+      let photoSortOrder = 0;
+      try {
+        const classificationInputs = limitedPhotos.map((photo, index) => {
+          const existing = existingByRef.get(photo.ref);
+          const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
+
+          return highConfidence
+            ? null
+            : {
+                googlePhotoRef: photo.ref,
+                metadata: { index },
+              };
+        });
+
+        const toClassify = classificationInputs.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+        const classifications = await classifyPlacePhotosBatch(toClassify);
+        let classificationCursor = 0;
+
+        for (const [index, photo] of limitedPhotos.entries()) {
+          const existing = existingByRef.get(photo.ref);
+          const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
+          const result = highConfidence
+            ? {
+                category: existing.category,
+                confidence: existing.categoryConfidence ?? 0.8,
+                tags: ['preserved-high-confidence'],
+              }
+            : classifications[classificationCursor++];
+
+          await tx.photo.upsert({
+            where: {
+              siteId_googlePhotoRef: {
+                siteId: site.id,
+                googlePhotoRef: photo.ref,
+              },
+            },
+            create: {
+              siteId: site.id,
+              source: 'google',
+              url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+              googlePhotoRef: photo.ref,
+              category: result?.category ?? 'other',
+              confidence: result?.confidence ?? 0.2,
+              categoryConfidence: result?.confidence ?? 0.2,
+              tagsJson: JSON.stringify(result?.tags ?? []),
+              sortOrder: photoSortOrder,
+              isHero: photoSortOrder === 0,
+              isDeleted: false,
+              deletedAt: null,
+            },
+            update: {
+              url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+              category: highConfidence ? existing?.category : result?.category ?? 'other',
+              confidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : result?.confidence ?? 0.2,
+              categoryConfidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : result?.confidence ?? 0.2,
+              tagsJson: highConfidence ? JSON.stringify(['preserved-high-confidence']) : JSON.stringify(result?.tags ?? []),
+              sortOrder: photoSortOrder,
+              deletedAt: null,
+              isDeleted: false,
+            },
+          });
+          photoSortOrder += 1;
+        }
+      } catch (photoError) {
+        console.warn('Skipping photo table writes during site creation.', photoError);
+      }
+
       const sectionsPayload = [
         {
           type: SectionType.HERO,
@@ -489,7 +653,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ siteId: created.id, slug: created.slug });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const missingDbUrl = message.includes('Environment variable not found: DATABASE_URL');
+
     console.error('Failed to create site from place', error);
-    return NextResponse.json({ error: 'Failed to create site from place.', detail: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Failed to create site from place.',
+        detail: missingDbUrl ? 'Server is missing DATABASE_URL configuration.' : message,
+      },
+      { status: 500 },
+    );
   }
 }

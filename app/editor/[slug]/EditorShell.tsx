@@ -32,6 +32,18 @@ type EditorAsset = {
   height: number | null;
 };
 
+type EditorPhoto = {
+  id: number;
+  source: 'google' | 'upload' | 'ai';
+  url: string;
+  category: 'exterior' | 'interior' | 'food' | 'menu' | 'drink' | 'people' | 'other';
+  confidence: number;
+  tagsJson: string | null;
+  sortOrder: number;
+  isHero: boolean;
+  isDeleted: boolean;
+};
+
 type EditorShellProps = {
   siteId: number;
   slug: string;
@@ -42,6 +54,7 @@ type EditorShellProps = {
   customDomain: string | null;
   sections: EditorSection[];
   assets: EditorAsset[];
+  photos: EditorPhoto[];
 };
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -123,6 +136,7 @@ export default function EditorShell({
   customDomain,
   sections,
   assets,
+  photos,
 }: EditorShellProps) {
   const router = useRouter();
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sections[0]?.id ?? null);
@@ -678,9 +692,12 @@ export default function EditorShell({
 
         {selectedSection?.type === 'PHOTOS' && (
           <PhotosInspector
+            siteId={siteId}
             json={currentDraft}
             assets={assets}
+            photos={photos}
             onChange={(next) => updateDraft(selectedSection.id, next)}
+            onRefresh={() => router.refresh()}
           />
         )}
 
@@ -974,16 +991,34 @@ function ContactInspector({ json, onChange }: { json: string; onChange: (json: s
 }
 
 function PhotosInspector({
+  siteId,
   json,
   assets,
+  photos,
   onChange,
+  onRefresh,
 }: {
+  siteId: number;
   json: string;
   assets: EditorAsset[];
+  photos: EditorPhoto[];
   onChange: (json: string) => void;
+  onRefresh: () => void;
 }) {
   const value = parsePhotosContent(json);
   const selectedIds = value.assetIds;
+  const [activeCategory, setActiveCategory] = useState<EditorPhoto['category']>('exterior');
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'error'>('idle');
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  const categories: EditorPhoto['category'][] = ['exterior', 'interior', 'food', 'menu', 'drink', 'people', 'other'];
+
+  const photosByCategory = categories.reduce((acc, category) => {
+    acc[category] = photos.filter((photo) => photo.category === category && !photo.isDeleted);
+    return acc;
+  }, {} as Record<EditorPhoto['category'], EditorPhoto[]>);
+
+  const activePhotos = photosByCategory[activeCategory] ?? [];
 
   const toggleAsset = (assetId: number) => {
     const isSelected = selectedIds.includes(assetId);
@@ -991,16 +1026,121 @@ function PhotosInspector({
     onChange(JSON.stringify({ ...value, assetIds: nextIds }));
   };
 
-  const moveAsset = (assetId: number, direction: 'up' | 'down') => {
-    const index = selectedIds.indexOf(assetId);
+  const movePhoto = async (photoId: number, direction: 'up' | 'down') => {
+    const visible = activePhotos.filter((p) => !p.isDeleted);
+    const index = visible.findIndex((p) => p.id === photoId);
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (index < 0 || targetIndex < 0 || targetIndex >= selectedIds.length) {
+    if (index < 0 || targetIndex < 0 || targetIndex >= visible.length) {
       return;
     }
-    const nextIds = [...selectedIds];
-    const [moved] = nextIds.splice(index, 1);
-    nextIds.splice(targetIndex, 0, moved);
-    onChange(JSON.stringify({ ...value, assetIds: nextIds }));
+
+    const reordered = [...visible];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    await fetch('/api/sites/photos/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteId, category: activeCategory, photoIds: reordered.map((entry) => entry.id) }),
+    });
+
+    onRefresh();
+  };
+
+  const setHero = async (photoId: number, next: boolean) => {
+    await fetch(`/api/sites/photos/${photoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isHero: next }),
+    });
+    onRefresh();
+  };
+
+  const moveCategory = async (photoId: number, category: EditorPhoto['category']) => {
+    await fetch(`/api/sites/photos/${photoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category }),
+    });
+    onRefresh();
+  };
+
+  const softDelete = async (photoId: number) => {
+    await fetch(`/api/sites/photos/${photoId}`, { method: 'DELETE' });
+    onRefresh();
+  };
+
+  const restore = async (photoId: number) => {
+    await fetch(`/api/sites/photos/${photoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restore: true }),
+    });
+    onRefresh();
+  };
+
+  const onUpload = async (event: any) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setUploadState('uploading');
+    setUploadMessage(null);
+
+    try {
+      const initResponse = await fetch('/api/sites/photos/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId, fileName: file.name, contentType: file.type || 'application/octet-stream' }),
+      });
+      const initPayload = (await initResponse.json()) as
+        | { mode: 'local' }
+        | { mode: 's3'; uploadUrl: string; publicUrl: string };
+
+      if (!initResponse.ok) {
+        throw new Error('Upload initialization failed.');
+      }
+
+      if (initPayload.mode === 'local') {
+        const form = new FormData();
+        form.set('siteId', String(siteId));
+        form.set('file', file);
+        const localRes = await fetch('/api/sites/photos/upload-local', {
+          method: 'POST',
+          body: form,
+        });
+        if (!localRes.ok) {
+          throw new Error('Local upload failed.');
+        }
+      } else {
+        const putRes = await fetch(initPayload.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          body: file,
+        });
+        if (!putRes.ok) {
+          throw new Error('Signed upload failed.');
+        }
+
+        const completeRes = await fetch('/api/sites/photos/upload-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId, url: initPayload.publicUrl, fileName: file.name }),
+        });
+
+        if (!completeRes.ok) {
+          throw new Error('Upload finalization failed.');
+        }
+      }
+
+      setUploadState('idle');
+      onRefresh();
+      event.target.value = '';
+    } catch (error) {
+      setUploadState('error');
+      setUploadMessage(error instanceof Error ? error.message : 'Upload failed.');
+    }
   };
 
   const selectedAssets = selectedIds
@@ -1009,70 +1149,84 @@ function PhotosInspector({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Selected photos</p>
-      {selectedAssets.length === 0 && <p className="text-sm text-zinc-600">No photos selected yet.</p>}
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Upload photo
+        <input type="file" accept="image/*" onChange={onUpload} className="mt-1 block w-full text-xs" />
+      </label>
+      {uploadState === 'uploading' && <p className="text-xs text-zinc-500">Uploading…</p>}
+      {uploadState === 'error' && <p className="text-xs text-red-600">{uploadMessage}</p>}
+
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Category tabs</p>
+      <div className="flex flex-wrap gap-2">
+        {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => setActiveCategory(category)}
+            className={`rounded-md border px-2 py-1 text-[10px] ${
+              activeCategory === category ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-300 bg-white'
+            }`}
+          >
+            {category} ({photosByCategory[category]?.length ?? 0})
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {activePhotos.map((photo) => (
+          <div key={photo.id} className={`rounded-md border p-2 ${photo.isDeleted ? 'opacity-50' : ''}`}>
+            <img src={photo.url} alt="Managed photo" className="h-24 w-full rounded object-cover" />
+            <p className="mt-1 text-[10px] text-zinc-600">{photo.source} · confidence {photo.confidence.toFixed(2)}</p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <button type="button" onClick={() => movePhoto(photo.id, 'up')} className="rounded border px-2 py-1 text-[10px]">Up</button>
+              <button type="button" onClick={() => movePhoto(photo.id, 'down')} className="rounded border px-2 py-1 text-[10px]">Down</button>
+              <button type="button" onClick={() => setHero(photo.id, !photo.isHero)} className="rounded border px-2 py-1 text-[10px]">
+                {photo.isHero ? 'Unset hero' : 'Set hero'}
+              </button>
+              <select
+                value={photo.category}
+                onChange={(event) => {
+                  const nextCategory = event.target.value as EditorPhoto['category'];
+                  void moveCategory(photo.id, nextCategory);
+                }}
+                className="rounded border px-1 py-1 text-[10px]"
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              {photo.isDeleted ? (
+                <button type="button" onClick={() => restore(photo.id)} className="rounded border px-2 py-1 text-[10px]">Restore</button>
+              ) : (
+                <button type="button" onClick={() => softDelete(photo.id)} className="rounded border px-2 py-1 text-[10px]">Delete</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="pt-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Selected photos (legacy section mapping)</p>
       {selectedAssets.map((assetItem) => (
         <div key={assetItem.id} className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 p-2">
           <div className="flex items-center gap-2">
-            <img
-              src={`/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=200`}
-              alt="Selected photo"
-              className="h-12 w-16 rounded object-cover"
-            />
-            <div>
-              <p className="text-xs font-medium text-zinc-700">Photo {assetItem.id}</p>
-              <p className="text-[10px] text-zinc-500">{assetItem.width ?? '—'} × {assetItem.height ?? '—'}</p>
-            </div>
+            <img src={`/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=200`} alt="Selected photo" className="h-12 w-16 rounded object-cover" />
+            <p className="text-xs font-medium text-zinc-700">Photo {assetItem.id}</p>
           </div>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => moveAsset(assetItem.id, 'up')}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700"
-            >
-              Up
-            </button>
-            <button
-              type="button"
-              onClick={() => moveAsset(assetItem.id, 'down')}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700"
-            >
-              Down
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleAsset(assetItem.id)}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700"
-            >
-              Remove
-            </button>
-          </div>
+          <button type="button" onClick={() => toggleAsset(assetItem.id)} className="rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium text-zinc-700">Remove</button>
         </div>
       ))}
-      <div className="pt-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Available photos</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {assets.map((assetItem) => {
-            const isSelected = selectedIds.includes(assetItem.id);
-            return (
-              <button
-                key={assetItem.id}
-                type="button"
-                onClick={() => toggleAsset(assetItem.id)}
-                className={`rounded-md border p-2 text-left text-[10px] ${
-                  isSelected ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700'
-                }`}
-              >
-                <img
-                  src={`/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=200`}
-                  alt="Available photo"
-                  className="mb-2 h-20 w-full rounded object-cover"
-                />
-                <span>Photo {assetItem.id}</span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        {assets.map((assetItem) => {
+          const isSelected = selectedIds.includes(assetItem.id);
+          return (
+            <button key={assetItem.id} type="button" onClick={() => toggleAsset(assetItem.id)} className={`rounded-md border p-2 text-left text-[10px] ${isSelected ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700'}`}>
+              <img src={`/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=200`} alt="Available photo" className="mb-2 h-20 w-full rounded object-cover" />
+              <span>Photo {assetItem.id}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

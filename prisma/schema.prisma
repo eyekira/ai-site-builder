@@ -30,6 +30,22 @@ enum AssetSource {
   GOOGLE_PLACES
 }
 
+enum PhotoSource {
+  google
+  upload
+  ai
+}
+
+enum PhotoCategory {
+  exterior
+  interior
+  food
+  menu
+  drink
+  people
+  other
+}
+
 model User {
   id         Int     @id @default(autoincrement())
   email      String  @unique
@@ -66,8 +82,34 @@ model Site {
   place    Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
   sections Section[]
   assets   Asset[]
+  photos   Photo[]
 
   @@index([anonSessionId])
+}
+
+model Photo {
+  id         Int           @id @default(autoincrement())
+  siteId     Int
+  source     PhotoSource
+  url        String
+  category   PhotoCategory @default(other)
+  confidence Float         @default(0)
+  categoryConfidence Float?
+  tagsJson   String?
+  sortOrder  Int           @default(1)
+  isHero     Boolean       @default(false)
+  isDeleted  Boolean       @default(false)
+  deletedAt  DateTime?
+  googlePhotoRef String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, category, sortOrder])
+  @@index([siteId, isDeleted])
+  @@index([siteId, deletedAt])
+  @@unique([siteId, googlePhotoRef])
 }
 
 model Place {

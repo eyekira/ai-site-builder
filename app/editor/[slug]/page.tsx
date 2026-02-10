@@ -24,6 +24,9 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
       assets: {
         orderBy: { id: 'asc' },
       },
+      photos: {
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { id: 'asc' }],
+      },
     },
   });
 
@@ -64,6 +67,17 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
         ref: asset.ref,
         width: asset.width,
         height: asset.height,
+      }))}
+      photos={site.photos.map((photo) => ({
+        id: photo.id,
+        source: photo.source,
+        url: photo.url,
+        category: photo.category,
+        confidence: photo.confidence,
+        tagsJson: photo.tagsJson,
+        sortOrder: photo.sortOrder,
+        isHero: photo.isHero,
+        isDeleted: photo.isDeleted,
       }))}
     />
   );

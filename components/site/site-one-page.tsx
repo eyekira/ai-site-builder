@@ -69,7 +69,7 @@ export function SiteOnePage({
   const selectedPhotos = photosContent.assetIds
     .map((assetId) => assetMap.get(assetId))
     .filter((assetItem): assetItem is SiteAsset => Boolean(assetItem))
-    .map((assetItem) => ({ id: assetItem.id, ref: assetItem.ref }));
+    .map((assetItem) => ({ id: assetItem.id, url: `/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=1200` }));
 
   const hoursText = parseHoursJson(hoursJson);
 

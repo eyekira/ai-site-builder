@@ -2,11 +2,18 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { getCsrfToken, signIn } from 'next-auth/react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+function isValidUsPhone(phone: string): boolean {
+  const digits = phone.replace(/\D+/g, '');
+  if (digits.length === 10) {
+    return true;
+  }
+  return digits.length === 11 && digits.startsWith('1');
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,15 +46,16 @@ export default function LoginPage() {
     loadProviders();
   }, []);
 
-const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  setError(null);
 
-  const trimmedPassword = password.trim();
-  if (trimmedPassword.length < 6) {
-    setError('Password must be at least 6 characters.');
-    return;
-  }
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    const trimmedPassword = password.trim();
+    if (trimmedPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -62,20 +70,31 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 
         if (shouldSignup && step === 'login') {
           setStep('signup');
-          setError('Please enter your name and phone number to create an account.');
+          setError('Please enter your name to create an account.');
           return;
         }
 
-        if (shouldSignup && (!name.trim() || !phone.trim())) {
-          setError('Please enter your name and phone number to create an account.');
+        if (shouldSignup && !name.trim()) {
+          setError('Please enter your name to create an account.');
           return;
+        }
+
+        if (shouldSignup && phone.trim() && !isValidUsPhone(phone)) {
+          setError('Phone must be a valid US number (e.g. (555) 123-4567).');
+          return;
+        }
+
+        const csrfToken = await getCsrfToken();
+        if (!csrfToken) {
+          throw new Error('Session expired. Please refresh and try again.');
         }
 
         const result = await signIn('credentials', {
           redirect: false,
-          email,
+          email: email.trim(),
           password,
-          ...(shouldSignup ? { name, phone } : {}),
+          csrfToken,
+          ...(shouldSignup ? { name: name.trim(), phone: phone.trim() } : {}),
         });
 
         if (result?.error) {
@@ -83,7 +102,9 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
             ? 'Sign up failed. Please check your information.'
             : result.error === 'CredentialsSignin'
               ? 'Please check your email or password.'
-              : result.error;
+              : result.error === 'MissingCSRF'
+                ? 'Session expired. Please refresh and try again.'
+                : result.error;
           throw new Error(message);
         }
 
@@ -144,7 +165,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
             </label>
             {step === 'login' && (
               <p className="text-xs text-muted-foreground">
-                If you do not have an account, enter your name and phone number in the next step to sign up.
+                If you do not have an account, enter your name in the next step to sign up. Phone is optional.
               </p>
             )}
             {step === 'signup' && (
@@ -163,8 +184,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
                   <Input
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
-                    placeholder="01012345678"
-                    required
+                    placeholder="(555) 123-4567 (optional)"
                   />
                 </label>
               </>
