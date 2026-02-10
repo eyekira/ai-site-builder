@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { classifyPhoto } from '@/lib/photo-classifier';
+import { classifyPlacePhoto } from '@/lib/photo-classifier';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 
@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
 
-  const sortOrder = (await prisma.photo.count({ where: { siteId, isDeleted: false } })) + 1;
-  const classification = await classifyPhoto({ url, filename: body.fileName, altText: body.altText });
+  const sortOrder = await prisma.photo.count({ where: { siteId, isDeleted: false, deletedAt: null } });
+  const classification = await classifyPlacePhoto({ url, filename: body.fileName, altText: body.altText });
 
   const photo = await prisma.photo.create({
     data: {
@@ -46,8 +46,10 @@ export async function POST(request: NextRequest) {
       url,
       category: classification.category,
       confidence: classification.confidence,
+      categoryConfidence: classification.confidence,
       tagsJson: JSON.stringify(classification.tags),
       sortOrder,
+      deletedAt: null,
     },
   });
 

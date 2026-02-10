@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   const photos = await prisma.photo.findMany({
-    where: { siteId },
+    where: { siteId, isDeleted: false, deletedAt: null },
     orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { id: 'asc' }],
   });
 

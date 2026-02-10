@@ -7,6 +7,7 @@ type Body = {
   category?: string;
   isHero?: boolean;
   restore?: boolean;
+  deletedAt?: string | null;
 };
 
 function parseId(value: string): number | null {
@@ -44,11 +45,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const data: Record<string, unknown> = {};
   if (typeof body.isHero === 'boolean') {
+    if (body.isHero) {
+      await prisma.photo.updateMany({
+        where: { siteId: existing.siteId, isHero: true },
+        data: { isHero: false },
+      });
+    }
     data.isHero = body.isHero;
   }
 
   if (typeof body.restore === 'boolean') {
     data.isDeleted = !body.restore;
+    data.deletedAt = body.restore ? null : new Date();
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'deletedAt')) {
+    data.deletedAt = body.deletedAt ? new Date(body.deletedAt) : null;
+    data.isDeleted = Boolean(body.deletedAt);
   }
 
   const validCategories = ['exterior', 'interior', 'food', 'menu', 'drink', 'people', 'other'];
@@ -85,6 +98,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
 
-  await prisma.photo.update({ where: { id: existing.id }, data: { isDeleted: true } });
+  await prisma.photo.update({ where: { id: existing.id }, data: { isDeleted: true, deletedAt: new Date() } });
   return NextResponse.json({ ok: true });
 }

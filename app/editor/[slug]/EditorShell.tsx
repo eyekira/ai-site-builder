@@ -1014,7 +1014,7 @@ function PhotosInspector({
   const categories: EditorPhoto['category'][] = ['exterior', 'interior', 'food', 'menu', 'drink', 'people', 'other'];
 
   const photosByCategory = categories.reduce((acc, category) => {
-    acc[category] = photos.filter((photo) => photo.category === category);
+    acc[category] = photos.filter((photo) => photo.category === category && !photo.isDeleted);
     return acc;
   }, {} as Record<EditorPhoto['category'], EditorPhoto[]>);
 
@@ -1052,6 +1052,15 @@ function PhotosInspector({
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isHero: next }),
+    });
+    onRefresh();
+  };
+
+  const moveCategory = async (photoId: number, category: EditorPhoto['category']) => {
+    await fetch(`/api/sites/photos/${photoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category }),
     });
     onRefresh();
   };
@@ -1174,6 +1183,20 @@ function PhotosInspector({
               <button type="button" onClick={() => setHero(photo.id, !photo.isHero)} className="rounded border px-2 py-1 text-[10px]">
                 {photo.isHero ? 'Unset hero' : 'Set hero'}
               </button>
+              <select
+                value={photo.category}
+                onChange={(event) => {
+                  const nextCategory = event.target.value as EditorPhoto['category'];
+                  void moveCategory(photo.id, nextCategory);
+                }}
+                className="rounded border px-1 py-1 text-[10px]"
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
               {photo.isDeleted ? (
                 <button type="button" onClick={() => restore(photo.id)} className="rounded border px-2 py-1 text-[10px]">Restore</button>
               ) : (

@@ -94,10 +94,13 @@ model Photo {
   url        String
   category   PhotoCategory @default(other)
   confidence Float         @default(0)
+  categoryConfidence Float?
   tagsJson   String?
   sortOrder  Int           @default(1)
   isHero     Boolean       @default(false)
   isDeleted  Boolean       @default(false)
+  deletedAt  DateTime?
+  googlePhotoRef String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -105,6 +108,8 @@ model Photo {
 
   @@index([siteId, category, sortOrder])
   @@index([siteId, isDeleted])
+  @@index([siteId, deletedAt])
+  @@unique([siteId, googlePhotoRef])
 }
 
 model Place {

@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 import type { SiteForRender } from '@/lib/site';
 import { serializeTheme } from '@/lib/theme';
-import { classifyPhoto } from '@/lib/photo-classifier';
+import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
 
 type PlacePhoto = {
   ref: string;
@@ -364,6 +364,12 @@ export async function POST(request: NextRequest) {
         ref: photo.ref,
       }));
       const assetIds = assets.map((asset) => asset.id);
+      const previewClassifications = await classifyPlacePhotosBatch(
+        limitedPhotos.map((photo, index) => ({
+          googlePhotoRef: photo.ref,
+          metadata: { index },
+        })),
+      );
       const sectionsPayload = [
         {
           id: 1,
@@ -423,7 +429,19 @@ export async function POST(request: NextRequest) {
           contentJson: section.contentJson,
         })),
         assets,
-        photos: [],
+        photos: limitedPhotos.map((photo, index) => {
+          const cls = previewClassifications[index];
+          return {
+            id: index + 1,
+            url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+            category: cls?.category ?? 'other',
+            isHero: index === 0,
+            sortOrder: index,
+            isDeleted: false,
+            categoryConfidence: cls?.confidence ?? 0.2,
+            googlePhotoRef: photo.ref,
+          };
+        }),
         place: {
           address: place.address,
           phone: place.phone,
@@ -497,19 +515,79 @@ export async function POST(request: NextRequest) {
         assetIds.push(asset.id);
       }
 
-      let photoSortOrder = 1;
+      const existingPhotos = await tx.photo.findMany({
+        where: {
+          siteId: site.id,
+          googlePhotoRef: { in: limitedPhotos.map((photo) => photo.ref) },
+        },
+        select: { id: true, googlePhotoRef: true, category: true, categoryConfidence: true },
+      });
+
+      const existingByRef = new Map(
+        existingPhotos
+          .filter((photo) => typeof photo.googlePhotoRef === 'string' && photo.googlePhotoRef.length > 0)
+          .map((photo) => [photo.googlePhotoRef as string, photo]),
+      );
+
+      let photoSortOrder = 0;
       try {
+        const classificationInputs = limitedPhotos.map((photo, index) => {
+          const existing = existingByRef.get(photo.ref);
+          const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
+
+          return highConfidence
+            ? null
+            : {
+                googlePhotoRef: photo.ref,
+                metadata: { index },
+              };
+        });
+
+        const toClassify = classificationInputs.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+        const classifications = await classifyPlacePhotosBatch(toClassify);
+        let classificationCursor = 0;
+
         for (const [index, photo] of limitedPhotos.entries()) {
-          const classification = await classifyPhoto({ googleRef: photo.ref, metadata: { index } });
-          await tx.photo.create({
-            data: {
+          const existing = existingByRef.get(photo.ref);
+          const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
+          const result = highConfidence
+            ? {
+                category: existing.category,
+                confidence: existing.categoryConfidence ?? 0.8,
+                tags: ['preserved-high-confidence'],
+              }
+            : classifications[classificationCursor++];
+
+          await tx.photo.upsert({
+            where: {
+              siteId_googlePhotoRef: {
+                siteId: site.id,
+                googlePhotoRef: photo.ref,
+              },
+            },
+            create: {
               siteId: site.id,
               source: 'google',
               url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
-              category: classification.category,
-              confidence: classification.confidence,
-              tagsJson: JSON.stringify(classification.tags),
+              googlePhotoRef: photo.ref,
+              category: result?.category ?? 'other',
+              confidence: result?.confidence ?? 0.2,
+              categoryConfidence: result?.confidence ?? 0.2,
+              tagsJson: JSON.stringify(result?.tags ?? []),
               sortOrder: photoSortOrder,
+              isHero: photoSortOrder === 0,
+              isDeleted: false,
+              deletedAt: null,
+            },
+            update: {
+              url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+              category: highConfidence ? existing?.category : result?.category ?? 'other',
+              confidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : result?.confidence ?? 0.2,
+              categoryConfidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : result?.confidence ?? 0.2,
+              tagsJson: highConfidence ? JSON.stringify(['preserved-high-confidence']) : JSON.stringify(result?.tags ?? []),
+              sortOrder: photoSortOrder,
+              deletedAt: null,
+              isDeleted: false,
             },
           });
           photoSortOrder += 1;

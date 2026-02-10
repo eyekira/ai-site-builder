@@ -29,6 +29,8 @@ export type SiteForRender = {
     isHero: boolean;
     sortOrder: number;
     isDeleted: boolean;
+    categoryConfidence?: number;
+    googlePhotoRef?: string | null;
   }>;
   place: {
     address: string | null;
@@ -54,7 +56,7 @@ export async function getPublishedSiteForRender(slug: string): Promise<SiteForRe
         },
       },
       photos: {
-        where: { isDeleted: false },
+        where: { isDeleted: false, deletedAt: null },
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
@@ -93,7 +95,7 @@ export async function getSiteForOwnerRender(slug: string, ownerId: number): Prom
         },
       },
       photos: {
-        where: { isDeleted: false },
+        where: { isDeleted: false, deletedAt: null },
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         select: {
           id: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { classifyPhoto } from '@/lib/photo-classifier';
+import { classifyPlacePhoto } from '@/lib/photo-classifier';
 import { getUploadMode, saveLocalUpload } from '@/lib/photo-storage';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   const url = await saveLocalUpload({ siteId, fileName: file.name, bytes });
-  const sortOrder = (await prisma.photo.count({ where: { siteId, isDeleted: false } })) + 1;
-  const classification = await classifyPhoto({ url, filename: file.name });
+  const sortOrder = await prisma.photo.count({ where: { siteId, isDeleted: false, deletedAt: null } });
+  const classification = await classifyPlacePhoto({ url, filename: file.name });
 
   const photo = await prisma.photo.create({
     data: {
@@ -40,8 +40,10 @@ export async function POST(request: NextRequest) {
       url,
       category: classification.category,
       confidence: classification.confidence,
+      categoryConfidence: classification.confidence,
       tagsJson: JSON.stringify(classification.tags),
       sortOrder,
+      deletedAt: null,
     },
   });
 

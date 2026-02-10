@@ -31,11 +31,22 @@ export function buildUploadKey(siteId: number, fileName: string): string {
   return `sites/${siteId}/${yyyy}/${mm}/${randomUUID()}${extFromFilename(fileName)}`;
 }
 
-async function getS3Helpers() {
+type S3Helpers = {
+  PutObjectCommand: any;
+  S3Client: any;
+  getSignedUrl: (client: any, command: any, opts: { expiresIn: number }) => Promise<string>;
+};
+
+async function runtimeImport(moduleName: string): Promise<any> {
+  const importer = new Function('m', 'return import(m);') as (m: string) => Promise<any>;
+  return importer(moduleName);
+}
+
+async function getS3Helpers(): Promise<S3Helpers> {
   try {
     const [{ PutObjectCommand, S3Client }, { getSignedUrl }] = await Promise.all([
-      import('@aws-sdk/client-s3'),
-      import('@aws-sdk/s3-request-presigner'),
+      runtimeImport('@aws-sdk/client-s3'),
+      runtimeImport('@aws-sdk/s3-request-presigner'),
     ]);
 
     return {

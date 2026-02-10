@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       siteId,
       site: { ownerId: user.id },
       isDeleted: false,
+      deletedAt: null,
     },
     select: { id: true },
   });
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     photoIds.map((photoId, index) =>
       prisma.photo.update({
         where: { id: photoId },
-        data: { sortOrder: index + 1 },
+        data: { sortOrder: index },
       }),
     ),
   );
