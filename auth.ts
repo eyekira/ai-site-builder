@@ -30,7 +30,18 @@ function normalizeName(value: string | undefined, fallbackEmail: string) {
 
 function normalizePhone(value: string | undefined) {
   const trimmed = value?.trim();
-  return trimmed ? trimmed.replace(/\s+/g, '') : null;
+  if (!trimmed) {
+    return null;
+  }
+
+  const digits = trimmed.replace(/\D+/g, '');
+  const normalizedDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+
+  if (normalizedDigits.length !== 10) {
+    return null;
+  }
+
+  return `(${normalizedDigits.slice(0, 3)}) ${normalizedDigits.slice(3, 6)}-${normalizedDigits.slice(6)}`;
 }
 
 async function upsertUser(email: string, name: string | null, phone: string | null) {
@@ -120,8 +131,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const name = normalizeName(payload.name, email);
+        if (!name) {
+          return null;
+        }
+
+        const rawPhone = payload.phone?.trim();
         const phone = normalizePhone(payload.phone);
-        if (!name || !phone) {
+        if (rawPhone && !phone) {
           return null;
         }
         const passwordHash = await hashPassword(password);

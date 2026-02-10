@@ -75,12 +75,8 @@ const COPY_SCHEMA = {
   required: ['hero', 'about', 'cta'],
 } as const;
 
-function getOpenAiKey(): string {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing OPENAI_API_KEY environment variable.');
-  }
-  return apiKey;
+function getOpenAiKey(): string | null {
+  return process.env.OPENAI_API_KEY ?? null;
 }
 
 function slugify(value: string): string {
@@ -131,6 +127,39 @@ function buildCtaHref(placePhone: string | null, placeWebsite: string | null): s
   return '#';
 }
 
+
+function buildFallbackCopy(payload: {
+  businessTitle: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+}): CopyPayload {
+  const locationText = payload.address ? ` at ${payload.address}` : '';
+  const contactLine = payload.phone
+    ? `Call us at ${payload.phone}.`
+    : payload.website
+      ? `Visit us online at ${payload.website}.`
+      : 'Reach out to learn more.';
+
+  return {
+    hero: {
+      headline: payload.businessTitle,
+      subheadline: payload.address ?? 'Local business serving the community.',
+      primaryCtaLabel: payload.phone ? 'Call now' : payload.website ? 'Visit website' : 'Learn more',
+    },
+    about: {
+      title: `About ${payload.businessTitle}`,
+      body: `Welcome to ${payload.businessTitle}${locationText}. We focus on quality and friendly service.`,
+      bullets: ['Friendly service', 'Quality offerings', 'Local favorite'],
+    },
+    cta: {
+      title: 'Plan your visit',
+      body: contactLine,
+      ctaLabel: payload.phone ? 'Call us' : payload.website ? 'Visit website' : 'Contact us',
+    },
+  };
+}
+
 async function generateCopy(payload: {
   businessTitle: string;
   address: string | null;
@@ -139,6 +168,10 @@ async function generateCopy(payload: {
   hoursText: string | null;
 }): Promise<CopyPayload> {
   const apiKey = getOpenAiKey();
+  if (!apiKey) {
+    return buildFallbackCopy(payload);
+  }
+
   const promptFacts = [
     `Business title: ${payload.businessTitle}`,
     payload.address ? `Address: ${payload.address}` : 'Address: (not provided)',
@@ -177,16 +210,15 @@ async function generateCopy(payload: {
 
     }),
   });
-console.log('OpenAI key exists:', !!process.env.OPENAI_API_KEY);
  if (!response.ok) {
   const status = response.status;
   const text = await response.text().catch(() => '');
-  console.error('OpenAI copy generation failed:', {
+  console.error('OpenAI copy generation failed, using fallback copy:', {
     status,
     statusText: response.statusText,
     body: text,
   });
-  throw new Error(`OpenAI copy generation failed: ${status} ${response.statusText}`);
+  return buildFallbackCopy(payload);
 }
 
 
@@ -204,10 +236,14 @@ console.log('OpenAI key exists:', !!process.env.OPENAI_API_KEY);
 
   const textContent = outputContent.find((entry) => entry.type === 'output_text')?.text ?? '';
   if (!textContent) {
-    throw new Error('OpenAI response did not include structured JSON.');
+    return buildFallbackCopy(payload);
   }
 
-  return JSON.parse(textContent) as CopyPayload;
+  try {
+    return JSON.parse(textContent) as CopyPayload;
+  } catch {
+    return buildFallbackCopy(payload);
+  }
 }
 
 function formatHoursText(hoursJson: Record<string, unknown> | null): string | null {
@@ -281,7 +317,6 @@ export async function POST(request: NextRequest) {
     const place = await fetchPlaceDetails(placeId);
     const placeTitle = place.name;
     const limitedPhotos = pickPhotos(place.photos);
-    console.log('DEBUG first photo object:', limitedPhotos[0]);
 
     const slug = await generateUniqueSlug(placeTitle, place.city);
     const hoursText = formatHoursText(place.hoursJson);

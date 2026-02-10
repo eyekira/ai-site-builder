@@ -7,6 +7,13 @@ import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+function isValidUsPhone(phone: string): boolean {
+  const digits = phone.replace(/\D+/g, '');
+  if (digits.length === 10) {
+    return true;
+  }
+  return digits.length === 11 && digits.startsWith('1');
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,15 +46,15 @@ export default function LoginPage() {
     loadProviders();
   }, []);
 
-const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  setError(null);
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
 
-  const trimmedPassword = password.trim();
-  if (trimmedPassword.length < 6) {
-    setError('Password must be at least 6 characters.');
-    return;
-  }
+    const trimmedPassword = password.trim();
+    if (trimmedPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -62,12 +69,17 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 
         if (shouldSignup && step === 'login') {
           setStep('signup');
-          setError('Please enter your name and phone number to create an account.');
+          setError('Please enter your name to create an account.');
           return;
         }
 
-        if (shouldSignup && (!name.trim() || !phone.trim())) {
-          setError('Please enter your name and phone number to create an account.');
+        if (shouldSignup && !name.trim()) {
+          setError('Please enter your name to create an account.');
+          return;
+        }
+
+        if (shouldSignup && phone.trim() && !isValidUsPhone(phone)) {
+          setError('Phone must be a valid US number (e.g. (555) 123-4567).');
           return;
         }
 
@@ -144,7 +156,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
             </label>
             {step === 'login' && (
               <p className="text-xs text-muted-foreground">
-                If you do not have an account, enter your name and phone number in the next step to sign up.
+                If you do not have an account, enter your name in the next step to sign up. Phone is optional.
               </p>
             )}
             {step === 'signup' && (
@@ -163,8 +175,7 @@ const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
                   <Input
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
-                    placeholder="01012345678"
-                    required
+                    placeholder="(555) 123-4567 (optional)"
                   />
                 </label>
               </>
