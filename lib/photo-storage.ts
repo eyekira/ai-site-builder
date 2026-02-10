@@ -2,9 +2,6 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import { mkdir, writeFile } from 'fs/promises';
 
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-
 export type UploadMode = 's3' | 'local';
 
 export function getUploadMode(): UploadMode {
@@ -12,7 +9,13 @@ export function getUploadMode(): UploadMode {
     return 'local';
   }
 
-  const hasS3 = Boolean(process.env.S3_BUCKET && process.env.S3_REGION && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY);
+  const hasS3 = Boolean(
+    process.env.S3_BUCKET &&
+      process.env.S3_REGION &&
+      process.env.S3_ACCESS_KEY_ID &&
+      process.env.S3_SECRET_ACCESS_KEY,
+  );
+
   return hasS3 ? 's3' : 'local';
 }
 
@@ -28,22 +31,21 @@ export function buildUploadKey(siteId: number, fileName: string): string {
   return `sites/${siteId}/${yyyy}/${mm}/${randomUUID()}${extFromFilename(fileName)}`;
 }
 
-function getS3Client(): S3Client {
-  const region = process.env.S3_REGION;
-  const endpoint = process.env.S3_ENDPOINT;
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+async function getS3Helpers() {
+  try {
+    const [{ PutObjectCommand, S3Client }, { getSignedUrl }] = await Promise.all([
+      import('@aws-sdk/client-s3'),
+      import('@aws-sdk/s3-request-presigner'),
+    ]);
 
-  if (!region || !accessKeyId || !secretAccessKey) {
-    throw new Error('Missing S3 environment variables.');
+    return {
+      PutObjectCommand,
+      S3Client,
+      getSignedUrl,
+    };
+  } catch {
+    throw new Error('S3 SDK modules are missing. Install @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner.');
   }
-
-  return new S3Client({
-    region,
-    endpoint: endpoint || undefined,
-    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
-    credentials: { accessKeyId, secretAccessKey },
-  });
 }
 
 export async function getSignedPhotoUploadUrl(params: {
@@ -52,12 +54,23 @@ export async function getSignedPhotoUploadUrl(params: {
 }): Promise<{ uploadUrl: string; publicUrl: string }> {
   const bucket = process.env.S3_BUCKET;
   const region = process.env.S3_REGION;
+  const endpoint = process.env.S3_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
 
-  if (!bucket || !region) {
-    throw new Error('Missing S3_BUCKET or S3_REGION.');
+  if (!bucket || !region || !accessKeyId || !secretAccessKey) {
+    throw new Error('Missing S3 environment variables.');
   }
 
-  const client = getS3Client();
+  const { PutObjectCommand, S3Client, getSignedUrl } = await getS3Helpers();
+
+  const client = new S3Client({
+    region,
+    endpoint: endpoint || undefined,
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+    credentials: { accessKeyId, secretAccessKey },
+  });
+
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: params.key,
@@ -65,7 +78,8 @@ export async function getSignedPhotoUploadUrl(params: {
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: 60 * 5 });
-  const publicBase = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? `https://${bucket}.s3.${region}.amazonaws.com`;
+  const publicBase =
+    process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? `https://${bucket}.s3.${region}.amazonaws.com`;
 
   return {
     uploadUrl,

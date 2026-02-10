@@ -42,7 +42,12 @@ export async function POST(request: NextRequest) {
   }
 
   const key = buildUploadKey(siteId, fileName);
-  const signed = await getSignedPhotoUploadUrl({ key, contentType });
 
-  return NextResponse.json({ mode: 's3', key, uploadUrl: signed.uploadUrl, publicUrl: signed.publicUrl });
+  try {
+    const signed = await getSignedPhotoUploadUrl({ key, contentType });
+    return NextResponse.json({ mode: 's3', key, uploadUrl: signed.uploadUrl, publicUrl: signed.publicUrl });
+  } catch (error) {
+    console.warn('Signed upload unavailable, falling back to local upload mode.', error);
+    return NextResponse.json({ mode: 'local' });
+  }
 }

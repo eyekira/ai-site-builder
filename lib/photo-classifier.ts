@@ -23,6 +23,8 @@ const CATEGORY_KEYWORDS: Record<Exclude<PhotoCategory, 'other'>, string[]> = {
   people: ['people', 'person', 'staff', 'team', 'chef', 'customer', 'group', 'portrait'],
 };
 
+const GOOGLE_FALLBACK_BUCKETS: Array<PhotoCategory> = ['exterior', 'interior', 'food'];
+
 function tokenize(input: ClassifierInput): string[] {
   const parts = [input.url, input.filename, input.altText, input.googleRef]
     .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -34,6 +36,31 @@ function tokenize(input: ClassifierInput): string[] {
     .split(' ')
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function classifyGoogleFallback(input: ClassifierInput): ClassificationResult | null {
+  if (!input.googleRef) {
+    return null;
+  }
+
+  const indexValue = input.metadata?.index;
+  const index = typeof indexValue === 'number' && Number.isInteger(indexValue) ? indexValue : null;
+  const bucketIndex = index !== null ? index % GOOGLE_FALLBACK_BUCKETS.length : hashString(input.googleRef) % GOOGLE_FALLBACK_BUCKETS.length;
+  const category = GOOGLE_FALLBACK_BUCKETS[bucketIndex];
+
+  return {
+    category,
+    confidence: 0.56,
+    tags: ['google-fallback', category],
+  };
 }
 
 export async function classifyPhotoWithAi(_input: ClassifierInput): Promise<ClassificationResult | null> {
@@ -54,6 +81,10 @@ export async function classifyPhoto(input: ClassifierInput): Promise<Classificat
 
   const tokens = tokenize(input);
   if (tokens.length === 0) {
+    const googleFallback = classifyGoogleFallback(input);
+    if (googleFallback) {
+      return googleFallback;
+    }
     return { category: 'other', confidence: 0.2, tags: [] };
   }
 
@@ -73,6 +104,13 @@ export async function classifyPhoto(input: ClassifierInput): Promise<Classificat
   const winner = scores[0];
 
   if (!winner || winner.score <= 0) {
+    const googleFallback = classifyGoogleFallback(input);
+    if (googleFallback) {
+      return {
+        ...googleFallback,
+        tags: [...googleFallback.tags, ...tokens.slice(0, 4)],
+      };
+    }
     return { category: 'other', confidence: 0.35, tags: tokens.slice(0, 6) };
   }
 

@@ -499,8 +499,8 @@ export async function POST(request: NextRequest) {
 
       let photoSortOrder = 1;
       try {
-        for (const photo of limitedPhotos) {
-          const classification = await classifyPhoto({ googleRef: photo.ref });
+        for (const [index, photo] of limitedPhotos.entries()) {
+          const classification = await classifyPhoto({ googleRef: photo.ref, metadata: { index } });
           await tx.photo.create({
             data: {
               siteId: site.id,
