@@ -70,11 +70,21 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 <Link
-                  href={site.status === 'PUBLISHED' ? `/s/${site.slug}` : `/editor/${site.slug}`}
+                  href={`/editor/${site.slug}`}
                   className={cn(buttonBase, 'h-9 rounded-xl px-3 bg-primary text-primary-foreground hover:bg-primary/90')}
                 >
-                  {site.status === 'PUBLISHED' ? 'View site' : 'Open editor'}
+                  {site.status === 'PUBLISHED' ? 'Edit & republish' : 'Open editor'}
                 </Link>
+                {site.status === 'PUBLISHED' ? (
+                  <Link
+                    href={`/s/${site.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonBase, 'h-9 rounded-xl px-3 border bg-background hover:bg-accent hover:text-accent-foreground')}
+                  >
+                    View site
+                  </Link>
+                ) : null}
               </CardContent>
             </Card>
           ))}
