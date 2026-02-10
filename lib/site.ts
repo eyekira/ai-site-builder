@@ -22,6 +22,14 @@ export type SiteForRender = {
     id: number;
     ref: string;
   }>;
+  photos: Array<{
+    id: number;
+    url: string;
+    category: string;
+    isHero: boolean;
+    sortOrder: number;
+    isDeleted: boolean;
+  }>;
   place: {
     address: string | null;
     phone: string | null;
@@ -43,6 +51,18 @@ export async function getPublishedSiteForRender(slug: string): Promise<SiteForRe
         select: {
           id: true,
           ref: true,
+        },
+      },
+      photos: {
+        where: { isDeleted: false },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          url: true,
+          category: true,
+          isHero: true,
+          sortOrder: true,
+          isDeleted: true,
         },
       },
       place: {
@@ -70,6 +90,18 @@ export async function getSiteForOwnerRender(slug: string, ownerId: number): Prom
         select: {
           id: true,
           ref: true,
+        },
+      },
+      photos: {
+        where: { isDeleted: false },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          url: true,
+          category: true,
+          isHero: true,
+          sortOrder: true,
+          isDeleted: true,
         },
       },
       place: {

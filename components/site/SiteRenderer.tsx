@@ -109,11 +109,28 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
           }
 
           if (section.type === 'PHOTOS') {
+            if (site.photos.length > 0) {
+              return (
+                <PhotosSection
+                  key={section.id}
+                  photos={site.photos.map((photo) => ({
+                    id: photo.id,
+                    url: photo.url,
+                    category: photo.category,
+                    isHero: photo.isHero,
+                  }))}
+                />
+              );
+            }
+
             const photosContent = safeParsePhotosContent(section.contentJson ?? '{}');
             const selectedPhotos = photosContent.assetIds
               .map((assetId) => assetMap.get(assetId))
               .filter((assetItem): assetItem is { id: number; ref: string } => Boolean(assetItem))
-              .map((assetItem) => ({ id: assetItem.id, ref: assetItem.ref }));
+              .map((assetItem) => ({
+                id: assetItem.id,
+                url: `/api/places/photo?ref=${encodeURIComponent(assetItem.ref)}&maxwidth=1200`,
+              }));
 
             return <PhotosSection key={section.id} photos={selectedPhotos} />;
           }

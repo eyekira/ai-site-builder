@@ -66,3 +66,29 @@ NEXT_PUBLIC_GOOGLE_PLACES_KEY=your_client_key_here # optional
 - `app/components/*`: client components can use `"use client"`
 - `app/api/*`: server API route handlers
 - `app/api/test-places/route.ts`: test endpoint for Google Places (New) Text Search
+
+
+## Photo upload environment variables (Phase 2)
+
+Set one of the following modes:
+
+### S3/R2 signed upload mode (default when S3 vars exist)
+
+```bash
+S3_BUCKET=your-bucket
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+# Optional (R2/minio/custom S3 endpoint):
+S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+S3_FORCE_PATH_STYLE=false
+S3_PUBLIC_BASE_URL=https://cdn.example.com
+```
+
+### Local/dev fallback mode
+
+```bash
+PHOTO_UPLOAD_MODE=local
+```
+
+In local mode, uploads are stored under `public/uploads/*` and served directly by Next.js.

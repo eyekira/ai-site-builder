@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 import type { SiteForRender } from '@/lib/site';
 import { serializeTheme } from '@/lib/theme';
+import { classifyPhoto } from '@/lib/photo-classifier';
 
 type PlacePhoto = {
   ref: string;
@@ -359,6 +360,7 @@ export async function POST(request: NextRequest) {
           contentJson: section.contentJson,
         })),
         assets,
+        photos: [],
         place: {
           address: place.address,
           phone: place.phone,
@@ -430,6 +432,23 @@ export async function POST(request: NextRequest) {
           },
         });
         assetIds.push(asset.id);
+      }
+
+      let photoSortOrder = 1;
+      for (const photo of limitedPhotos) {
+        const classification = await classifyPhoto({ googleRef: photo.ref });
+        await tx.photo.create({
+          data: {
+            siteId: site.id,
+            source: 'google',
+            url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
+            category: classification.category,
+            confidence: classification.confidence,
+            tagsJson: JSON.stringify(classification.tags),
+            sortOrder: photoSortOrder,
+          },
+        });
+        photoSortOrder += 1;
       }
 
       const sectionsPayload = [
