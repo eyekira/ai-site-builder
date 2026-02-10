@@ -46,6 +46,34 @@ export default function LoginPage() {
     loadProviders();
   }, []);
 
+
+  const onGoogleSignIn = () => {
+    setError(null);
+
+    startTransition(async () => {
+      try {
+        const result = await signIn('google', {
+          redirect: false,
+          callbackUrl: safeReturnTo,
+        });
+
+        if (result?.error) {
+          throw new Error('Google login is not configured correctly. Please use email login for now.');
+        }
+
+        if (result?.url) {
+          router.push(result.url);
+          return;
+        }
+
+        throw new Error('Google login is currently unavailable. Please use email login for now.');
+      } catch (googleError) {
+        const message = googleError instanceof Error ? googleError.message : 'Google login failed.';
+        setError(message);
+      }
+    });
+  };
+
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -121,7 +149,7 @@ export default function LoginPage() {
               type="button"
               variant="outline"
               disabled={!googleEnabled || isPending}
-              onClick={() => signIn('google', { callbackUrl: safeReturnTo })}
+              onClick={onGoogleSignIn}
               className="w-full"
             >
               Continue with Google

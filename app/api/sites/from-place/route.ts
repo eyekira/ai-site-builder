@@ -110,11 +110,37 @@ async function generateUniqueSlug(baseTitle: string, city: string | null): Promi
   return `${baseSlug}-${Date.now().toString(36)}`;
 }
 
+function generatePreviewSlug(baseTitle: string, city: string | null): string {
+  const rawBase = [baseTitle, city].filter(Boolean).join(' ');
+  const baseSlug = slugify(rawBase) || 'site';
+  return `${baseSlug}-${Date.now().toString(36)}`;
+}
+
 function pickPhotos(photos: PlacePhoto[]): PlacePhoto[] {
   if (photos.length <= 10) {
     return photos;
   }
   return photos.slice(0, 10);
+}
+
+
+async function resolvePlaceForCreation(placeId: string) {
+  try {
+    return await fetchPlaceDetails(placeId);
+  } catch {
+    return {
+      id: placeId,
+      name: 'New Site',
+      address: null,
+      phone: null,
+      website: null,
+      hoursJson: null,
+      lat: null,
+      lng: null,
+      city: null,
+      photos: [] as PlacePhoto[],
+    };
+  }
 }
 
 function buildCtaHref(placePhone: string | null, placeWebsite: string | null): string {
@@ -314,11 +340,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const place = await fetchPlaceDetails(placeId);
+    const place = await resolvePlaceForCreation(placeId);
     const placeTitle = place.name;
     const limitedPhotos = pickPhotos(place.photos);
 
-    const slug = await generateUniqueSlug(placeTitle, place.city);
+    const slug = isLoggedIn
+      ? await generateUniqueSlug(placeTitle, place.city)
+      : generatePreviewSlug(placeTitle, place.city);
     const hoursText = formatHoursText(place.hoursJson);
     const copy = await generateCopy({
       businessTitle: placeTitle,
@@ -543,7 +571,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ siteId: created.id, slug: created.slug });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const missingDbUrl = message.includes('Environment variable not found: DATABASE_URL');
+
     console.error('Failed to create site from place', error);
-    return NextResponse.json({ error: 'Failed to create site from place.', detail: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Failed to create site from place.',
+        detail: missingDbUrl ? 'Server is missing DATABASE_URL configuration.' : message,
+      },
+      { status: 500 },
+    );
   }
 }
