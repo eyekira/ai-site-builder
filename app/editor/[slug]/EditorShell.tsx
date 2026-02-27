@@ -15,7 +15,8 @@ import {
   type SectionType,
 } from '@/lib/section-content';
 import { THEME_OPTIONS, type ThemeName } from '@/lib/theme';
-import { TEMPLATE_KEYS } from '@/lib/templates/types';
+import { TEMPLATE_KEYS, TEMPLATE_LABELS } from '@/lib/templates/types';
+import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 
 type EditorSection = {
   id: number;
@@ -169,6 +170,7 @@ export default function EditorShell({
   const [domainState, setDomainState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [previewViewport, setPreviewViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
   const orderedSections = useMemo(
     () => [...sections].sort((a, b) => (a.order === b.order ? a.id - b.id : a.order - b.order)),
@@ -468,6 +470,10 @@ export default function EditorShell({
     }
 
     setCurrentTemplate(nextTemplate);
+    const mappedTheme = TEMPLATE_THEME_MAP[nextTemplate as keyof typeof TEMPLATE_THEME_MAP];
+    if (mappedTheme) {
+      setCurrentTheme(mappedTheme);
+    }
     setTemplateState('saving');
     setTemplateMessage(null);
 
@@ -547,13 +553,40 @@ export default function EditorShell({
       </aside>
 
       <main className="border-r border-zinc-200 bg-zinc-50 p-4">
-        <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <iframe
-            key={previewKey}
-            src={`/editor/${slug}/preview?embed=1&v=${previewKey}`}
-            title="Live preview"
-            className="h-full w-full rounded-xl"
-          />
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Preview viewport</p>
+          <div className="flex items-center gap-2">
+            {(['desktop', 'tablet', 'mobile'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setPreviewViewport(mode)}
+                className={`rounded-md px-2 py-1 text-xs font-medium ${
+                  previewViewport === mode ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex h-[calc(100%-3rem)] items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+          <div
+            className={`h-full transition-all ${
+              previewViewport === 'desktop'
+                ? 'w-full max-w-[1200px]'
+                : previewViewport === 'tablet'
+                  ? 'w-full max-w-[820px]'
+                  : 'w-full max-w-[430px]'
+            }`}
+          >
+            <iframe
+              key={previewKey}
+              src={`/editor/${slug}/preview?embed=1&v=${previewKey}`}
+              title="Live preview"
+              className="h-full w-full rounded-xl"
+            />
+          </div>
         </div>
       </main>
 
@@ -575,7 +608,7 @@ export default function EditorShell({
             >
               {TEMPLATE_KEYS.map((key) => (
                 <option key={key} value={key}>
-                  {key}
+                  {TEMPLATE_LABELS[key]}
                 </option>
               ))}
             </select>

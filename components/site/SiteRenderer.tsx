@@ -115,6 +115,32 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
         data-site-embed={embedMode ? 'true' : undefined}
         className={`mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8 ${theme.sectionBackgroundClass}`}
       >
+        <header
+          className={`rounded-2xl border px-4 py-3 ${theme.cardClass} ${
+            presentation.navStyle === 'luxury' ? 'shadow-lg' : presentation.navStyle === 'casual' ? 'shadow-sm' : ''
+          }`}
+        >
+          <div
+            className={`flex items-center gap-4 ${
+              presentation.logoPlacement === 'center' ? 'justify-center' : 'justify-between'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${theme.previewClass}`}>
+                {businessTitle.slice(0, 1).toUpperCase()}
+              </div>
+              <span className="text-sm font-semibold tracking-wide">{businessTitle}</span>
+            </div>
+            {presentation.logoPlacement !== 'center' && (
+              <nav className={`hidden items-center gap-4 text-xs ${theme.mutedTextClass} md:flex`}>
+                <span>Menu</span>
+                <span>Reviews</span>
+                <span>Visit</span>
+              </nav>
+            )}
+          </div>
+        </header>
+
         {site.sections.map((section) => {
           if (section.type === 'HERO') {
             const heroContent = safeParseHeroContent(section.contentJson ?? '{}');
