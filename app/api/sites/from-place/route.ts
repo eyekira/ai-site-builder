@@ -6,8 +6,9 @@ import { createPreviewSession } from '@/lib/preview-session';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 import type { SiteForRender } from '@/lib/site';
-import { serializeTheme } from '@/lib/theme';
 import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
+import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
+import { selectTemplate } from '@/lib/templates/select';
 
 type PlacePhoto = {
   ref: string;
@@ -356,6 +357,9 @@ export async function POST(request: NextRequest) {
       hoursText,
     });
 
+    const textSignals = [placeTitle, place.address ?? '', place.website ?? ''];
+    const ownerTemplateSelection = selectTemplate({ textSignals });
+
     const heroCtaHref = buildCtaHref(place.phone, place.website);
 
     if (!isLoggedIn) {
@@ -370,6 +374,10 @@ export async function POST(request: NextRequest) {
           metadata: { index },
         })),
       );
+      const previewTemplateSelection = selectTemplate({
+        textSignals,
+        photoCategories: previewClassifications.map((entry) => entry.category),
+      });
       const sectionsPayload = [
         {
           id: 1,
@@ -418,6 +426,12 @@ export async function POST(request: NextRequest) {
         title: placeTitle,
         businessTitle: placeTitle,
         status: SiteStatus.DRAFT,
+        themeJson: JSON.stringify({
+          name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
+          templateKey: previewTemplateSelection.templateKey,
+          templateConfidence: previewTemplateSelection.confidence,
+          templateSignals: previewTemplateSelection.signals,
+        }),
         formattedAddress: place.address,
         phone: place.phone,
         hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
@@ -494,7 +508,12 @@ export async function POST(request: NextRequest) {
           lng: place.lng,
           hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
           status: SiteStatus.DRAFT,
-          themeJson: serializeTheme('classic'),
+          themeJson: JSON.stringify({
+            name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
+            templateKey: ownerTemplateSelection.templateKey,
+            templateConfidence: ownerTemplateSelection.confidence,
+            templateSignals: ownerTemplateSelection.signals,
+          }),
           ownerId,
           placeId: place.id,
         },

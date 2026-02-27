@@ -8,6 +8,7 @@ export type SiteForRender = {
   title: string;
   businessTitle: string | null;
   status: string;
+  themeJson?: string | null;
   formattedAddress: string | null;
   phone: string | null;
   hoursJson: string | null;
