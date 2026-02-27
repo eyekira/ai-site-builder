@@ -1,9 +1,14 @@
 export type TemplateKey =
   | 'fine_dining_premium'
-  | 'cozy_cafe'
+  | 'omakase_counter'
+  | 'steakhouse_classic'
+  | 'family_korean'
+  | 'bbq_group'
+  | 'cafe_cozy'
+  | 'bakery_patisserie'
+  | 'brunch_social'
   | 'fast_casual'
-  | 'family_korean_asian'
-  | 'brunch_bakery'
+  | 'takeout_delivery_first'
   | 'default_bistro';
 
 export type TemplateSelectionSignals = {

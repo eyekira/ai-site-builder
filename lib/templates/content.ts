@@ -7,7 +7,7 @@ type CopyPayload = {
 };
 
 export function adaptCopyForTemplate(copy: CopyPayload, templateKey: TemplateKey): CopyPayload {
-  if (templateKey === 'fine_dining_premium') {
+  if (templateKey === 'fine_dining_premium' || templateKey === 'omakase_counter' || templateKey === 'steakhouse_classic') {
     return {
       ...copy,
       hero: { ...copy.hero, primaryCtaLabel: 'Reserve a Table' },
@@ -15,7 +15,7 @@ export function adaptCopyForTemplate(copy: CopyPayload, templateKey: TemplateKey
     };
   }
 
-  if (templateKey === 'fast_casual') {
+  if (templateKey === 'takeout_delivery_first' || templateKey === 'fast_casual') {
     return {
       ...copy,
       hero: { ...copy.hero, primaryCtaLabel: 'Order now' },
@@ -23,7 +23,7 @@ export function adaptCopyForTemplate(copy: CopyPayload, templateKey: TemplateKey
     };
   }
 
-  if (templateKey === 'cozy_cafe' || templateKey === 'brunch_bakery') {
+  if (templateKey === 'cafe_cozy' || templateKey === 'bakery_patisserie' || templateKey === 'brunch_social') {
     return {
       ...copy,
       hero: { ...copy.hero, primaryCtaLabel: 'See today\'s menu' },
@@ -35,7 +35,7 @@ export function adaptCopyForTemplate(copy: CopyPayload, templateKey: TemplateKey
     };
   }
 
-  if (templateKey === 'family_korean_asian') {
+  if (templateKey === 'family_korean' || templateKey === 'bbq_group') {
     return {
       ...copy,
       hero: { ...copy.hero, primaryCtaLabel: 'View menu' },

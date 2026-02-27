@@ -27,29 +27,44 @@ type SectionDraft = {
 };
 
 function getSectionPlan(templateKey: TemplateKey): SectionType[] {
-  if (templateKey === 'fast_casual') {
+  if (templateKey === 'fast_casual' || templateKey === 'takeout_delivery_first') {
     return [SectionType.HERO, SectionType.MENU, SectionType.PHOTOS, SectionType.CONTACT];
   }
 
-  if (templateKey === 'fine_dining_premium') {
-    return [SectionType.HERO, SectionType.ABOUT, SectionType.REVIEWS, SectionType.PHOTOS, SectionType.CONTACT];
+  if (templateKey === 'fine_dining_premium' || templateKey === 'omakase_counter' || templateKey === 'steakhouse_classic') {
+    return [SectionType.HERO, SectionType.ABOUT, SectionType.REVIEWS, SectionType.MENU, SectionType.PHOTOS, SectionType.CONTACT];
   }
 
-  if (templateKey === 'brunch_bakery') {
-    return [SectionType.HERO, SectionType.MENU, SectionType.ABOUT, SectionType.PHOTOS, SectionType.CONTACT];
+  if (templateKey === 'brunch_social' || templateKey === 'bakery_patisserie') {
+    return [SectionType.HERO, SectionType.MENU, SectionType.ABOUT, SectionType.PHOTOS, SectionType.REVIEWS, SectionType.CONTACT];
+  }
+
+  if (templateKey === 'family_korean' || templateKey === 'bbq_group') {
+    return [SectionType.HERO, SectionType.MENU, SectionType.REVIEWS, SectionType.PHOTOS, SectionType.CONTACT];
   }
 
   return [SectionType.HERO, SectionType.ABOUT, SectionType.PHOTOS, SectionType.CONTACT];
 }
 
 function buildMenuContent(templateKey: TemplateKey) {
-  if (templateKey === 'fast_casual') {
+  if (templateKey === 'fast_casual' || templateKey === 'takeout_delivery_first') {
     return {
       title: 'Popular picks',
       items: [
         { name: 'Signature combo', description: 'Quick favorite with sides', price: '$12' },
         { name: 'Fresh bowl', description: 'Balanced and filling', price: '$11' },
         { name: 'Family pack', description: 'Great for sharing', price: '$29' },
+      ],
+    };
+  }
+
+  if (templateKey === 'fine_dining_premium' || templateKey === 'omakase_counter') {
+    return {
+      title: 'Experience menu highlights',
+      items: [
+        { name: 'Chef tasting course', description: 'Seasonal progression', price: '$95' },
+        { name: 'Pairing option', description: 'Curated by the team', price: '$55' },
+        { name: 'Signature dish', description: 'House specialty', price: '$34' },
       ],
     };
   }
@@ -65,7 +80,7 @@ function buildMenuContent(templateKey: TemplateKey) {
 }
 
 function buildReviewsContent(templateKey: TemplateKey) {
-  if (templateKey === 'fine_dining_premium') {
+  if (templateKey === 'fine_dining_premium' || templateKey === 'steakhouse_classic') {
     return {
       title: 'Guest impressions',
       items: [
