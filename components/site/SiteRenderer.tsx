@@ -113,7 +113,7 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
 
       <div
         data-site-embed={embedMode ? 'true' : undefined}
-        className={`mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8 ${theme.sectionBackgroundClass}`}
+        className={`mx-auto flex w-full ${presentation.containerWidth} flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8 ${theme.sectionBackgroundClass}`}
       >
         <header
           className={`rounded-2xl border px-4 py-3 ${theme.cardClass} ${
@@ -133,9 +133,9 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
             </div>
             {presentation.logoPlacement !== 'center' && (
               <nav className={`hidden items-center gap-4 text-xs ${theme.mutedTextClass} md:flex`}>
-                <span>Menu</span>
-                <span>Reviews</span>
-                <span>Visit</span>
+                {presentation.navItems.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
               </nav>
             )}
           </div>
@@ -202,11 +202,11 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
             const menuContent = safeParseMenuContent(section.contentJson ?? '{}');
 
             return (
-              <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
-                <h2 className="text-2xl font-semibold">{menuContent.title}</h2>
+              <section key={section.id} className={`${presentation.sectionClass} ${theme.cardClass}`}>
+                <h2 className={presentation.headingClass}>{menuContent.title}</h2>
                 <div className={presentation.menuStyle === 'dense' ? 'mt-3 space-y-2' : 'mt-4 space-y-4'}>
                   {menuContent.items.map((item, index) => (
-                    <div key={`${item.name}-${index}`} className={presentation.menuStyle === 'dense' ? 'flex items-start justify-between gap-3 rounded-xl border border-zinc-200/60 p-3' : 'flex items-start justify-between gap-6'}>
+                    <div key={`${item.name}-${index}`} className={presentation.menuStyle === 'dense' ? presentation.menuItemClass : 'flex items-start justify-between gap-6'}>
                       <div>
                         <p className="text-base font-semibold">{item.name}</p>
                         {item.description && <p className={`mt-1 text-sm ${theme.mutedTextClass}`}>{item.description}</p>}
@@ -223,8 +223,8 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
             const reviewsContent = safeParseReviewsContent(section.contentJson ?? '{}');
 
             return (
-              <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
-                <h2 className="text-2xl font-semibold">{reviewsContent.title}</h2>
+              <section key={section.id} className={`${presentation.sectionClass} ${theme.cardClass}`}>
+                <h2 className={presentation.headingClass}>{reviewsContent.title}</h2>
                 <div className="mt-4 grid gap-4">
                   {reviewsContent.items.map((item, index) => (
                     <div
@@ -249,8 +249,8 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
             const galleryContent = safeParseGalleryContent(section.contentJson ?? '{}');
 
             return (
-              <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
-                <h2 className="text-2xl font-semibold">{galleryContent.title}</h2>
+              <section key={section.id} className={`${presentation.sectionClass} ${theme.cardClass}`}>
+                <h2 className={presentation.headingClass}>{galleryContent.title}</h2>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {galleryContent.items.map((item, index) => (
                     <figure key={`${item.url}-${index}`} className="overflow-hidden rounded-xl border border-zinc-200">
