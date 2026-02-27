@@ -8,6 +8,7 @@ import { getAuthenticatedUser } from '@/lib/rbac';
 import type { SiteForRender } from '@/lib/site';
 import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
+import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
 
 type PlacePhoto = {
@@ -378,24 +379,25 @@ export async function POST(request: NextRequest) {
         textSignals,
         photoCategories: previewClassifications.map((entry) => entry.category),
       });
+      const previewCopy = adaptCopyForTemplate(copy, previewTemplateSelection.templateKey);
       const sectionsPayload = [
         {
           id: 1,
           type: SectionType.HERO,
           contentJson: JSON.stringify({
-            headline: copy.hero.headline,
-            subheadline: copy.hero.subheadline,
-            ctas: [{ label: copy.hero.primaryCtaLabel, href: heroCtaHref }],
+            headline: previewCopy.hero.headline,
+            subheadline: previewCopy.hero.subheadline,
+            ctas: [{ label: previewCopy.hero.primaryCtaLabel, href: heroCtaHref }],
           }),
         },
         {
           id: 2,
           type: SectionType.ABOUT,
           contentJson: JSON.stringify({
-            title: copy.about.title,
-            body: copy.about.body,
-            bullets: copy.about.bullets,
-            text: copy.about.body,
+            title: previewCopy.about.title,
+            body: previewCopy.about.body,
+            bullets: previewCopy.about.bullets,
+            text: previewCopy.about.body,
           }),
         },
         {
@@ -409,9 +411,9 @@ export async function POST(request: NextRequest) {
           id: 4,
           type: SectionType.CONTACT,
           contentJson: JSON.stringify({
-            title: copy.cta.title,
-            body: copy.cta.body,
-            ctaLabel: copy.cta.ctaLabel,
+            title: previewCopy.cta.title,
+            body: previewCopy.cta.body,
+            ctaLabel: previewCopy.cta.ctaLabel,
             address: place.address,
             phone: place.phone,
             website: place.website,
@@ -615,24 +617,26 @@ export async function POST(request: NextRequest) {
         console.warn('Skipping photo table writes during site creation.', photoError);
       }
 
+      const ownerCopy = adaptCopyForTemplate(copy, ownerTemplateSelection.templateKey);
+
       const sectionsPayload = [
         {
           type: SectionType.HERO,
           order: 1,
           contentJson: JSON.stringify({
-            headline: copy.hero.headline,
-            subheadline: copy.hero.subheadline,
-            ctas: [{ label: copy.hero.primaryCtaLabel, href: heroCtaHref }],
+            headline: ownerCopy.hero.headline,
+            subheadline: ownerCopy.hero.subheadline,
+            ctas: [{ label: ownerCopy.hero.primaryCtaLabel, href: heroCtaHref }],
           }),
         },
         {
           type: SectionType.ABOUT,
           order: 2,
           contentJson: JSON.stringify({
-            title: copy.about.title,
-            body: copy.about.body,
-            bullets: copy.about.bullets,
-            text: copy.about.body,
+            title: ownerCopy.about.title,
+            body: ownerCopy.about.body,
+            bullets: ownerCopy.about.bullets,
+            text: ownerCopy.about.body,
           }),
         },
         {
@@ -646,9 +650,9 @@ export async function POST(request: NextRequest) {
           type: SectionType.CONTACT,
           order: 4,
           contentJson: JSON.stringify({
-            title: copy.cta.title,
-            body: copy.cta.body,
-            ctaLabel: copy.cta.ctaLabel,
+            title: ownerCopy.cta.title,
+            body: ownerCopy.cta.body,
+            ctaLabel: ownerCopy.cta.ctaLabel,
             address: place.address,
             phone: place.phone,
             website: place.website,
