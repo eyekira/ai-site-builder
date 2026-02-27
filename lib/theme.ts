@@ -78,3 +78,22 @@ export function parseThemeJson(themeJson: string | null | undefined): ThemeConfi
 export function serializeTheme(name: ThemeName): string {
   return JSON.stringify({ name });
 }
+
+export function extractTemplateMetadata(themeJson: string | null | undefined): {
+  templateKey: string | null;
+  templateConfidence: number | null;
+} {
+  if (!themeJson) {
+    return { templateKey: null, templateConfidence: null };
+  }
+
+  try {
+    const parsed = JSON.parse(themeJson) as { templateKey?: string; templateConfidence?: number } | null;
+    return {
+      templateKey: typeof parsed?.templateKey === 'string' ? parsed.templateKey : null,
+      templateConfidence: typeof parsed?.templateConfidence === 'number' ? parsed.templateConfidence : null,
+    };
+  } catch {
+    return { templateKey: null, templateConfidence: null };
+  }
+}

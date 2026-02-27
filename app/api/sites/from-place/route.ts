@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SectionType, SiteStatus } from '@prisma/client';
+import { SiteStatus } from '@prisma/client';
 
 import { fetchPlaceDetails } from '@/lib/places';
 import { createPreviewSession } from '@/lib/preview-session';
@@ -10,6 +10,7 @@ import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
+import { buildTemplateSections } from '@/lib/templates/sections';
 
 type PlacePhoto = {
   ref: string;
@@ -380,47 +381,22 @@ export async function POST(request: NextRequest) {
         photoCategories: previewClassifications.map((entry) => entry.category),
       });
       const previewCopy = adaptCopyForTemplate(copy, previewTemplateSelection.templateKey);
-      const sectionsPayload = [
-        {
-          id: 1,
-          type: SectionType.HERO,
-          contentJson: JSON.stringify({
-            headline: previewCopy.hero.headline,
-            subheadline: previewCopy.hero.subheadline,
-            ctas: [{ label: previewCopy.hero.primaryCtaLabel, href: heroCtaHref }],
-          }),
+      const sectionsPayload = buildTemplateSections({
+        templateKey: previewTemplateSelection.templateKey,
+        copy: previewCopy,
+        heroCtaHref,
+        assetIds,
+        place: {
+          address: place.address,
+          phone: place.phone,
+          website: place.website,
         },
-        {
-          id: 2,
-          type: SectionType.ABOUT,
-          contentJson: JSON.stringify({
-            title: previewCopy.about.title,
-            body: previewCopy.about.body,
-            bullets: previewCopy.about.bullets,
-            text: previewCopy.about.body,
-          }),
-        },
-        {
-          id: 3,
-          type: SectionType.PHOTOS,
-          contentJson: JSON.stringify({
-            assetIds,
-          }),
-        },
-        {
-          id: 4,
-          type: SectionType.CONTACT,
-          contentJson: JSON.stringify({
-            title: previewCopy.cta.title,
-            body: previewCopy.cta.body,
-            ctaLabel: previewCopy.cta.ctaLabel,
-            address: place.address,
-            phone: place.phone,
-            website: place.website,
-            hours: hoursText,
-          }),
-        },
-      ];
+        hoursText,
+      }).map((section, index) => ({
+        id: index + 1,
+        type: section.type,
+        contentJson: section.contentJson,
+      }));
 
       const previewSite: SiteForRender = {
         id: 0,
@@ -619,47 +595,22 @@ export async function POST(request: NextRequest) {
 
       const ownerCopy = adaptCopyForTemplate(copy, ownerTemplateSelection.templateKey);
 
-      const sectionsPayload = [
-        {
-          type: SectionType.HERO,
-          order: 1,
-          contentJson: JSON.stringify({
-            headline: ownerCopy.hero.headline,
-            subheadline: ownerCopy.hero.subheadline,
-            ctas: [{ label: ownerCopy.hero.primaryCtaLabel, href: heroCtaHref }],
-          }),
+      const sectionsPayload = buildTemplateSections({
+        templateKey: ownerTemplateSelection.templateKey,
+        copy: ownerCopy,
+        heroCtaHref,
+        assetIds,
+        place: {
+          address: place.address,
+          phone: place.phone,
+          website: place.website,
         },
-        {
-          type: SectionType.ABOUT,
-          order: 2,
-          contentJson: JSON.stringify({
-            title: ownerCopy.about.title,
-            body: ownerCopy.about.body,
-            bullets: ownerCopy.about.bullets,
-            text: ownerCopy.about.body,
-          }),
-        },
-        {
-          type: SectionType.PHOTOS,
-          order: 3,
-          contentJson: JSON.stringify({
-            assetIds,
-          }),
-        },
-        {
-          type: SectionType.CONTACT,
-          order: 4,
-          contentJson: JSON.stringify({
-            title: ownerCopy.cta.title,
-            body: ownerCopy.cta.body,
-            ctaLabel: ownerCopy.cta.ctaLabel,
-            address: place.address,
-            phone: place.phone,
-            website: place.website,
-            hours: hoursText,
-          }),
-        },
-      ];
+        hoursText,
+      }).map((section, index) => ({
+        type: section.type,
+        order: index + 1,
+        contentJson: section.contentJson,
+      }));
 
       await tx.section.createMany({
         data: sectionsPayload.map((section) => ({

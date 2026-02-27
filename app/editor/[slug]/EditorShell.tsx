@@ -49,6 +49,8 @@ type EditorShellProps = {
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
   themeName: ThemeName;
+  templateKey: string | null;
+  templateConfidence: number | null;
   isLoggedIn: boolean;
   isSubscribed: boolean;
   customDomain: string | null;
@@ -131,6 +133,8 @@ export default function EditorShell({
   slug,
   siteStatus,
   themeName,
+  templateKey,
+  templateConfidence,
   isLoggedIn,
   isSubscribed,
   customDomain,
@@ -530,6 +534,12 @@ export default function EditorShell({
       <aside className="bg-white p-4">
         <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
           <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
+          {templateKey && (
+            <p className="mt-2 text-[11px] text-zinc-600">
+              Template: <span className="font-semibold text-zinc-800">{templateKey}</span>
+              {typeof templateConfidence === 'number' ? ` (${Math.round(templateConfidence * 100)}%)` : ''}
+            </p>
+          )}
           <div className="mt-3 grid grid-cols-3 gap-2">
             {THEME_OPTIONS.map((theme) => (
               <button
