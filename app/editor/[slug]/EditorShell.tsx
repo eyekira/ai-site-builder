@@ -491,7 +491,7 @@ export default function EditorShell({
   };
 
   return (
-    <div className="grid h-screen grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
+    <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Sections</h2>
