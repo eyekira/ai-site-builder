@@ -32,27 +32,35 @@ export function buildUploadKey(siteId: number, fileName: string): string {
 }
 
 type S3Helpers = {
-  PutObjectCommand: any;
-  S3Client: any;
-  getSignedUrl: (client: any, command: any, opts: { expiresIn: number }) => Promise<string>;
+  PutObjectCommand: new (input: { Bucket: string; Key: string; ContentType: string }) => unknown;
+  S3Client: new (config: {
+    region: string;
+    endpoint?: string;
+    forcePathStyle: boolean;
+    credentials: { accessKeyId: string; secretAccessKey: string };
+  }) => unknown;
+  getSignedUrl: (client: unknown, command: unknown, opts: { expiresIn: number }) => Promise<string>;
 };
 
-async function runtimeImport(moduleName: string): Promise<any> {
-  const importer = new Function('m', 'return import(m);') as (m: string) => Promise<any>;
+async function runtimeImport(moduleName: string): Promise<unknown> {
+  const importer = new Function('m', 'return import(m);') as (m: string) => Promise<unknown>;
   return importer(moduleName);
 }
 
 async function getS3Helpers(): Promise<S3Helpers> {
   try {
-    const [{ PutObjectCommand, S3Client }, { getSignedUrl }] = await Promise.all([
+    const [s3Module, signerModule] = (await Promise.all([
       runtimeImport('@aws-sdk/client-s3'),
       runtimeImport('@aws-sdk/s3-request-presigner'),
-    ]);
+    ])) as [
+      { PutObjectCommand: S3Helpers['PutObjectCommand']; S3Client: S3Helpers['S3Client'] },
+      { getSignedUrl: S3Helpers['getSignedUrl'] },
+    ];
 
     return {
-      PutObjectCommand,
-      S3Client,
-      getSignedUrl,
+      PutObjectCommand: s3Module.PutObjectCommand,
+      S3Client: s3Module.S3Client,
+      getSignedUrl: signerModule.getSignedUrl,
     };
   } catch {
     throw new Error('S3 SDK modules are missing. Install @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner.');

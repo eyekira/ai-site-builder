@@ -1,33 +1,27 @@
-# AI Site Builder
+# Replit Notes (Next.js)
 
-## Overview
-AI-powered website builder application that allows users to create websites by describing what they want in natural language.
+This repository is a **Next.js App Router + TypeScript** app (not Vite).
 
-## Tech Stack
-- **Frontend**: React 19 with Vite
-- **Language**: JavaScript (ES Modules)
-- **Styling**: CSS
+## Run
 
-## Project Structure
-```
-/
-├── src/
-│   ├── App.jsx        # Main application component
-│   ├── App.css        # Application styles
-│   ├── main.jsx       # React entry point
-│   └── index.css      # Global styles
-├── index.html         # HTML entry point
-├── vite.config.js     # Vite configuration
-└── package.json       # Dependencies and scripts
+```bash
+npm install
+cp .env.example .env.local
+npx prisma generate
+npx prisma migrate dev --name init
+npm run dev
 ```
 
-## Running the App
-- Development: `npm run dev` (runs on port 5000)
-- Build: `npm run build`
-- Preview production build: `npm run preview`
+Server binds to `0.0.0.0:5000`.
 
-## Configuration
-- Vite is configured to run on `0.0.0.0:5000` with `allowedHosts: 'all'` to work with Replit's proxy
+## Required secrets (minimum)
 
-## Recent Changes
-- 2026-02-05: Initial project setup with React + Vite
+- `DATABASE_URL` (for Prisma)
+- `AUTH_SECRET`
+- `GOOGLE_MAPS_API_KEY` (or `GOOGLE_PLACES_SERVER_KEY`)
+
+## Optional secrets
+
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google login)
+- `OPENAI_API_KEY` (AI-generated copy)
+- S3 vars for signed upload mode

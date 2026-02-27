@@ -51,8 +51,9 @@ function heuristicMenuDetection(tokens: string[]): ClassificationResult | null {
   };
 }
 
-async function classifyWithVisionStub(_input: ClassifierInput): Promise<ClassificationResult> {
+async function classifyWithVisionStub(input: ClassifierInput): Promise<ClassificationResult> {
   // TODO: integrate real vision model provider here.
+  void input;
   return {
     category: 'other',
     confidence: 0.2,

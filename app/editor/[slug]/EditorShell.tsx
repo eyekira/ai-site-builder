@@ -1079,7 +1079,7 @@ function PhotosInspector({
     onRefresh();
   };
 
-  const onUpload = async (event: any) => {
+  const onUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;

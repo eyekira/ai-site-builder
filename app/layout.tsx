@@ -29,9 +29,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div className="flex min-h-screen flex-col">
           <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
             <div className="container flex h-16 items-center justify-between">
-              <a className="text-lg font-semibold tracking-tight" href="/">
+              <Link className="text-lg font-semibold tracking-tight" href="/">
                 AI Site Builder
-              </a>
+              </Link>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">MVP</Badge>
                 {session?.user?.id ? (

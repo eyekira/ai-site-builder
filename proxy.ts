@@ -10,7 +10,7 @@ function isLocalHost(host: string): boolean {
   return host.startsWith('localhost') || host.startsWith('127.0.0.1');
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const host = request.headers.get('host')?.toLowerCase() ?? '';
 
   if (!host || isLocalHost(host) || isReservedPath(request.nextUrl.pathname)) {

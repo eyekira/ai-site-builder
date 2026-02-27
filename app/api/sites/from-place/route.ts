@@ -547,7 +547,7 @@ export async function POST(request: NextRequest) {
         const classifications = await classifyPlacePhotosBatch(toClassify);
         let classificationCursor = 0;
 
-        for (const [index, photo] of limitedPhotos.entries()) {
+        for (const [, photo] of limitedPhotos.entries()) {
           const existing = existingByRef.get(photo.ref);
           const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
           const result = highConfidence
