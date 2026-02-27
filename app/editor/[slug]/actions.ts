@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { canAccessSite, getViewerContext } from '@/lib/rbac';
 import { defaultContentForType, parseSectionContent, type SectionType } from '@/lib/section-content';
-import { getThemeByName, isThemeName, serializeTheme, type ThemeName } from '@/lib/theme';
+import { getThemeByName, isThemeName, type ThemeName } from '@/lib/theme';
+import { isTemplateKey } from '@/lib/templates/types';
+import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 
 async function normalizeSiteSectionOrders(siteId: number) {
   const sections = await prisma.section.findMany({
@@ -166,7 +168,7 @@ export async function updateTheme(siteId: number, themeName: ThemeName) {
   }
   const site = await prisma.site.findFirst({
     where: { id: siteId, ownerId: viewer.userId },
-    select: { id: true, slug: true, ownerId: true, anonSessionId: true },
+    select: { id: true, slug: true, ownerId: true, anonSessionId: true, themeJson: true },
   });
 
   if (!site) {
@@ -182,10 +184,75 @@ export async function updateTheme(siteId: number, themeName: ThemeName) {
   }
 
   const theme = getThemeByName(themeName);
+  let existingThemeJson: Record<string, unknown> = {};
+  if (site.themeJson) {
+    try {
+      existingThemeJson = JSON.parse(site.themeJson) as Record<string, unknown>;
+    } catch {
+      existingThemeJson = {};
+    }
+  }
 
   await prisma.site.update({
     where: { id: siteId },
-    data: { themeJson: serializeTheme(theme.name) },
+    data: {
+      themeJson: JSON.stringify({
+        ...existingThemeJson,
+        name: theme.name,
+      }),
+    },
+  });
+
+  revalidatePath(`/${site.slug}`);
+  revalidatePath(`/editor/${site.slug}`);
+  revalidatePath(`/editor/${site.slug}/preview`);
+  revalidatePath(`/s/${site.slug}`);
+}
+
+export async function updateTemplate(siteId: number, templateKey: string) {
+  const viewer = await getViewerContext();
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: viewer.userId },
+    select: { id: true, slug: true, ownerId: true, anonSessionId: true, themeJson: true },
+  });
+
+  if (!site) {
+    throw new Error('Site not found.');
+  }
+
+  if (!canAccessSite(site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
+  }
+
+  if (!isTemplateKey(templateKey)) {
+    throw new Error('Unsupported template selection.');
+  }
+
+  let existingThemeJson: Record<string, unknown> = {};
+  if (site.themeJson) {
+    try {
+      existingThemeJson = JSON.parse(site.themeJson) as Record<string, unknown>;
+    } catch {
+      existingThemeJson = {};
+    }
+  }
+
+  const mappedTheme = TEMPLATE_THEME_MAP[templateKey];
+
+  await prisma.site.update({
+    where: { id: siteId },
+    data: {
+      themeJson: JSON.stringify({
+        ...existingThemeJson,
+        name: mappedTheme,
+        templateKey,
+        templateConfidence: 1,
+      }),
+    },
   });
 
   revalidatePath(`/${site.slug}`);

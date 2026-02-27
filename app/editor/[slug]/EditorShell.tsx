@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateTheme } from './actions';
+import { addSection, reorderSections, updateSection, updateTheme, updateTemplate } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -15,6 +15,7 @@ import {
   type SectionType,
 } from '@/lib/section-content';
 import { THEME_OPTIONS, type ThemeName } from '@/lib/theme';
+import { TEMPLATE_KEYS } from '@/lib/templates/types';
 
 type EditorSection = {
   id: number;
@@ -161,6 +162,9 @@ export default function EditorShell({
   const [currentTheme, setCurrentTheme] = useState<ThemeName>(themeName);
   const [themeState, setThemeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
+  const [currentTemplate, setCurrentTemplate] = useState<string | null>(templateKey);
+  const [templateState, setTemplateState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [domainInput, setDomainInput] = useState(customDomain ?? '');
   const [domainState, setDomainState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
@@ -458,6 +462,28 @@ export default function EditorShell({
     });
   };
 
+  const onTemplateChange = (nextTemplate: string) => {
+    if (nextTemplate === currentTemplate) {
+      return;
+    }
+
+    setCurrentTemplate(nextTemplate);
+    setTemplateState('saving');
+    setTemplateMessage(null);
+
+    startTransition(async () => {
+      try {
+        await updateTemplate(siteId, nextTemplate);
+        setTemplateState('saved');
+        setPreviewKey(Date.now());
+        router.refresh();
+      } catch {
+        setTemplateState('error');
+        setTemplateMessage('Unable to update template. Please try again.');
+      }
+    });
+  };
+
   return (
     <div className="grid h-screen grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
@@ -536,10 +562,27 @@ export default function EditorShell({
           <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
           {templateKey && (
             <p className="mt-2 text-[11px] text-zinc-600">
-              Template: <span className="font-semibold text-zinc-800">{templateKey}</span>
+              Auto-selected: <span className="font-semibold text-zinc-800">{templateKey}</span>
               {typeof templateConfidence === 'number' ? ` (${Math.round(templateConfidence * 100)}%)` : ''}
             </p>
           )}
+          <div className="mt-3">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Template</label>
+            <select
+              value={currentTemplate ?? 'default_bistro'}
+              onChange={(event) => onTemplateChange(event.target.value)}
+              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-800"
+            >
+              {TEMPLATE_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
+            {templateState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving template…</p>}
+            {templateState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Template saved.</p>}
+            {templateState === 'error' && <p className="mt-2 text-xs text-red-600">{templateMessage}</p>}
+          </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {THEME_OPTIONS.map((theme) => (
               <button
