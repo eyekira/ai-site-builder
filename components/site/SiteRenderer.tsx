@@ -17,7 +17,8 @@ import {
   parsePhotosContent,
   parseReviewsContent,
 } from '@/lib/section-content';
-import { parseThemeJson } from '@/lib/theme';
+import { parseThemeJson, extractTemplateMetadata } from '@/lib/theme';
+import { getTemplatePresentation } from '@/lib/templates/presentation';
 
 type SiteRendererProps = {
   site: SiteForRender;
@@ -90,6 +91,8 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
 
   const assetMap = new Map(site.assets.map((assetItem) => [assetItem.id, assetItem]));
   const theme = parseThemeJson(site.themeJson);
+  const { templateKey } = extractTemplateMetadata(site.themeJson);
+  const presentation = getTemplatePresentation(templateKey);
 
   return (
     <>
@@ -123,6 +126,7 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
                 content={heroContent}
                 heroClassName={theme.heroClass}
                 buttonClassName={theme.buttonClass}
+                variant={presentation.heroVariant}
               />
             );
           }
@@ -174,9 +178,9 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
             return (
               <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
                 <h2 className="text-2xl font-semibold">{menuContent.title}</h2>
-                <div className="mt-4 space-y-4">
+                <div className={presentation.menuStyle === 'dense' ? 'mt-3 space-y-2' : 'mt-4 space-y-4'}>
                   {menuContent.items.map((item, index) => (
-                    <div key={`${item.name}-${index}`} className="flex items-start justify-between gap-6">
+                    <div key={`${item.name}-${index}`} className={presentation.menuStyle === 'dense' ? 'flex items-start justify-between gap-3 rounded-xl border border-zinc-200/60 p-3' : 'flex items-start justify-between gap-6'}>
                       <div>
                         <p className="text-base font-semibold">{item.name}</p>
                         {item.description && <p className={`mt-1 text-sm ${theme.mutedTextClass}`}>{item.description}</p>}
@@ -197,7 +201,14 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
                 <h2 className="text-2xl font-semibold">{reviewsContent.title}</h2>
                 <div className="mt-4 grid gap-4">
                   {reviewsContent.items.map((item, index) => (
-                    <div key={`${item.author}-${index}`} className="rounded-xl border border-zinc-200 p-4">
+                    <div
+                      key={`${item.author}-${index}`}
+                      className={
+                        presentation.reviewStyle === 'quotes'
+                          ? 'rounded-xl border-l-4 border-amber-400 bg-black/20 p-4'
+                          : 'rounded-xl border border-zinc-200 p-4'
+                      }
+                    >
                       <div className="text-sm font-semibold text-amber-500">{'★'.repeat(item.rating)}</div>
                       {item.quote && <p className={`mt-2 text-sm ${theme.mutedTextClass}`}>{item.quote}</p>}
                       <p className="mt-3 text-sm font-semibold">{item.author}</p>
