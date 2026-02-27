@@ -1,6 +1,7 @@
 import { SiteStatus } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
+import { isMissingTableError } from '@/lib/prisma-errors';
 
 export type SiteForRender = {
   id: number;
@@ -43,79 +44,139 @@ export type SiteForRender = {
 };
 
 export async function getPublishedSiteForRender(slug: string): Promise<SiteForRender | null> {
-  return prisma.site.findFirst({
-    where: { slug, status: SiteStatus.PUBLISHED },
-    include: {
-      sections: {
-        orderBy: { order: 'asc' },
-      },
-      assets: {
-        orderBy: { id: 'asc' },
-        select: {
-          id: true,
-          ref: true,
+  try {
+    return await prisma.site.findFirst({
+      where: { slug, status: SiteStatus.PUBLISHED },
+      include: {
+        sections: {
+          orderBy: { order: 'asc' },
+        },
+        assets: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            ref: true,
+          },
+        },
+        photos: {
+          where: { isDeleted: false, deletedAt: null },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            url: true,
+            category: true,
+            isHero: true,
+            sortOrder: true,
+            isDeleted: true,
+          },
+        },
+        place: {
+          select: {
+            address: true,
+            phone: true,
+            hoursJson: true,
+            lat: true,
+            lng: true,
+          },
         },
       },
-      photos: {
-        where: { isDeleted: false, deletedAt: null },
-        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-        select: {
-          id: true,
-          url: true,
-          category: true,
-          isHero: true,
-          sortOrder: true,
-          isDeleted: true,
+    });
+  } catch (error) {
+    if (!isMissingTableError(error, 'Photo')) {
+      throw error;
+    }
+
+    const siteWithoutPhotos = await prisma.site.findFirst({
+      where: { slug, status: SiteStatus.PUBLISHED },
+      include: {
+        sections: { orderBy: { order: 'asc' } },
+        assets: { orderBy: { id: 'asc' }, select: { id: true, ref: true } },
+        place: {
+          select: {
+            address: true,
+            phone: true,
+            hoursJson: true,
+            lat: true,
+            lng: true,
+          },
         },
       },
-      place: {
-        select: {
-          address: true,
-          phone: true,
-          hoursJson: true,
-          lat: true,
-          lng: true,
-        },
-      },
-    },
-  });
+    });
+
+    if (!siteWithoutPhotos) return null;
+
+    return {
+      ...siteWithoutPhotos,
+      photos: [],
+    } as SiteForRender;
+  }
 }
 
 export async function getSiteForOwnerRender(slug: string, ownerId: number): Promise<SiteForRender | null> {
-  return prisma.site.findFirst({
-    where: { slug, ownerId },
-    include: {
-      sections: {
-        orderBy: { order: 'asc' },
-      },
-      assets: {
-        orderBy: { id: 'asc' },
-        select: {
-          id: true,
-          ref: true,
+  try {
+    return await prisma.site.findFirst({
+      where: { slug, ownerId },
+      include: {
+        sections: {
+          orderBy: { order: 'asc' },
+        },
+        assets: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            ref: true,
+          },
+        },
+        photos: {
+          where: { isDeleted: false, deletedAt: null },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            url: true,
+            category: true,
+            isHero: true,
+            sortOrder: true,
+            isDeleted: true,
+          },
+        },
+        place: {
+          select: {
+            address: true,
+            phone: true,
+            hoursJson: true,
+            lat: true,
+            lng: true,
+          },
         },
       },
-      photos: {
-        where: { isDeleted: false, deletedAt: null },
-        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-        select: {
-          id: true,
-          url: true,
-          category: true,
-          isHero: true,
-          sortOrder: true,
-          isDeleted: true,
+    });
+  } catch (error) {
+    if (!isMissingTableError(error, 'Photo')) {
+      throw error;
+    }
+
+    const siteWithoutPhotos = await prisma.site.findFirst({
+      where: { slug, ownerId },
+      include: {
+        sections: { orderBy: { order: 'asc' } },
+        assets: { orderBy: { id: 'asc' }, select: { id: true, ref: true } },
+        place: {
+          select: {
+            address: true,
+            phone: true,
+            hoursJson: true,
+            lat: true,
+            lng: true,
+          },
         },
       },
-      place: {
-        select: {
-          address: true,
-          phone: true,
-          hoursJson: true,
-          lat: true,
-          lng: true,
-        },
-      },
-    },
-  });
+    });
+
+    if (!siteWithoutPhotos) return null;
+
+    return {
+      ...siteWithoutPhotos,
+      photos: [],
+    } as SiteForRender;
+  }
 }
