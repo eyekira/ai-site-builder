@@ -1,4 +1,10 @@
-export type ThemeName = 'bistro_core' | 'cafe_warm' | 'express_fresh';
+export type ThemeName =
+  | 'bistro_core'
+  | 'cafe_warm'
+  | 'express_fresh'
+  | 'premium_noir'
+  | 'family_homestyle'
+  | 'bakery_light';
 
 export type ThemeConfig = {
   name: ThemeName;
@@ -45,6 +51,39 @@ export const THEME_OPTIONS: ThemeConfig[] = [
     mutedTextClass: 'text-emerald-800',
     accentTextClass: 'text-emerald-700',
     previewClass: 'bg-gradient-to-r from-emerald-600 to-cyan-500',
+  },
+  {
+    name: 'premium_noir',
+    label: 'Premium Noir',
+    heroClass: 'bg-gradient-to-r from-zinc-950 via-zinc-800 to-stone-700 text-white',
+    cardClass: 'bg-zinc-900 text-zinc-100 border border-zinc-700',
+    buttonClass: 'bg-amber-300 text-zinc-900',
+    sectionBackgroundClass: 'bg-zinc-950',
+    mutedTextClass: 'text-zinc-300',
+    accentTextClass: 'text-amber-300',
+    previewClass: 'bg-gradient-to-r from-zinc-950 to-stone-700',
+  },
+  {
+    name: 'family_homestyle',
+    label: 'Family Homestyle',
+    heroClass: 'bg-gradient-to-r from-red-600 to-orange-500 text-white',
+    cardClass: 'bg-white border border-orange-200',
+    buttonClass: 'bg-orange-500 text-white',
+    sectionBackgroundClass: 'bg-orange-50',
+    mutedTextClass: 'text-orange-900',
+    accentTextClass: 'text-red-700',
+    previewClass: 'bg-gradient-to-r from-red-600 to-orange-500',
+  },
+  {
+    name: 'bakery_light',
+    label: 'Bakery Light',
+    heroClass: 'bg-gradient-to-r from-pink-300 via-amber-200 to-rose-200 text-zinc-900',
+    cardClass: 'bg-white border border-pink-100',
+    buttonClass: 'bg-rose-500 text-white',
+    sectionBackgroundClass: 'bg-rose-50',
+    mutedTextClass: 'text-zinc-700',
+    accentTextClass: 'text-rose-600',
+    previewClass: 'bg-gradient-to-r from-pink-300 to-rose-200',
   },
 ];
 

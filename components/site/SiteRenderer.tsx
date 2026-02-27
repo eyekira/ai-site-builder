@@ -11,9 +11,13 @@ import {
   DEFAULT_PHOTOS_CONTENT,
   parseAboutContent,
   parseContactContent,
+  parseGalleryContent,
   parseHeroContent,
+  parseMenuContent,
   parsePhotosContent,
+  parseReviewsContent,
 } from '@/lib/section-content';
+import { parseThemeJson } from '@/lib/theme';
 
 type SiteRendererProps = {
   site: SiteForRender;
@@ -64,6 +68,18 @@ function safeParsePhotosContent(raw: string) {
   }
 }
 
+function safeParseMenuContent(raw: string) {
+  return parseMenuContent(raw);
+}
+
+function safeParseReviewsContent(raw: string) {
+  return parseReviewsContent(raw);
+}
+
+function safeParseGalleryContent(raw: string) {
+  return parseGalleryContent(raw);
+}
+
 export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
   const businessTitle = site.businessTitle ?? site.title;
   const address = site.formattedAddress ?? site.place?.address ?? null;
@@ -73,6 +89,7 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
   const lng = site.lng ?? site.place?.lng ?? null;
 
   const assetMap = new Map(site.assets.map((assetItem) => [assetItem.id, assetItem]));
+  const theme = parseThemeJson(site.themeJson);
 
   return (
     <>
@@ -93,19 +110,35 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
 
       <div
         data-site-embed={embedMode ? 'true' : undefined}
-        className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8"
+        className={`mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8 ${theme.sectionBackgroundClass}`}
       >
         {site.sections.map((section) => {
           if (section.type === 'HERO') {
             const heroContent = safeParseHeroContent(section.contentJson ?? '{}');
 
-            return <HeroSection key={section.id} businessTitle={businessTitle} content={heroContent} />;
+            return (
+              <HeroSection
+                key={section.id}
+                businessTitle={businessTitle}
+                content={heroContent}
+                heroClassName={theme.heroClass}
+                buttonClassName={theme.buttonClass}
+              />
+            );
           }
 
           if (section.type === 'ABOUT') {
             const aboutContent = safeParseAboutContent(section.contentJson ?? '{}');
 
-            return <AboutSection key={section.id} content={aboutContent} />;
+            return (
+              <AboutSection
+                key={section.id}
+                content={aboutContent}
+                cardClassName={theme.cardClass}
+                mutedTextClassName={theme.mutedTextClass}
+                bulletClassName={theme.accentTextClass.replace('text-', 'bg-')}
+              />
+            );
           }
 
           if (section.type === 'PHOTOS') {
@@ -135,6 +168,64 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
             return <PhotosSection key={section.id} photos={selectedPhotos} />;
           }
 
+          if (section.type === 'MENU') {
+            const menuContent = safeParseMenuContent(section.contentJson ?? '{}');
+
+            return (
+              <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
+                <h2 className="text-2xl font-semibold">{menuContent.title}</h2>
+                <div className="mt-4 space-y-4">
+                  {menuContent.items.map((item, index) => (
+                    <div key={`${item.name}-${index}`} className="flex items-start justify-between gap-6">
+                      <div>
+                        <p className="text-base font-semibold">{item.name}</p>
+                        {item.description && <p className={`mt-1 text-sm ${theme.mutedTextClass}`}>{item.description}</p>}
+                      </div>
+                      {item.price && <span className="text-sm font-semibold">{item.price}</span>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          }
+
+          if (section.type === 'REVIEWS') {
+            const reviewsContent = safeParseReviewsContent(section.contentJson ?? '{}');
+
+            return (
+              <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
+                <h2 className="text-2xl font-semibold">{reviewsContent.title}</h2>
+                <div className="mt-4 grid gap-4">
+                  {reviewsContent.items.map((item, index) => (
+                    <div key={`${item.author}-${index}`} className="rounded-xl border border-zinc-200 p-4">
+                      <div className="text-sm font-semibold text-amber-500">{'★'.repeat(item.rating)}</div>
+                      {item.quote && <p className={`mt-2 text-sm ${theme.mutedTextClass}`}>{item.quote}</p>}
+                      <p className="mt-3 text-sm font-semibold">{item.author}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          }
+
+          if (section.type === 'GALLERY') {
+            const galleryContent = safeParseGalleryContent(section.contentJson ?? '{}');
+
+            return (
+              <section key={section.id} className={`rounded-3xl p-6 shadow-sm ${theme.cardClass}`}>
+                <h2 className="text-2xl font-semibold">{galleryContent.title}</h2>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {galleryContent.items.map((item, index) => (
+                    <figure key={`${item.url}-${index}`} className="overflow-hidden rounded-xl border border-zinc-200">
+                      <img src={item.url} alt={item.caption || 'Gallery image'} className="h-48 w-full object-cover" />
+                      {item.caption && <figcaption className={`px-3 py-2 text-sm ${theme.mutedTextClass}`}>{item.caption}</figcaption>}
+                    </figure>
+                  ))}
+                </div>
+              </section>
+            );
+          }
+
           if (section.type === 'CONTACT') {
             const contactContent = safeParseContactContent(section.contentJson ?? '{}');
 
@@ -147,6 +238,9 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
                 hoursText={hoursText}
                 lat={lat}
                 lng={lng}
+                cardClassName={theme.cardClass}
+                mutedTextClassName={theme.mutedTextClass}
+                buttonClassName={theme.buttonClass}
               />
             );
           }
