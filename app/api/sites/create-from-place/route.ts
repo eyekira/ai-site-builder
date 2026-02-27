@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
-        themeJson: serializeTheme('classic'),
+        themeJson: serializeTheme('bistro_core'),
         ownerId,
         placeId: place.id,
         sections: {
