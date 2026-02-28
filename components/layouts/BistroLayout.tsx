@@ -8,6 +8,11 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
         <div className="flex items-center justify-center gap-8">
           <span className={`text-xs uppercase tracking-[0.2em] ${mutedTextClass}`}>Bistro Editorial</span>
           <h1 className="text-lg font-semibold tracking-wide">{title}</h1>
+          <nav className={`hidden items-center gap-4 text-xs ${mutedTextClass} md:flex`}>
+            <a href="#menu">Menu</a>
+            <a href="#photos">Photos</a>
+            <a href="#contact">Visit</a>
+          </nav>
           <a href={heroCtaHref} className="rounded-sm border border-current px-3 py-1 text-xs font-semibold uppercase">
             {ctaLabel}
           </a>
@@ -19,13 +24,13 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
       <section className="grid gap-8 md:grid-cols-2">
         {sections.about && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.about}</article>}
         <div className="space-y-8">
-          {sections.menu && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.menu}</article>}
-          {sections.reviews && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.reviews}</article>}
+          {sections.menu && <article id="menu" className={`rounded-sm border p-6 ${cardClass}`}>{sections.menu}</article>}
+          {sections.reviews && <article id="reviews" className={`rounded-sm border p-6 ${cardClass}`}>{sections.reviews}</article>}
         </div>
       </section>
 
-      {sections.photos && <section className="space-y-6">{sections.photos}</section>}
-      {sections.contact && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.contact}</article>}
+      {sections.photos && <section id="photos" className="space-y-6">{sections.photos}</section>}
+      {sections.contact && <article id="contact" className={`rounded-sm border p-6 ${cardClass}`}>{sections.contact}</article>}
       <StickyMobileCTA label={ctaLabel} href={heroCtaHref} />
     </div>
   );

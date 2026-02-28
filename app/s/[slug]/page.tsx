@@ -24,5 +24,5 @@ export default async function SitePage({ params, searchParams }: SitePageProps) 
     notFound();
   }
 
-  return <SiteRenderer site={site} embedMode={embedMode} />;
+  return <SiteRenderer site={site} embedMode={embedMode} fullPage={!embedMode} />;
 }

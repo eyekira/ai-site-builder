@@ -29,6 +29,7 @@ import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
 type SiteRendererProps = {
   site: SiteForRender;
   embedMode?: boolean;
+  fullPage?: boolean;
 };
 
 function parseHoursJson(hoursJson: string | null): string | null {
@@ -73,7 +74,7 @@ function safeParsePhotosContent(raw: string) {
   }
 }
 
-export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
+export function SiteRenderer({ site, embedMode = false, fullPage = false }: SiteRendererProps) {
   const businessTitle = site.businessTitle ?? site.title;
   const address = site.formattedAddress ?? site.place?.address ?? null;
   const phone = site.phone ?? site.place?.phone ?? null;
@@ -158,16 +159,20 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
 
   return (
     <>
-      {embedMode && (
+      {(embedMode || fullPage) && (
         <style>{`
           body:has([data-site-embed="true"]) [data-app-chrome="true"],
-          body:has([data-site-embed="true"]) hr { display: none; }
-          body:has([data-site-embed="true"]) [data-app-main="true"] { max-width: 100%; padding: 0; }
+          body:has([data-site-fullpage="true"]) [data-app-chrome="true"] { display: none; }
+          body:has([data-site-embed="true"]) hr,
+          body:has([data-site-fullpage="true"]) hr { display: none; }
+          body:has([data-site-embed="true"]) [data-app-main="true"],
+          body:has([data-site-fullpage="true"]) [data-app-main="true"] { max-width: 100%; padding: 0; }
         `}</style>
       )}
 
       <div
         data-site-embed={embedMode ? 'true' : undefined}
+        data-site-fullpage={fullPage ? 'true' : undefined}
         className={`mx-auto flex w-full flex-col gap-6 bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
         style={{
           ['--brand-primary' as string]: brandPack.palette.primary,

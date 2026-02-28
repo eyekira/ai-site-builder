@@ -12,5 +12,5 @@ export default async function PublicSitePage({ params }: { params: Promise<{ slu
     notFound();
   }
 
-  return <SiteRenderer site={site} />;
+  return <SiteRenderer site={site} fullPage />;
 }
