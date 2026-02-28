@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateLayout } from './actions';
+import { addSection, reorderSections, updateSection, updateLayout, updateBrandCustomization } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -15,6 +15,8 @@ import {
   type SectionType,
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
+import { parseBrandPack } from '@/lib/brandpack/parse';
+import type { FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
   id: number;
@@ -48,9 +50,8 @@ type EditorShellProps = {
   siteId: number;
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
-  templateKey: string | null;
-  templateConfidence: number | null;
   layoutKey: string | null;
+  brandPackJson: string | null;
   isLoggedIn: boolean;
   isSubscribed: boolean;
   customDomain: string | null;
@@ -61,6 +62,8 @@ type EditorShellProps = {
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 type PublishState = 'idle' | 'publishing' | 'success' | 'error';
+
+const FONT_OPTIONS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
 
 function sectionTitle(section: EditorSection): string {
   if (section.type === 'HERO') {
@@ -132,9 +135,8 @@ export default function EditorShell({
   siteId,
   slug,
   siteStatus,
-  templateKey,
-  templateConfidence,
   layoutKey,
+  brandPackJson,
   isLoggedIn,
   isSubscribed,
   customDomain,
@@ -161,6 +163,15 @@ export default function EditorShell({
   const [currentLayout, setCurrentLayout] = useState<string | null>(layoutKey ?? 'bistro_editorial');
   const [layoutState, setLayoutState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [layoutMessage, setLayoutMessage] = useState<string | null>(null);
+
+  const initialBrandPack = parseBrandPack(brandPackJson);
+  const [primaryColor, setPrimaryColor] = useState(initialBrandPack.palette.primary);
+  const [accentColor, setAccentColor] = useState(initialBrandPack.palette.accent);
+  const [headingFontKey, setHeadingFontKey] = useState<FontKey>(initialBrandPack.typography.headingFontKey);
+  const [bodyFontKey, setBodyFontKey] = useState<FontKey>(initialBrandPack.typography.bodyFontKey);
+  const [brandState, setBrandState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [brandMessage, setBrandMessage] = useState<string | null>(null);
+
   const [domainInput, setDomainInput] = useState(customDomain ?? '');
   const [domainState, setDomainState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
@@ -448,6 +459,28 @@ export default function EditorShell({
     });
   };
 
+  const onSaveBrand = () => {
+    setBrandState('saving');
+    setBrandMessage(null);
+
+    startTransition(async () => {
+      try {
+        await updateBrandCustomization(siteId, {
+          primary: primaryColor,
+          accent: accentColor,
+          headingFontKey,
+          bodyFontKey,
+        });
+        setBrandState('saved');
+        setPreviewKey(Date.now());
+        router.refresh();
+      } catch {
+        setBrandState('error');
+        setBrandMessage('Unable to save brand customization.');
+      }
+    });
+  };
+
   return (
     <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
@@ -551,12 +584,6 @@ export default function EditorShell({
       <aside className="bg-white p-4">
         <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
           <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
-          {templateKey && (
-            <p className="mt-2 text-[11px] text-zinc-600">
-              Auto-selected: <span className="font-semibold text-zinc-800">{templateKey}</span>
-              {typeof templateConfidence === 'number' ? ` (${Math.round(templateConfidence * 100)}%)` : ''}
-            </p>
-          )}
           <div className="mt-3">
             <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Layout Theme</label>
             <select
@@ -590,6 +617,44 @@ export default function EditorShell({
                 {key}
               </button>
             ))}
+          </div>
+
+          <div className="mt-4 border-t border-zinc-200 pt-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Brand Customization</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[11px] text-zinc-600">
+                Primary
+                <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="mt-1 h-8 w-full rounded border border-zinc-200" />
+              </label>
+              <label className="text-[11px] text-zinc-600">
+                Accent
+                <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="mt-1 h-8 w-full rounded border border-zinc-200" />
+              </label>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              <label className="text-[11px] text-zinc-600">
+                Heading font
+                <select value={headingFontKey} onChange={(e) => setHeadingFontKey(e.target.value as FontKey)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                  {FONT_OPTIONS.map((font) => (
+                    <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] text-zinc-600">
+                Body font
+                <select value={bodyFontKey} onChange={(e) => setBodyFontKey(e.target.value as FontKey)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                  {FONT_OPTIONS.map((font) => (
+                    <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button type="button" onClick={onSaveBrand} className="mt-3 w-full rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+              Save brand
+            </button>
+            {brandState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving brand…</p>}
+            {brandState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Brand saved.</p>}
+            {brandState === 'error' && <p className="mt-2 text-xs text-red-600">{brandMessage}</p>}
           </div>
         </div>
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">

@@ -10,6 +10,15 @@ import { isTemplateKey } from '@/lib/templates/types';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { isThemeLayoutKey, type ThemeLayoutKey } from '@/lib/themes/schema';
+import { parseBrandPack } from '@/lib/brandpack/parse';
+import { ensureBrandPackContrast } from '@/lib/brandpack/safety';
+import type { FontKey } from '@/lib/brandpack/types';
+
+const FONT_KEYS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
+
+function isHexColor(value: string): boolean {
+  return /^#([0-9a-fA-F]{6})$/.test(value);
+}
 
 function mapLayoutToThemeName(layoutKey: ThemeLayoutKey): ThemeName {
   switch (layoutKey) {
@@ -328,6 +337,65 @@ export async function updateLayout(siteId: number, layoutKey: string) {
         layoutKey,
       }),
     },
+  });
+
+  revalidatePath(`/${site.slug}`);
+  revalidatePath(`/editor/${site.slug}`);
+  revalidatePath(`/editor/${site.slug}/preview`);
+  revalidatePath(`/s/${site.slug}`);
+}
+
+export async function updateBrandCustomization(
+  siteId: number,
+  payload: { primary: string; accent: string; headingFontKey: string; bodyFontKey: string },
+) {
+  const viewer = await getViewerContext();
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: viewer.userId },
+    select: { id: true, slug: true, ownerId: true, anonSessionId: true, brandPackJson: true },
+  });
+
+  if (!site) {
+    throw new Error('Site not found.');
+  }
+
+  if (!canAccessSite(site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
+  }
+
+  if (!isHexColor(payload.primary) || !isHexColor(payload.accent)) {
+    throw new Error('Colors must be valid hex values.');
+  }
+
+  if (!FONT_KEYS.includes(payload.headingFontKey as FontKey) || !FONT_KEYS.includes(payload.bodyFontKey as FontKey)) {
+    throw new Error('Unsupported font selection.');
+  }
+
+  const current = parseBrandPack(site.brandPackJson);
+  const updated = ensureBrandPackContrast({
+    ...current,
+    palette: {
+      ...current.palette,
+      primary: payload.primary,
+      accent: payload.accent,
+    },
+    typography: {
+      headingFontKey: payload.headingFontKey as FontKey,
+      bodyFontKey: payload.bodyFontKey as FontKey,
+    },
+    source: {
+      ...current.source,
+      signals: [...current.source.signals, 'editor_override'].slice(0, 10),
+    },
+  });
+
+  await prisma.site.update({
+    where: { id: siteId },
+    data: { brandPackJson: JSON.stringify(updated) },
   });
 
   revalidatePath(`/${site.slug}`);
