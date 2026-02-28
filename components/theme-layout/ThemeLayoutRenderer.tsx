@@ -32,6 +32,7 @@ type Props = {
     lng: number | null;
   };
   heroCtaHref: string;
+  headingFontClass?: string;
 };
 
 function sectionByType(site: SiteForRender, type: SectionType) {
@@ -50,6 +51,7 @@ export function ThemeLayoutRenderer(props: Props) {
     photos,
     contact,
     heroCtaHref,
+    headingFontClass,
   } = props;
 
   return (
@@ -92,7 +94,7 @@ export function ThemeLayoutRenderer(props: Props) {
           const menu = parseMenuContent(section.contentJson);
           return (
             <section key={`menu-${section.id}`} className={`rounded-3xl p-6 shadow-sm ${cardClass}`}>
-              <h2 className="text-2xl font-semibold">{menu.title}</h2>
+              <h2 className={`text-2xl font-semibold ${headingFontClass ?? ''}`}>{menu.title}</h2>
               <div className="mt-4 space-y-4">
                 {menu.items.map((m, i) => (
                   <div key={`${m.name}-${i}`} className="flex items-start justify-between gap-6">
@@ -119,7 +121,7 @@ export function ThemeLayoutRenderer(props: Props) {
           const reviews = parseReviewsContent(section.contentJson);
           return (
             <section key={`reviews-${section.id}`} className={`rounded-3xl p-6 shadow-sm ${cardClass}`}>
-              <h2 className="text-2xl font-semibold">{reviews.title}</h2>
+              <h2 className={`text-2xl font-semibold ${headingFontClass ?? ''}`}>{reviews.title}</h2>
               <div className="mt-4 grid gap-4">
                 {reviews.items.map((r, i) => (
                   <div key={`${r.author}-${i}`} className="rounded-xl border border-zinc-200 p-4">

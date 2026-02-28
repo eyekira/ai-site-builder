@@ -11,17 +11,17 @@ export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
         </div>
       </header>
 
-      {sections.hero}
-      {sections.about}
-      {sections.menu}
+      <section className="rounded-2xl border border-white/10 bg-black/30 px-8 py-12">{sections.hero}</section>
+      <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.about}</section>
+      <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.menu}</section>
 
       <section className="grid gap-8 md:grid-cols-2">
-        {sections.reviews}
-        {sections.policies ?? sections.contact}
+        <article className="rounded-2xl border border-white/10 bg-black/20 px-6 py-6">{sections.reviews}</article>
+        <article className="rounded-2xl border border-white/10 bg-black/20 px-6 py-6">{sections.policies ?? sections.contact}</article>
       </section>
 
-      {sections.photos}
-      {sections.contact}
+      <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.photos}</section>
+      <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.contact}</section>
 
       <a
         href={heroCtaHref}

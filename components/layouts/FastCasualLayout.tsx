@@ -18,16 +18,16 @@ export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel,
         </div>
       </header>
 
-      {sections.hero}
+      <section className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.hero}</section>
 
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-4">
-          {sections.menu}
-          {sections.photos}
+          <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.menu}</article>
+          <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.photos}</article>
         </div>
         <aside className="space-y-4">
-          {sections.reviews}
-          {sections.contact}
+          <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.reviews}</article>
+          <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.contact}</article>
         </aside>
       </div>
 

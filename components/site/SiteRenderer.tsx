@@ -1,7 +1,7 @@
-import { AboutSection } from '@/components/site/about-section';
-import { ContactSection } from '@/components/site/contact-section';
-import { HeroSection } from '@/components/site/hero-section';
 import { LAYOUT_COMPONENTS } from '@/components/layouts/layout-registry';
+import { AboutContentBlock } from '@/components/sections/AboutContent';
+import { ContactContentBlock } from '@/components/sections/ContactContent';
+import { HeroContentBlock } from '@/components/sections/HeroContent';
 import { MenuSection } from '@/components/sections/MenuSection';
 import { PhotosContent } from '@/components/sections/PhotosContent';
 import { PoliciesSection } from '@/components/sections/PoliciesSection';
@@ -78,8 +78,6 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
   const address = site.formattedAddress ?? site.place?.address ?? null;
   const phone = site.phone ?? site.place?.phone ?? null;
   const hoursText = parseHoursJson(site.hoursJson ?? site.place?.hoursJson ?? null);
-  const lat = site.lat ?? site.place?.lat ?? null;
-  const lng = site.lng ?? site.place?.lng ?? null;
 
   const theme = parseThemeJson(site.themeJson);
   const layoutKey = resolveThemeLayoutKey(site.themeJson);
@@ -134,16 +132,26 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
 
   const sections = {
     hero: heroSection ? (
-      <HeroSection businessTitle={businessTitle} content={safeParseHeroContent(heroSection.contentJson ?? '{}')} heroClassName={theme.heroClass} buttonClassName={theme.buttonClass} />
+      <HeroContentBlock
+        businessTitle={businessTitle}
+        content={safeParseHeroContent(heroSection.contentJson ?? '{}')}
+        heroClassName="text-current"
+        buttonClassName={theme.buttonClass}
+      />
     ) : undefined,
-    about: aboutSection ? (
-      <AboutSection content={safeParseAboutContent(aboutSection.contentJson ?? '{}')} cardClassName={theme.cardClass} mutedTextClassName={theme.mutedTextClass} bulletClassName={theme.accentTextClass.replace('text-', 'bg-')} />
-    ) : undefined,
+    about: aboutSection ? <AboutContentBlock content={safeParseAboutContent(aboutSection.contentJson ?? '{}')} mutedTextClass={theme.mutedTextClass} /> : undefined,
     menu: menuSection ? <MenuSection content={parseMenuContent(menuSection.contentJson ?? '{}')} mutedTextClass={theme.mutedTextClass} /> : undefined,
     photos: photos.length > 0 ? <PhotosContent photos={photos} /> : undefined,
     reviews: reviewsSection ? <ReviewsSection content={parseReviewsContent(reviewsSection.contentJson ?? '{}')} mutedTextClass={theme.mutedTextClass} /> : undefined,
     contact: contactSection ? (
-      <ContactSection content={safeParseContactContent(contactSection.contentJson ?? '{}')} address={address} phone={phone} hoursText={hoursText} lat={lat} lng={lng} cardClassName={theme.cardClass} mutedTextClassName={theme.mutedTextClass} buttonClassName={theme.buttonClass} />
+      <ContactContentBlock
+        content={safeParseContactContent(contactSection.contentJson ?? '{}')}
+        address={address}
+        phone={phone}
+        hoursText={hoursText}
+        buttonClassName={theme.buttonClass}
+        mutedTextClass={theme.mutedTextClass}
+      />
     ) : undefined,
     policies: <PoliciesSection />,
   };

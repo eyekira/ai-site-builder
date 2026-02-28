@@ -14,18 +14,18 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
         </div>
       </header>
 
-      {sections.hero}
+      <section className={`rounded-sm border px-8 py-10 ${cardClass}`}>{sections.hero}</section>
 
       <section className="grid gap-8 md:grid-cols-2">
-        {sections.about}
+        <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.about}</article>
         <div className="space-y-8">
-          {sections.menu}
-          {sections.reviews}
+          <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.menu}</article>
+          <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.reviews}</article>
         </div>
       </section>
 
-      {sections.photos}
-      {sections.contact}
+      <section className="space-y-6">{sections.photos}</section>
+      <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.contact}</article>
       <StickyMobileCTA label={ctaLabel} href={heroCtaHref} />
     </div>
   );
