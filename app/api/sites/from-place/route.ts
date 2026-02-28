@@ -12,6 +12,7 @@ import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
 import { buildTemplateSections } from '@/lib/templates/sections';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
+import { generateBrandPack } from '@/lib/brandpack/generate';
 
 type PlacePhoto = {
   ref: string;
@@ -363,6 +364,15 @@ export async function POST(request: NextRequest) {
     const textSignals = [placeTitle, place.address ?? '', place.website ?? ''];
     const ownerTemplateSelection = selectTemplate({ textSignals });
 
+    const brandPhotoClassifications = limitedPhotos.length
+      ? await classifyPlacePhotosBatch(
+          limitedPhotos.map((photo, index) => ({
+            googlePhotoRef: photo.ref,
+            metadata: { index },
+          })),
+        )
+      : [];
+
     const heroCtaHref = buildCtaHref(place.phone, place.website);
 
     if (!isLoggedIn) {
@@ -371,12 +381,7 @@ export async function POST(request: NextRequest) {
         ref: photo.ref,
       }));
       const assetIds = assets.map((asset) => asset.id);
-      const previewClassifications = await classifyPlacePhotosBatch(
-        limitedPhotos.map((photo, index) => ({
-          googlePhotoRef: photo.ref,
-          metadata: { index },
-        })),
-      );
+      const previewClassifications = brandPhotoClassifications;
       const previewTemplateSelection = selectTemplate({
         textSignals,
         photoCategories: previewClassifications.map((entry) => entry.category),
@@ -398,6 +403,11 @@ export async function POST(request: NextRequest) {
         type: section.type,
         contentJson: section.contentJson,
       }));
+
+      const previewBrandPack = generateBrandPack({
+        textSignals,
+        photoCategories: previewClassifications.map((entry) => entry.category),
+      });
 
       const previewLayoutKey = resolveThemeLayoutKey(
         JSON.stringify({
@@ -421,6 +431,7 @@ export async function POST(request: NextRequest) {
           templateSignals: previewTemplateSelection.signals,
           layoutKey: previewLayoutKey,
         }),
+        brandPackJson: JSON.stringify(previewBrandPack),
         formattedAddress: place.address,
         phone: place.phone,
         hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
@@ -485,6 +496,11 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const ownerBrandPack = generateBrandPack({
+        textSignals,
+        photoCategories: brandPhotoClassifications.map((entry) => entry.category),
+      });
+
       const ownerLayoutKey = resolveThemeLayoutKey(
         JSON.stringify({
           name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
@@ -513,6 +529,7 @@ export async function POST(request: NextRequest) {
             templateSignals: ownerTemplateSelection.signals,
             layoutKey: ownerLayoutKey,
           }),
+          brandPackJson: JSON.stringify(ownerBrandPack),
           ownerId,
           placeId: place.id,
         },

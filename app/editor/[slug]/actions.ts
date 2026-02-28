@@ -9,6 +9,22 @@ import { getThemeByName, isThemeName, type ThemeName } from '@/lib/theme';
 import { isTemplateKey } from '@/lib/templates/types';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
+import { isThemeLayoutKey, type ThemeLayoutKey } from '@/lib/themes/schema';
+
+function mapLayoutToThemeName(layoutKey: ThemeLayoutKey): ThemeName {
+  switch (layoutKey) {
+    case 'premium_omakase':
+      return 'premium_noir';
+    case 'modern_fast_casual':
+      return 'express_fresh';
+    case 'cozy_bakery':
+      return 'bakery_light';
+    case 'minimal_cafe':
+      return 'cafe_warm';
+    default:
+      return 'bistro_core';
+  }
+}
 
 async function normalizeSiteSectionOrders(siteId: number) {
   const sections = await prisma.section.findMany({
@@ -259,6 +275,56 @@ export async function updateTemplate(siteId: number, templateKey: string) {
         name: mappedTheme,
         templateKey,
         templateConfidence: 1,
+        layoutKey,
+      }),
+    },
+  });
+
+  revalidatePath(`/${site.slug}`);
+  revalidatePath(`/editor/${site.slug}`);
+  revalidatePath(`/editor/${site.slug}/preview`);
+  revalidatePath(`/s/${site.slug}`);
+}
+export async function updateLayout(siteId: number, layoutKey: string) {
+  const viewer = await getViewerContext();
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: viewer.userId },
+    select: { id: true, slug: true, ownerId: true, anonSessionId: true, themeJson: true },
+  });
+
+  if (!site) {
+    throw new Error('Site not found.');
+  }
+
+  if (!canAccessSite(site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
+  }
+
+  if (!isThemeLayoutKey(layoutKey)) {
+    throw new Error('Unsupported layout selection.');
+  }
+
+  let existingThemeJson: Record<string, unknown> = {};
+  if (site.themeJson) {
+    try {
+      existingThemeJson = JSON.parse(site.themeJson) as Record<string, unknown>;
+    } catch {
+      existingThemeJson = {};
+    }
+  }
+
+  const mappedTheme = mapLayoutToThemeName(layoutKey);
+
+  await prisma.site.update({
+    where: { id: siteId },
+    data: {
+      themeJson: JSON.stringify({
+        ...existingThemeJson,
+        name: mappedTheme,
         layoutKey,
       }),
     },

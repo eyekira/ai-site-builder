@@ -4,7 +4,7 @@ import EditorShell from './EditorShell';
 import { prisma } from '@/lib/prisma';
 import { canAccessSite, getViewerContext } from '@/lib/rbac';
 import { type SectionType } from '@/lib/section-content';
-import { extractTemplateMetadata, parseThemeJson } from '@/lib/theme';
+import { extractLayoutKey, extractTemplateMetadata } from '@/lib/theme';
 import { isMissingTableError } from '@/lib/prisma-errors';
 
 export default async function EditorPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -84,9 +84,9 @@ export default async function EditorPage({ params }: { params: Promise<{ slug: s
       siteId={site.id}
       slug={site.slug}
       siteStatus={site.status}
-      themeName={parseThemeJson(site.themeJson).name}
       templateKey={templateMeta.templateKey}
       templateConfidence={templateMeta.templateConfidence}
+      layoutKey={extractLayoutKey(site.themeJson)}
       isLoggedIn={Boolean(userId)}
       isSubscribed={Boolean(user?.subscribed)}
       customDomain={site.customDomain}

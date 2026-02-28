@@ -148,3 +148,13 @@ export function extractTemplateMetadata(themeJson: string | null | undefined): {
     return { templateKey: null, templateConfidence: null };
   }
 }
+
+export function extractLayoutKey(themeJson: string | null | undefined): string | null {
+  if (!themeJson) return null;
+  try {
+    const parsed = JSON.parse(themeJson) as { layoutKey?: string } | null;
+    return typeof parsed?.layoutKey === 'string' ? parsed.layoutKey : null;
+  } catch {
+    return null;
+  }
+}

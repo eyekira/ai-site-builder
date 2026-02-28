@@ -6,6 +6,7 @@ import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
 import { serializeTheme } from '@/lib/theme';
+import { generateBrandPack } from '@/lib/brandpack/generate';
 
 function slugify(value: string) {
   return value
@@ -174,12 +175,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const brandPack = generateBrandPack({
+      textSignals: [place.name, place.address ?? '', place.website ?? ''],
+    });
+
     const site = await prisma.site.create({
       data: {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
         themeJson: serializeTheme('bistro_core'),
+        brandPackJson: JSON.stringify(brandPack),
         ownerId,
         placeId: place.id,
         sections: {

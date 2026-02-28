@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateTheme, updateTemplate } from './actions';
+import { addSection, reorderSections, updateSection, updateLayout } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -14,9 +14,7 @@ import {
   parseReviewsContent,
   type SectionType,
 } from '@/lib/section-content';
-import { THEME_OPTIONS, type ThemeName } from '@/lib/theme';
-import { TEMPLATE_KEYS, TEMPLATE_LABELS } from '@/lib/templates/types';
-import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
+import { LAYOUT_KEYS } from '@/lib/themes/schema';
 
 type EditorSection = {
   id: number;
@@ -50,9 +48,9 @@ type EditorShellProps = {
   siteId: number;
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
-  themeName: ThemeName;
   templateKey: string | null;
   templateConfidence: number | null;
+  layoutKey: string | null;
   isLoggedIn: boolean;
   isSubscribed: boolean;
   customDomain: string | null;
@@ -134,9 +132,9 @@ export default function EditorShell({
   siteId,
   slug,
   siteStatus,
-  themeName,
   templateKey,
   templateConfidence,
+  layoutKey,
   isLoggedIn,
   isSubscribed,
   customDomain,
@@ -160,12 +158,9 @@ export default function EditorShell({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeState, setUpgradeState] = useState<'idle' | 'subscribing' | 'error'>('idle');
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
-  const [currentTheme, setCurrentTheme] = useState<ThemeName>(themeName);
-  const [themeState, setThemeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [themeMessage, setThemeMessage] = useState<string | null>(null);
-  const [currentTemplate, setCurrentTemplate] = useState<string | null>(templateKey);
-  const [templateState, setTemplateState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [templateMessage, setTemplateMessage] = useState<string | null>(null);
+  const [currentLayout, setCurrentLayout] = useState<string | null>(layoutKey ?? 'bistro_editorial');
+  const [layoutState, setLayoutState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [layoutMessage, setLayoutMessage] = useState<string | null>(null);
   const [domainInput, setDomainInput] = useState(customDomain ?? '');
   const [domainState, setDomainState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
@@ -207,17 +202,6 @@ export default function EditorShell({
     setPreviewKey(Date.now());
   }, []);
 
-  useEffect(() => {
-    if (themeState !== 'saved') {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setThemeState('idle');
-    }, 2000);
-
-    return () => window.clearTimeout(timer);
-  }, [themeState]);
 
   const currentDraft = selectedSection
     ? draftsBySection[selectedSection.id] ?? normalizeSectionContent(selectedSection, selectedSection.contentJson)
@@ -442,50 +426,24 @@ export default function EditorShell({
     });
   };
 
-  const onThemeChange = (nextTheme: ThemeName) => {
-    if (nextTheme === currentTheme) {
+  const onLayoutChange = (nextLayout: string) => {
+    if (nextLayout === currentLayout) {
       return;
     }
 
-    setCurrentTheme(nextTheme);
-    setThemeState('saving');
-    setThemeMessage(null);
+    setCurrentLayout(nextLayout);
+    setLayoutState('saving');
+    setLayoutMessage(null);
 
     startTransition(async () => {
       try {
-        await updateTheme(siteId, nextTheme);
-        setThemeState('saved');
+        await updateLayout(siteId, nextLayout);
+        setLayoutState('saved');
         setPreviewKey(Date.now());
         router.refresh();
       } catch {
-        setThemeState('error');
-        setThemeMessage('Unable to update theme. Please try again.');
-      }
-    });
-  };
-
-  const onTemplateChange = (nextTemplate: string) => {
-    if (nextTemplate === currentTemplate) {
-      return;
-    }
-
-    setCurrentTemplate(nextTemplate);
-    const mappedTheme = TEMPLATE_THEME_MAP[nextTemplate as keyof typeof TEMPLATE_THEME_MAP];
-    if (mappedTheme) {
-      setCurrentTheme(mappedTheme);
-    }
-    setTemplateState('saving');
-    setTemplateMessage(null);
-
-    startTransition(async () => {
-      try {
-        await updateTemplate(siteId, nextTemplate);
-        setTemplateState('saved');
-        setPreviewKey(Date.now());
-        router.refresh();
-      } catch {
-        setTemplateState('error');
-        setTemplateMessage('Unable to update template. Please try again.');
+        setLayoutState('error');
+        setLayoutMessage('Unable to update layout. Please try again.');
       }
     });
   };
@@ -600,42 +558,39 @@ export default function EditorShell({
             </p>
           )}
           <div className="mt-3">
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Template</label>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Layout Theme</label>
             <select
-              value={currentTemplate ?? 'default_bistro'}
-              onChange={(event) => onTemplateChange(event.target.value)}
+              value={currentLayout ?? 'bistro_editorial'}
+              onChange={(event) => onLayoutChange(event.target.value)}
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-800"
             >
-              {TEMPLATE_KEYS.map((key) => (
+              {LAYOUT_KEYS.map((key) => (
                 <option key={key} value={key}>
-                  {TEMPLATE_LABELS[key]}
+                  {key}
                 </option>
               ))}
             </select>
-            {templateState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving template…</p>}
-            {templateState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Template saved.</p>}
-            {templateState === 'error' && <p className="mt-2 text-xs text-red-600">{templateMessage}</p>}
+            {layoutState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving layout…</p>}
+            {layoutState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Layout saved.</p>}
+            {layoutState === 'error' && <p className="mt-2 text-xs text-red-600">{layoutMessage}</p>}
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {THEME_OPTIONS.map((theme) => (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {LAYOUT_KEYS.map((key) => (
               <button
-                key={theme.name}
+                key={key}
                 type="button"
-                onClick={() => onThemeChange(theme.name)}
-                className={`rounded-md border px-2 py-2 text-xs font-medium transition ${
-                  currentTheme === theme.name
+                onClick={() => onLayoutChange(key)}
+                className={`rounded-md border px-2 py-2 text-left text-[11px] font-medium transition ${
+                  currentLayout === key
                     ? 'border-zinc-900 bg-white text-zinc-900'
                     : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
                 }`}
               >
-                <div className={`mb-2 h-6 w-full rounded ${theme.previewClass}`} />
-                {theme.label}
+                <div className="mb-2 h-8 w-full rounded bg-gradient-to-r from-zinc-300 via-zinc-200 to-zinc-100" />
+                {key}
               </button>
             ))}
           </div>
-          {themeState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving theme…</p>}
-          {themeState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Theme saved.</p>}
-          {themeState === 'error' && <p className="mt-2 text-xs text-red-600">{themeMessage}</p>}
         </div>
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing</p>
