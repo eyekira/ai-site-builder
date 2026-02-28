@@ -16,7 +16,6 @@ import {
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
-import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
@@ -617,10 +616,8 @@ export default function EditorShell({
     setBorderColor(selected.border);
   };
 
-  const editorBodyFontClass = FONT_CLASS_BY_KEY[bodyFontKey] ?? '';
-
   return (
-    <div className={`relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100 ${editorBodyFontClass}`}>
+    <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Sections</h2>
