@@ -20,7 +20,7 @@ import {
   parsePhotosContent,
   parseReviewsContent,
 } from '@/lib/section-content';
-import { parseThemeJson } from '@/lib/theme';
+import { extractTemplateMetadata, parseThemeJson } from '@/lib/theme';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { parseBrandPack } from '@/lib/brandpack/parse';
 import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
@@ -85,6 +85,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const theme = parseThemeJson(site.themeJson);
   const layoutKey = resolveThemeLayoutKey(site.themeJson);
   const Layout = LAYOUT_COMPONENTS[layoutKey] ?? LAYOUT_COMPONENTS.bistro_editorial;
+  const { templateKey } = extractTemplateMetadata(site.themeJson);
   const brandPack = parseBrandPack(site.brandPackJson);
   const headingFontClass = FONT_CLASS_BY_KEY[brandPack.typography.headingFontKey];
   const bodyFontClass = FONT_CLASS_BY_KEY[brandPack.typography.bodyFontKey];
@@ -150,6 +151,23 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   })();
 
   const ctaLabel = (() => {
+    const byTemplate: Record<string, string> = {
+      fine_dining_premium: 'Reserve Table',
+      omakase_counter: 'Reserve Seats',
+      steakhouse_classic: 'Book Dinner',
+      family_korean: 'View Menu',
+      bbq_group: 'Reserve Group',
+      cafe_cozy: 'Order Ahead',
+      bakery_patisserie: 'Preorder Pickup',
+      brunch_social: 'Reserve Brunch',
+      fast_casual: 'Start Order',
+      takeout_delivery_first: 'Order Delivery',
+    };
+
+    if (templateKey && byTemplate[templateKey]) {
+      return byTemplate[templateKey];
+    }
+
     if (!heroSection) return 'Reserve';
     try {
       const parsed = JSON.parse(heroSection.contentJson ?? '{}') as { ctas?: Array<{ href?: string; label?: string }> };

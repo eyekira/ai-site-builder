@@ -2,6 +2,8 @@ import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
 import type { LayoutRenderProps } from './types';
 
 export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ctaLabel, sections, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
+  const primaryLabel = /call\s*us|phone/i.test(ctaLabel) ? 'Reserve' : ctaLabel;
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <header className={`border px-6 py-4 ${cardClass} ${surfaceClass ?? ''}`}>
@@ -14,7 +16,7 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
             <a href="#contact">Visit</a>
           </nav>
           <a href={heroCtaHref} className="border border-current px-3 py-1 text-xs font-semibold uppercase">
-            {ctaLabel}
+            {primaryLabel}
           </a>
         </div>
       </header>
@@ -43,7 +45,18 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
           {sections.contact}
         </article>
       )}
-      <StickyMobileCTA label={ctaLabel} href={heroCtaHref} />
+
+      <div className={`fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 px-3 py-2 backdrop-blur md:hidden ${surfaceClass ?? ''}`}>
+        <div className="flex items-center justify-between text-[11px] font-semibold">
+          <div className="flex items-center gap-3">
+            <a href="#menu">Menu</a>
+            <a href="#photos">Photos</a>
+            <a href="#contact">Visit</a>
+          </div>
+          <a href={heroCtaHref} className="rounded-full bg-zinc-900 px-3 py-1.5 text-white">{primaryLabel}</a>
+        </div>
+      </div>
+      <StickyMobileCTA label={primaryLabel} href={heroCtaHref} />
     </div>
   );
 }
