@@ -23,7 +23,7 @@ import {
 import { parseThemeJson } from '@/lib/theme';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { parseBrandPack } from '@/lib/brandpack/parse';
-import { ALL_FONT_VARIABLES, FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
+import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
 
 
 type SiteRendererProps = {
@@ -168,7 +168,7 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
 
       <div
         data-site-embed={embedMode ? 'true' : undefined}
-        className={`mx-auto flex w-full flex-col gap-6 bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${ALL_FONT_VARIABLES} ${bodyFontClass}`}
+        className={`mx-auto flex w-full flex-col gap-6 bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
         style={{
           ['--brand-primary' as string]: brandPack.palette.primary,
           ['--brand-secondary' as string]: brandPack.palette.secondary,
