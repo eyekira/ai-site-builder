@@ -8,6 +8,7 @@ import { defaultContentForType, parseSectionContent, type SectionType } from '@/
 import { getThemeByName, isThemeName, type ThemeName } from '@/lib/theme';
 import { isTemplateKey } from '@/lib/templates/types';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
+import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 
 async function normalizeSiteSectionOrders(siteId: number) {
   const sections = await prisma.section.findMany({
@@ -242,6 +243,13 @@ export async function updateTemplate(siteId: number, templateKey: string) {
   }
 
   const mappedTheme = TEMPLATE_THEME_MAP[templateKey];
+  const candidateThemeJson = JSON.stringify({
+    ...existingThemeJson,
+    name: mappedTheme,
+    templateKey,
+    templateConfidence: 1,
+  });
+  const layoutKey = resolveThemeLayoutKey(candidateThemeJson);
 
   await prisma.site.update({
     where: { id: siteId },
@@ -251,6 +259,7 @@ export async function updateTemplate(siteId: number, templateKey: string) {
         name: mappedTheme,
         templateKey,
         templateConfidence: 1,
+        layoutKey,
       }),
     },
   });

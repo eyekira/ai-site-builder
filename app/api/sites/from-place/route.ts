@@ -11,6 +11,7 @@ import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
 import { buildTemplateSections } from '@/lib/templates/sections';
+import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 
 type PlacePhoto = {
   ref: string;
@@ -398,6 +399,15 @@ export async function POST(request: NextRequest) {
         contentJson: section.contentJson,
       }));
 
+      const previewLayoutKey = resolveThemeLayoutKey(
+        JSON.stringify({
+          name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
+          templateKey: previewTemplateSelection.templateKey,
+          templateConfidence: previewTemplateSelection.confidence,
+          templateSignals: previewTemplateSelection.signals,
+        }),
+      );
+
       const previewSite: SiteForRender = {
         id: 0,
         slug,
@@ -409,6 +419,7 @@ export async function POST(request: NextRequest) {
           templateKey: previewTemplateSelection.templateKey,
           templateConfidence: previewTemplateSelection.confidence,
           templateSignals: previewTemplateSelection.signals,
+          layoutKey: previewLayoutKey,
         }),
         formattedAddress: place.address,
         phone: place.phone,
@@ -474,6 +485,15 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const ownerLayoutKey = resolveThemeLayoutKey(
+        JSON.stringify({
+          name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
+          templateKey: ownerTemplateSelection.templateKey,
+          templateConfidence: ownerTemplateSelection.confidence,
+          templateSignals: ownerTemplateSelection.signals,
+        }),
+      );
+
       const site = await tx.site.create({
         data: {
           slug,
@@ -491,6 +511,7 @@ export async function POST(request: NextRequest) {
             templateKey: ownerTemplateSelection.templateKey,
             templateConfidence: ownerTemplateSelection.confidence,
             templateSignals: ownerTemplateSelection.signals,
+            layoutKey: ownerLayoutKey,
           }),
           ownerId,
           placeId: place.id,
