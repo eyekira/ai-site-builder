@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateLayout, updateBrandCustomization, importMenuFromMenuPhotos } from './actions';
+import { addSection, reorderSections, updateSection, updateLayout, updateCulturalStyle, updateBrandCustomization, importMenuFromMenuPhotos } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -16,6 +16,7 @@ import {
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
+import { CULTURAL_STYLES } from '@/lib/cultural-style/styles';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
@@ -51,6 +52,7 @@ type EditorShellProps = {
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
   layoutKey: string | null;
+  culturalStyleKey: string | null;
   brandPackJson: string | null;
   isLoggedIn: boolean;
   isSubscribed: boolean;
@@ -81,11 +83,11 @@ const BUTTON_OPTIONS: BrandPack['style']['button'][] = ['pill', 'rounded', 'squa
 const IMAGE_OPTIONS: BrandPack['style']['image'][] = ['natural', 'vibrant', 'editorial'];
 
 const LAYOUT_LABELS: Record<string, string> = {
-  bistro_editorial: 'Editorial Bistro',
-  minimal_cafe: 'Minimal Cafe',
-  premium_omakase: 'Premium Omakase',
-  modern_fast_casual: 'Modern Fast Casual',
-  cozy_bakery: 'Cozy Bakery',
+  luxury: 'Luxury',
+  modern_casual: 'Modern Casual',
+  cozy_local: 'Cozy Local',
+  minimal_contemporary: 'Minimal Contemporary',
+  menu_first: 'Menu First',
 };
 
 type PaletteOption = {
@@ -214,6 +216,7 @@ export default function EditorShell({
   slug,
   siteStatus,
   layoutKey,
+  culturalStyleKey,
   brandPackJson,
   isLoggedIn,
   isSubscribed,
@@ -238,7 +241,8 @@ export default function EditorShell({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeState, setUpgradeState] = useState<'idle' | 'subscribing' | 'error'>('idle');
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
-  const [currentLayout, setCurrentLayout] = useState<string | null>(layoutKey ?? 'bistro_editorial');
+  const [currentLayout, setCurrentLayout] = useState<string | null>(layoutKey ?? 'minimal_contemporary');
+  const [currentCulturalStyle, setCurrentCulturalStyle] = useState<string>(culturalStyleKey ?? 'american_classic');
   const [layoutState, setLayoutState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [layoutMessage, setLayoutMessage] = useState<string | null>(null);
 
@@ -548,6 +552,26 @@ export default function EditorShell({
     });
   };
 
+  const onCulturalStyleChange = (nextStyle: string) => {
+    if (nextStyle === currentCulturalStyle) return;
+
+    setCurrentCulturalStyle(nextStyle);
+    setLayoutState('saving');
+    setLayoutMessage(null);
+
+    startTransition(async () => {
+      try {
+        await updateCulturalStyle(siteId, nextStyle);
+        setLayoutState('saved');
+        setPreviewKey(Date.now());
+        router.refresh();
+      } catch {
+        setLayoutState('error');
+        setLayoutMessage('Unable to update cultural style.');
+      }
+    });
+  };
+
   const onSaveBrand = () => {
     setBrandState('saving');
     setBrandMessage(null);
@@ -742,6 +766,23 @@ export default function EditorShell({
               </button>
             ))}
           </div>
+
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Cultural Style</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {CULTURAL_STYLES.map((style) => (
+              <button
+                key={style.key}
+                type="button"
+                onClick={() => onCulturalStyleChange(style.key)}
+                className={`rounded-md border px-2 py-2 text-left text-[11px] transition ${
+                  currentCulturalStyle === style.key ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700'
+                }`}
+              >
+                {style.label}
+              </button>
+            ))}
+          </div>
+
           {layoutState === 'saving' && <p className="mt-2 text-[11px] text-zinc-500">Saving layout…</p>}
           {layoutState === 'saved' && <p className="mt-2 text-[11px] text-emerald-600">Layout saved.</p>}
           {layoutState === 'error' && <p className="mt-2 text-[11px] text-red-600">{layoutMessage}</p>}

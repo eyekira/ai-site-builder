@@ -8,9 +8,9 @@ import { PremiumLayout } from './PremiumLayout';
 import type { LayoutRenderProps } from './types';
 
 export const LAYOUT_COMPONENTS: Record<string, ComponentType<LayoutRenderProps>> = {
-  bistro_editorial: BistroLayout,
-  minimal_cafe: MinimalLayout,
-  premium_omakase: PremiumLayout,
-  modern_fast_casual: FastCasualLayout,
-  cozy_bakery: BakeryLayout,
+  luxury: PremiumLayout,
+  modern_casual: FastCasualLayout,
+  cozy_local: BakeryLayout,
+  minimal_contemporary: MinimalLayout,
+  menu_first: BistroLayout,
 };

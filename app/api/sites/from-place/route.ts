@@ -11,8 +11,8 @@ import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
 import { buildTemplateSections } from '@/lib/templates/sections';
-import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { generateBrandPack } from '@/lib/brandpack/generate';
+import { inferLayoutAndCulturalStyle } from '@/lib/cultural-style/styles';
 
 type PlacePhoto = {
   ref: string;
@@ -362,6 +362,7 @@ export async function POST(request: NextRequest) {
     });
 
     const textSignals = [placeTitle, place.address ?? '', place.website ?? ''];
+    const inferredStyle = inferLayoutAndCulturalStyle({ textSignals });
     const ownerTemplateSelection = selectTemplate({ textSignals });
 
     const brandPhotoClassifications = limitedPhotos.length
@@ -409,14 +410,7 @@ export async function POST(request: NextRequest) {
         photoCategories: previewClassifications.map((entry) => entry.category),
       });
 
-      const previewLayoutKey = resolveThemeLayoutKey(
-        JSON.stringify({
-          name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
-          templateKey: previewTemplateSelection.templateKey,
-          templateConfidence: previewTemplateSelection.confidence,
-          templateSignals: previewTemplateSelection.signals,
-        }),
-      );
+      const previewLayoutKey = inferredStyle.layoutKey;
 
       const previewSite: SiteForRender = {
         id: 0,
@@ -431,6 +425,7 @@ export async function POST(request: NextRequest) {
           templateConfidence: previewTemplateSelection.confidence,
           templateSignals: previewTemplateSelection.signals,
           layoutKey: previewLayoutKey,
+          culturalStyleKey: inferredStyle.culturalStyleKey,
         }),
         brandPackJson: JSON.stringify(previewBrandPack),
         formattedAddress: place.address,
@@ -506,14 +501,7 @@ export async function POST(request: NextRequest) {
         photoCategories: brandPhotoClassifications.map((entry) => entry.category),
       });
 
-      const ownerLayoutKey = resolveThemeLayoutKey(
-        JSON.stringify({
-          name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
-          templateKey: ownerTemplateSelection.templateKey,
-          templateConfidence: ownerTemplateSelection.confidence,
-          templateSignals: ownerTemplateSelection.signals,
-        }),
-      );
+      const ownerLayoutKey = inferredStyle.layoutKey;
 
       const site = await tx.site.create({
         data: {
@@ -533,6 +521,7 @@ export async function POST(request: NextRequest) {
             templateConfidence: ownerTemplateSelection.confidence,
             templateSignals: ownerTemplateSelection.signals,
             layoutKey: ownerLayoutKey,
+            culturalStyleKey: inferredStyle.culturalStyleKey,
           }),
           brandPackJson: JSON.stringify(ownerBrandPack),
           ownerId,

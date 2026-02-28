@@ -1,17 +1,11 @@
 export type ThemeLayoutKey =
-  | 'bistro_editorial'
-  | 'minimal_cafe'
-  | 'premium_omakase'
-  | 'modern_fast_casual'
-  | 'cozy_bakery';
+  | 'luxury'
+  | 'modern_casual'
+  | 'cozy_local'
+  | 'minimal_contemporary'
+  | 'menu_first';
 
-export const LAYOUT_KEYS: ThemeLayoutKey[] = [
-  'bistro_editorial',
-  'minimal_cafe',
-  'premium_omakase',
-  'modern_fast_casual',
-  'cozy_bakery',
-];
+export const LAYOUT_KEYS: ThemeLayoutKey[] = ['luxury', 'modern_casual', 'cozy_local', 'minimal_contemporary', 'menu_first'];
 
 export function isThemeLayoutKey(value: string): value is ThemeLayoutKey {
   return LAYOUT_KEYS.includes(value as ThemeLayoutKey);

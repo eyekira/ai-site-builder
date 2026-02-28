@@ -24,6 +24,7 @@ import { extractTemplateMetadata, parseThemeJson } from '@/lib/theme';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { parseBrandPack } from '@/lib/brandpack/parse';
 import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
+import { getCulturalStyle } from '@/lib/cultural-style/styles';
 
 
 type SiteRendererProps = {
@@ -84,20 +85,33 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
 
   const theme = parseThemeJson(site.themeJson);
   const layoutKey = resolveThemeLayoutKey(site.themeJson);
-  const Layout = LAYOUT_COMPONENTS[layoutKey] ?? LAYOUT_COMPONENTS.bistro_editorial;
+  const Layout = LAYOUT_COMPONENTS[layoutKey] ?? LAYOUT_COMPONENTS.minimal_contemporary;
   const { templateKey } = extractTemplateMetadata(site.themeJson);
   const brandPack = parseBrandPack(site.brandPackJson);
+  const themeMeta = (() => {
+    try {
+      return JSON.parse(site.themeJson ?? '{}') as { culturalStyleKey?: string };
+    } catch {
+      return {} as { culturalStyleKey?: string };
+    }
+  })();
+  const culturalStyle = getCulturalStyle(themeMeta.culturalStyleKey);
   const hasEditorOverride = brandPack.source.signals.includes('editor_override');
   const defaultPairingByLayout: Record<string, { heading: keyof typeof FONT_CLASS_BY_KEY; body: keyof typeof FONT_CLASS_BY_KEY }> = {
-    premium_omakase: { heading: 'playfair_display', body: 'merriweather' },
-    modern_fast_casual: { heading: 'space_grotesk', body: 'dm_sans' },
-    cozy_bakery: { heading: 'lora', body: 'nunito' },
-    minimal_cafe: { heading: 'poppins', body: 'inter' },
-    bistro_editorial: { heading: 'playfair_display', body: 'inter' },
+    luxury: { heading: 'playfair_display', body: 'merriweather' },
+    modern_casual: { heading: 'space_grotesk', body: 'dm_sans' },
+    cozy_local: { heading: 'lora', body: 'nunito' },
+    minimal_contemporary: { heading: 'poppins', body: 'inter' },
+    menu_first: { heading: 'manrope', body: 'inter' },
   };
-  const pairing = defaultPairingByLayout[layoutKey] ?? defaultPairingByLayout.bistro_editorial;
-  const headingFontKey = hasEditorOverride ? brandPack.typography.headingFontKey : pairing.heading;
-  const bodyFontKey = hasEditorOverride ? brandPack.typography.bodyFontKey : pairing.body;
+  const pairing = defaultPairingByLayout[layoutKey] ?? defaultPairingByLayout.minimal_contemporary;
+  const culturalPairing = culturalStyle.defaultFontPairing;
+  const headingFontKey = hasEditorOverride
+    ? brandPack.typography.headingFontKey
+    : (culturalPairing?.heading as keyof typeof FONT_CLASS_BY_KEY) ?? pairing.heading;
+  const bodyFontKey = hasEditorOverride
+    ? brandPack.typography.bodyFontKey
+    : (culturalPairing?.body as keyof typeof FONT_CLASS_BY_KEY) ?? pairing.body;
   const headingFontClass = FONT_CLASS_BY_KEY[headingFontKey];
   const bodyFontClass = FONT_CLASS_BY_KEY[bodyFontKey];
 
@@ -110,21 +124,21 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
         ? '[&_.text-2xl]:text-xl [&_.text-sm]:text-xs [&_.text-base]:text-sm'
         : '';
   const layoutFrameClass =
-    layoutKey === 'premium_omakase'
+    layoutKey === 'luxury'
       ? 'max-w-[78rem]'
-      : layoutKey === 'modern_fast_casual'
+      : layoutKey === 'modern_casual'
         ? 'max-w-[92rem]'
-        : layoutKey === 'cozy_bakery'
+        : layoutKey === 'cozy_local'
           ? 'max-w-[84rem]'
-          : layoutKey === 'minimal_cafe'
+          : layoutKey === 'minimal_contemporary'
             ? 'max-w-[76rem]'
             : 'max-w-[88rem]';
-  const radiusClass =
-    brandPack.style.radius === 'soft' ? 'rounded-3xl' : brandPack.style.radius === 'sharp' ? 'rounded-none' : 'rounded-xl';
+  const effectiveRadius = culturalStyle.radiusScale === 'soft' ? 'soft' : culturalStyle.radiusScale === 'sharp' ? 'sharp' : brandPack.style.radius;
+  const radiusClass = effectiveRadius === 'soft' ? 'rounded-3xl' : effectiveRadius === 'sharp' ? 'rounded-none' : 'rounded-xl';
   const shadowClass =
     brandPack.style.shadow === 'none' ? 'shadow-none' : brandPack.style.shadow === 'elevated' ? 'shadow-xl' : 'shadow-sm';
-  const buttonShapeClass =
-    brandPack.style.button === 'pill' ? 'rounded-full' : brandPack.style.button === 'square' ? 'rounded-none' : 'rounded-lg';
+  const effectiveButtonStyle = culturalStyle.buttonStyle ?? brandPack.style.button;
+  const buttonShapeClass = effectiveButtonStyle === 'pill' ? 'rounded-full' : effectiveButtonStyle === 'square' ? 'rounded-none' : 'rounded-lg';
   const surfaceClass = `${radiusClass} ${shadowClass}`;
 
   const heroSection = site.sections.find((section) => section.type === 'HERO');
@@ -272,7 +286,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
       <div
         data-site-embed={embedMode ? 'true' : undefined}
         data-site-fullpage={fullPage ? 'true' : undefined}
-        className={`mx-auto flex w-full flex-col ${densityClass} ${layoutFrameClass} bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
+        className={`mx-auto flex w-full flex-col ${densityClass} ${layoutFrameClass} bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass} ${culturalStyle.decorativeClass ?? ''}`}
         style={{
           ['--brand-primary' as string]: brandPack.palette.primary,
           ['--brand-secondary' as string]: brandPack.palette.secondary,

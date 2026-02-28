@@ -73,6 +73,8 @@ model Site {
   updatedAt      DateTime   @updatedAt
   publishedAt    DateTime?
   themeJson      String?
+  layoutKey      String?
+  culturalStyleKey String?
   brandPackJson  String?
   ownerId        Int?
   anonSessionId  String?

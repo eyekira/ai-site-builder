@@ -5,8 +5,8 @@ import { getAuthenticatedUser } from '@/lib/rbac';
 import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
-import { serializeTheme } from '@/lib/theme';
 import { generateBrandPack } from '@/lib/brandpack/generate';
+import { inferLayoutAndCulturalStyle } from '@/lib/cultural-style/styles';
 
 function slugify(value: string) {
   return value
@@ -175,16 +175,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const brandPack = generateBrandPack({
-      textSignals: [place.name, place.address ?? '', place.website ?? ''],
-    });
+    const textSignals = [place.name, place.address ?? '', place.website ?? ''];
+    const brandPack = generateBrandPack({ textSignals });
+    const inferredStyle = inferLayoutAndCulturalStyle({ textSignals });
 
     const site = await prisma.site.create({
       data: {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
-        themeJson: serializeTheme('bistro_core'),
+        themeJson: JSON.stringify({
+          name: 'bistro_core',
+          layoutKey: inferredStyle.layoutKey,
+          culturalStyleKey: inferredStyle.culturalStyleKey,
+        }),
         brandPackJson: JSON.stringify(brandPack),
         ownerId,
         placeId: place.id,

@@ -1,95 +1,107 @@
 import { extractTemplateMetadata, parseThemeJson } from '@/lib/theme';
+import { inferLayoutAndCulturalStyle } from '@/lib/cultural-style/styles';
 import type { ThemeLayoutConfig, ThemeLayoutKey } from '@/lib/themes/schema';
 
 export const themeLayoutRegistry: Record<ThemeLayoutKey, ThemeLayoutConfig> = {
-  bistro_editorial: {
-    key: 'bistro_editorial',
-    identity: { concept: 'Story-first, editorial pacing with signature dishes and narrative sections.', density: 'airy', spacingScale: 'editorial' },
+  luxury: {
+    key: 'luxury',
+    identity: { concept: 'Full-bleed visual storytelling with low section count and reservation-first conversion.', density: 'airy', spacingScale: 'editorial' },
     navigation: { style: 'minimal_top', logoPlacement: 'center', showSectionLinks: true },
-    hero: { pattern: 'split', ctaStrategy: 'inline_per_section' },
-    sectionOrder: ['hero', 'about', 'menu', 'photos', 'reviews', 'contact'],
-    sections: { about: { layout: 'two_column' }, photos: { layout: 'edge_grid' } },
-    cta: { placement: 'inline_per_section', primaryLabelHint: 'Reserve Table' },
-  },
-  minimal_cafe: {
-    key: 'minimal_cafe',
-    identity: { concept: 'Calm minimalist layout for quick browse and easy visit intent.', density: 'balanced', spacingScale: 'modular' },
-    navigation: { style: 'top_bar', logoPlacement: 'left', showSectionLinks: true },
-    hero: { pattern: 'centered', ctaStrategy: 'top_only' },
-    sectionOrder: ['hero', 'menu', 'about', 'photos', 'contact'],
-    sections: { about: { layout: 'stacked' }, photos: { layout: 'carousel' } },
-    cta: { placement: 'top_only', primaryLabelHint: 'Order Ahead' },
-  },
-  premium_omakase: {
-    key: 'premium_omakase',
-    identity: { concept: 'Scarcity and ritual. High-intent conversion with policy clarity.', density: 'airy', spacingScale: 'editorial' },
-    navigation: { style: 'minimal_top', logoPlacement: 'center', showSectionLinks: false },
     hero: { pattern: 'overlay', ctaStrategy: 'floating' },
-    sectionOrder: ['hero', 'about', 'menu', 'reviews', 'photos', 'policies', 'contact'],
-    sections: { about: { layout: 'card_based' }, photos: { layout: 'filmstrip' } },
-    cta: { placement: 'floating', primaryLabelHint: 'Reserve Seats' },
+    sectionOrder: ['hero', 'about', 'menu', 'photos', 'reviews', 'contact'],
+    sections: { about: { layout: 'two_column' }, photos: { layout: 'filmstrip' } },
+    cta: { placement: 'floating', primaryLabelHint: 'Reserve' },
   },
-  modern_fast_casual: {
-    key: 'modern_fast_casual',
-    identity: { concept: 'Speed and clarity. Conversion-first with dense utility blocks.', density: 'dense', spacingScale: 'compact' },
+  modern_casual: {
+    key: 'modern_casual',
+    identity: { concept: 'Sticky navigation, dense utility, and order-focused conversion.', density: 'dense', spacingScale: 'compact' },
     navigation: { style: 'sticky_cta_top', logoPlacement: 'left', showSectionLinks: true },
     hero: { pattern: 'compact_cta', ctaStrategy: 'sticky_footer' },
     sectionOrder: ['hero', 'menu', 'photos', 'reviews', 'contact'],
     sections: { about: { layout: 'card_based' }, photos: { layout: 'masonry' } },
-    cta: { placement: 'sticky_footer', primaryLabelHint: 'Start Order' },
+    cta: { placement: 'sticky_footer', primaryLabelHint: 'Order Now' },
   },
-  cozy_bakery: {
-    key: 'cozy_bakery',
-    identity: { concept: 'Warm artisanal storefront focused on preorder confidence.', density: 'balanced', spacingScale: 'modular' },
+  cozy_local: {
+    key: 'cozy_local',
+    identity: { concept: 'Warm local rhythm with story and specials emphasis.', density: 'balanced', spacingScale: 'modular' },
     navigation: { style: 'top_bar', logoPlacement: 'left', showSectionLinks: true },
     hero: { pattern: 'image_heavy', ctaStrategy: 'inline_per_section' },
-    sectionOrder: ['hero', 'photos', 'menu', 'about', 'reviews', 'contact'],
+    sectionOrder: ['hero', 'about', 'menu', 'photos', 'reviews', 'contact'],
     sections: { about: { layout: 'two_column' }, photos: { layout: 'masonry' } },
-    cta: { placement: 'inline_per_section', primaryLabelHint: 'Preorder Pickup' },
+    cta: { placement: 'inline_per_section', primaryLabelHint: 'Visit Today' },
+  },
+  minimal_contemporary: {
+    key: 'minimal_contemporary',
+    identity: { concept: 'Clean grid, split hero, and strong typographic hierarchy.', density: 'balanced', spacingScale: 'modular' },
+    navigation: { style: 'top_bar', logoPlacement: 'left', showSectionLinks: true },
+    hero: { pattern: 'split', ctaStrategy: 'top_only' },
+    sectionOrder: ['hero', 'about', 'menu', 'photos', 'contact'],
+    sections: { about: { layout: 'stacked' }, photos: { layout: 'carousel' } },
+    cta: { placement: 'top_only', primaryLabelHint: 'Book / Order' },
+  },
+  menu_first: {
+    key: 'menu_first',
+    identity: { concept: 'Conversion-speed structure with menu immediately visible after hero.', density: 'dense', spacingScale: 'compact' },
+    navigation: { style: 'sticky_cta_top', logoPlacement: 'left', showSectionLinks: true },
+    hero: { pattern: 'centered', ctaStrategy: 'sticky_footer' },
+    sectionOrder: ['hero', 'menu', 'reviews', 'photos', 'contact'],
+    sections: { about: { layout: 'stacked' }, photos: { layout: 'edge_grid' } },
+    cta: { placement: 'sticky_footer', primaryLabelHint: 'Order Fast' },
   },
 };
+
+function legacyLayoutAlias(value: string): ThemeLayoutKey | null {
+  const map: Record<string, ThemeLayoutKey> = {
+    premium_omakase: 'luxury',
+    modern_fast_casual: 'modern_casual',
+    cozy_bakery: 'cozy_local',
+    minimal_cafe: 'minimal_contemporary',
+    bistro_editorial: 'minimal_contemporary',
+  };
+  return map[value] ?? null;
+}
 
 function mapTemplateToLayout(templateKey: string | null): ThemeLayoutKey {
   switch (templateKey) {
     case 'fine_dining_premium':
     case 'omakase_counter':
     case 'steakhouse_classic':
-      return 'premium_omakase';
+      return 'luxury';
     case 'fast_casual':
     case 'takeout_delivery_first':
-      return 'modern_fast_casual';
+      return 'menu_first';
     case 'bakery_patisserie':
-    case 'brunch_social':
-      return 'cozy_bakery';
-    case 'cafe_cozy':
-      return 'minimal_cafe';
+      return 'cozy_local';
     default:
-      return 'bistro_editorial';
+      return 'minimal_contemporary';
   }
 }
 
 function mapThemeNameToLayout(themeName: string): ThemeLayoutKey {
   switch (themeName) {
     case 'premium_noir':
-      return 'premium_omakase';
+      return 'luxury';
     case 'express_fresh':
-      return 'modern_fast_casual';
+      return 'modern_casual';
     case 'bakery_light':
-      return 'cozy_bakery';
-    case 'cafe_warm':
-      return 'minimal_cafe';
+      return 'cozy_local';
     default:
-      return 'bistro_editorial';
+      return 'minimal_contemporary';
   }
 }
 
 export function resolveThemeLayoutKey(themeJson: string | null | undefined): ThemeLayoutKey {
-  if (!themeJson) return 'bistro_editorial';
+  if (!themeJson) return 'minimal_contemporary';
 
   try {
-    const parsed = JSON.parse(themeJson) as { layoutKey?: ThemeLayoutKey };
-    if (parsed.layoutKey && themeLayoutRegistry[parsed.layoutKey]) {
-      return parsed.layoutKey;
+    const parsed = JSON.parse(themeJson) as { layoutKey?: string; templateKey?: string; culturalStyleKey?: string };
+    if (parsed.layoutKey && themeLayoutRegistry[parsed.layoutKey as ThemeLayoutKey]) {
+      return parsed.layoutKey as ThemeLayoutKey;
+    }
+    const legacy = parsed.layoutKey ? legacyLayoutAlias(parsed.layoutKey) : null;
+    if (legacy) return legacy;
+    if (parsed.templateKey || parsed.culturalStyleKey) {
+      return inferLayoutAndCulturalStyle({ textSignals: [parsed.templateKey ?? '', parsed.culturalStyleKey ?? ''] }).layoutKey as ThemeLayoutKey;
     }
   } catch {
     // noop
