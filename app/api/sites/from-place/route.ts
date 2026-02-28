@@ -472,6 +472,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         previewId: previewSession.id,
         nextPath,
+        forceMenuReview: true,
         expiresAt: previewSession.expiresAt.toISOString(),
       });
     }

@@ -89,18 +89,28 @@ export function PlaceSearch() {
         throw new Error('Failed to create site.');
       }
 
-      const data = (await response.json()) as { slug?: string; previewId?: string; nextPath?: string };
+      const data = (await response.json()) as { slug?: string; previewId?: string; nextPath?: string; forceMenuReview?: boolean };
       if (data.previewId) {
-        const destination = data.nextPath && data.nextPath.startsWith('/preview/')
+        let destination = data.nextPath && data.nextPath.startsWith('/preview/')
           ? data.nextPath
           : `/preview/${data.previewId}/menu-review`;
+
+        if (data.forceMenuReview && !destination.includes('/menu-review')) {
+          destination = `/preview/${data.previewId}/menu-review`;
+        }
 
         if (!destination.includes('/menu-review')) {
           throw new Error(`Invalid preview destination: ${destination}`);
         }
 
-        console.info('[create-site] client redirect destination', { previewId: data.previewId, destination });
-        router.push(destination);
+        console.info('[create-site] client redirect destination', {
+          previewId: data.previewId,
+          destination,
+          containsMenuReview: destination.includes('/menu-review'),
+        });
+
+        // Hard navigation avoids stale client-router cache paths and guarantees landing route.
+        window.location.assign(destination);
         return;
       }
       if (!data.slug) {
