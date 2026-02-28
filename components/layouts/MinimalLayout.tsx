@@ -17,11 +17,11 @@ export function MinimalLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
         </div>
       </header>
 
-      <section className="rounded-2xl bg-white px-6 py-8 shadow-sm">{sections.hero}</section>
-      <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.menu}</section>
-      <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.about}</section>
-      <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.photos}</section>
-      <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.contact}</section>
+      {sections.hero && <section className="rounded-2xl bg-white px-6 py-8 shadow-sm">{sections.hero}</section>}
+      {sections.menu && <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.menu}</section>}
+      {sections.about && <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.about}</section>}
+      {sections.photos && <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.photos}</section>}
+      {sections.contact && <section className="rounded-2xl bg-white px-6 py-6 shadow-sm">{sections.contact}</section>}
     </div>
   );
 }

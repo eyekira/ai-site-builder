@@ -160,10 +160,9 @@ export function SiteRenderer({ site, embedMode = false }: SiteRendererProps) {
     <>
       {embedMode && (
         <style>{`
-          body:has([data-site-embed="true"]) header,
-          body:has([data-site-embed="true"]) main > div[class*="container"],
+          body:has([data-site-embed="true"]) [data-app-chrome="true"],
           body:has([data-site-embed="true"]) hr { display: none; }
-          body:has([data-site-embed="true"]) main { max-width: 100%; padding: 0; }
+          body:has([data-site-embed="true"]) [data-app-main="true"] { max-width: 100%; padding: 0; }
         `}</style>
       )}
 

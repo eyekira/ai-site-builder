@@ -15,16 +15,16 @@ export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sec
         </div>
       </header>
 
-      <section className="rounded-3xl border border-pink-100 bg-white px-6 py-8 shadow-sm">{sections.hero}</section>
-      <section className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.photos}</section>
+      {sections.hero && <section className="rounded-3xl border border-pink-100 bg-white px-6 py-8 shadow-sm">{sections.hero}</section>}
+      {sections.photos && <section className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.photos}</section>}
       <section className="grid gap-6 md:grid-cols-2">
-        <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.menu}</article>
+        {sections.menu && <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.menu}</article>}
         <div className="space-y-6">
-          <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.about}</article>
-          <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.reviews}</article>
+          {sections.about && <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.about}</article>}
+          {sections.reviews && <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.reviews}</article>}
         </div>
       </section>
-      <section className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.contact}</section>
+      {sections.contact && <section className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.contact}</section>}
     </div>
   );
 }

@@ -14,18 +14,18 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
         </div>
       </header>
 
-      <section className={`rounded-sm border px-8 py-10 ${cardClass}`}>{sections.hero}</section>
+      {sections.hero && <section className={`rounded-sm border px-8 py-10 ${cardClass}`}>{sections.hero}</section>}
 
       <section className="grid gap-8 md:grid-cols-2">
-        <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.about}</article>
+        {sections.about && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.about}</article>}
         <div className="space-y-8">
-          <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.menu}</article>
-          <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.reviews}</article>
+          {sections.menu && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.menu}</article>}
+          {sections.reviews && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.reviews}</article>}
         </div>
       </section>
 
-      <section className="space-y-6">{sections.photos}</section>
-      <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.contact}</article>
+      {sections.photos && <section className="space-y-6">{sections.photos}</section>}
+      {sections.contact && <article className={`rounded-sm border p-6 ${cardClass}`}>{sections.contact}</article>}
       <StickyMobileCTA label={ctaLabel} href={heroCtaHref} />
     </div>
   );
