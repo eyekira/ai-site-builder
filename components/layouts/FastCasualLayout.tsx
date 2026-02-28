@@ -1,10 +1,10 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
 import type { LayoutRenderProps } from './types';
 
-export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections }: LayoutRenderProps) {
+export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">
-      <header className="sticky top-0 z-20 border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+      <header className={`sticky top-0 z-20 border border-zinc-200 bg-white px-4 py-3 shadow-sm ${surfaceClass ?? ''}`}>
         <div className="flex items-center justify-between">
           <h1 className="text-sm font-bold uppercase tracking-wide">{title}</h1>
           <nav className={`hidden items-center gap-3 text-xs ${mutedTextClass} md:flex`}>
@@ -18,16 +18,16 @@ export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel,
         </div>
       </header>
 
-      {sections.hero && <section className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.hero}</section>}
+      {sections.hero && <section className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.hero}</section>}
 
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-4">
-          {sections.menu && <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.menu}</article>}
-          {sections.photos && <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.photos}</article>}
+          {sections.menu && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.menu}</article>}
+          {sections.photos && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.photos}</article>}
         </div>
         <aside className="space-y-4">
-          {sections.reviews && <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.reviews}</article>}
-          {sections.contact && <article className="rounded-xl border border-zinc-200 bg-white px-4 py-4">{sections.contact}</article>}
+          {sections.reviews && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
+          {sections.contact && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.contact}</article>}
         </aside>
       </div>
 

@@ -16,7 +16,7 @@ import {
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
-import type { FontKey } from '@/lib/brandpack/types';
+import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
   id: number;
@@ -64,6 +64,11 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 type PublishState = 'idle' | 'publishing' | 'success' | 'error';
 
 const FONT_OPTIONS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
+const RADIUS_OPTIONS: BrandPack['style']['radius'][] = ['soft', 'rounded', 'sharp'];
+const SHADOW_OPTIONS: BrandPack['style']['shadow'][] = ['none', 'soft', 'elevated'];
+const DENSITY_OPTIONS: BrandPack['style']['density'][] = ['airy', 'balanced', 'dense'];
+const BUTTON_OPTIONS: BrandPack['style']['button'][] = ['pill', 'rounded', 'square'];
+const IMAGE_OPTIONS: BrandPack['style']['image'][] = ['natural', 'vibrant', 'editorial'];
 
 function sectionTitle(section: EditorSection): string {
   if (section.type === 'HERO') {
@@ -169,6 +174,11 @@ export default function EditorShell({
   const [accentColor, setAccentColor] = useState(initialBrandPack.palette.accent);
   const [headingFontKey, setHeadingFontKey] = useState<FontKey>(initialBrandPack.typography.headingFontKey);
   const [bodyFontKey, setBodyFontKey] = useState<FontKey>(initialBrandPack.typography.bodyFontKey);
+  const [radiusStyle, setRadiusStyle] = useState<BrandPack['style']['radius']>(initialBrandPack.style.radius);
+  const [shadowStyle, setShadowStyle] = useState<BrandPack['style']['shadow']>(initialBrandPack.style.shadow);
+  const [densityStyle, setDensityStyle] = useState<BrandPack['style']['density']>(initialBrandPack.style.density);
+  const [buttonStyle, setButtonStyle] = useState<BrandPack['style']['button']>(initialBrandPack.style.button);
+  const [imageStyle, setImageStyle] = useState<BrandPack['style']['image']>(initialBrandPack.style.image);
   const [brandState, setBrandState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [brandMessage, setBrandMessage] = useState<string | null>(null);
 
@@ -470,6 +480,11 @@ export default function EditorShell({
           accent: accentColor,
           headingFontKey,
           bodyFontKey,
+          radius: radiusStyle,
+          shadow: shadowStyle,
+          density: densityStyle,
+          button: buttonStyle,
+          image: imageStyle,
         });
         setBrandState('saved');
         setPreviewKey(Date.now());
@@ -645,6 +660,48 @@ export default function EditorShell({
                 <select value={bodyFontKey} onChange={(e) => setBodyFontKey(e.target.value as FontKey)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
                   {FONT_OPTIONS.map((font) => (
                     <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[11px] text-zinc-600">
+                  Radius
+                  <select value={radiusStyle} onChange={(e) => setRadiusStyle(e.target.value as BrandPack['style']['radius'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {RADIUS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-600">
+                  Shadow
+                  <select value={shadowStyle} onChange={(e) => setShadowStyle(e.target.value as BrandPack['style']['shadow'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {SHADOW_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-600">
+                  Density
+                  <select value={densityStyle} onChange={(e) => setDensityStyle(e.target.value as BrandPack['style']['density'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {DENSITY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-600">
+                  Button
+                  <select value={buttonStyle} onChange={(e) => setButtonStyle(e.target.value as BrandPack['style']['button'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {BUTTON_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="text-[11px] text-zinc-600">
+                Image tone
+                <select value={imageStyle} onChange={(e) => setImageStyle(e.target.value as BrandPack['style']['image'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                  {IMAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
               </label>

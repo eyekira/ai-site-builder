@@ -12,7 +12,7 @@ import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { isThemeLayoutKey, type ThemeLayoutKey } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
 import { ensureBrandPackContrast } from '@/lib/brandpack/safety';
-import type { FontKey } from '@/lib/brandpack/types';
+import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 const FONT_KEYS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
 
@@ -347,7 +347,17 @@ export async function updateLayout(siteId: number, layoutKey: string) {
 
 export async function updateBrandCustomization(
   siteId: number,
-  payload: { primary: string; accent: string; headingFontKey: string; bodyFontKey: string },
+  payload: {
+    primary: string;
+    accent: string;
+    headingFontKey: string;
+    bodyFontKey: string;
+    radius?: BrandPack['style']['radius'];
+    shadow?: BrandPack['style']['shadow'];
+    density?: BrandPack['style']['density'];
+    button?: BrandPack['style']['button'];
+    image?: BrandPack['style']['image'];
+  },
 ) {
   const viewer = await getViewerContext();
   if (!viewer.userId) {
@@ -386,6 +396,14 @@ export async function updateBrandCustomization(
     typography: {
       headingFontKey: payload.headingFontKey as FontKey,
       bodyFontKey: payload.bodyFontKey as FontKey,
+    },
+    style: {
+      ...current.style,
+      radius: payload.radius ?? current.style.radius,
+      shadow: payload.shadow ?? current.style.shadow,
+      density: payload.density ?? current.style.density,
+      button: payload.button ?? current.style.button,
+      image: payload.image ?? current.style.image,
     },
     source: {
       ...current.source,

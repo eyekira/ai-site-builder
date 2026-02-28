@@ -1,33 +1,33 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
 import type { LayoutRenderProps } from './types';
 
-export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections }: LayoutRenderProps) {
+export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-10">
-      <header className="rounded-2xl border border-white/10 bg-black/40 px-6 py-5 backdrop-blur">
+      <header className={`border border-white/10 bg-black/40 px-6 py-5 backdrop-blur ${surfaceClass ?? ''}`}>
         <div className="text-center">
           <p className={`text-[10px] uppercase tracking-[0.3em] ${mutedTextClass}`}>Premium Experience</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
         </div>
       </header>
 
-      {sections.hero && <section className="rounded-2xl border border-white/10 bg-black/30 px-8 py-12">{sections.hero}</section>}
-      {sections.about && <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.about}</section>}
-      {sections.menu && <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.menu}</section>}
+      {sections.hero && <section className={`border border-white/10 bg-black/30 px-8 py-12 ${surfaceClass ?? ''}`}>{sections.hero}</section>}
+      {sections.about && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.about}</section>}
+      {sections.menu && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.menu}</section>}
 
       <section className="grid gap-8 md:grid-cols-2">
-        {sections.reviews && <article className="rounded-2xl border border-white/10 bg-black/20 px-6 py-6">{sections.reviews}</article>}
+        {sections.reviews && <article className={`border border-white/10 bg-black/20 px-6 py-6 ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
         {(sections.policies || sections.contact) && (
-          <article className="rounded-2xl border border-white/10 bg-black/20 px-6 py-6">{sections.policies ?? sections.contact}</article>
+          <article className={`border border-white/10 bg-black/20 px-6 py-6 ${surfaceClass ?? ''}`}>{sections.policies ?? sections.contact}</article>
         )}
       </section>
 
-      {sections.photos && <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.photos}</section>}
-      {sections.contact && <section className="rounded-2xl border border-white/10 bg-black/20 px-8 py-8">{sections.contact}</section>}
+      {sections.photos && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.photos}</section>}
+      {sections.contact && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.contact}</section>}
 
       <a
         href={heroCtaHref}
-        className="fixed bottom-6 right-6 z-40 hidden rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-zinc-900 shadow-xl md:inline-flex"
+        className="fixed bottom-6 right-6 z-40 hidden bg-amber-300 px-5 py-3 text-sm font-semibold text-zinc-900 shadow-xl md:inline-flex"
       >
         {ctaLabel}
       </a>

@@ -1,9 +1,9 @@
 import type { LayoutRenderProps } from './types';
 
-export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections }: LayoutRenderProps) {
+export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7">
-      <header className="rounded-2xl border border-pink-100 bg-white px-5 py-4 shadow-sm">
+      <header className={`border border-pink-100 bg-white px-5 py-4 shadow-sm ${surfaceClass ?? ''}`}>
         <div className="flex items-center justify-between">
           <div>
             <p className={`text-[10px] uppercase tracking-[0.2em] ${mutedTextClass}`}>Cozy Bakery</p>
@@ -15,16 +15,16 @@ export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sec
         </div>
       </header>
 
-      {sections.hero && <section className="rounded-3xl border border-pink-100 bg-white px-6 py-8 shadow-sm">{sections.hero}</section>}
-      {sections.photos && <section className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.photos}</section>}
+      {sections.hero && <section className={`border border-pink-100 bg-white px-6 py-8 shadow-sm ${surfaceClass ?? ''}`}>{sections.hero}</section>}
+      {sections.photos && <section className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.photos}</section>}
       <section className="grid gap-6 md:grid-cols-2">
-        {sections.menu && <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.menu}</article>}
+        {sections.menu && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.menu}</article>}
         <div className="space-y-6">
-          {sections.about && <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.about}</article>}
-          {sections.reviews && <article className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.reviews}</article>}
+          {sections.about && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.about}</article>}
+          {sections.reviews && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
         </div>
       </section>
-      {sections.contact && <section className="rounded-3xl border border-pink-100 bg-white px-6 py-6 shadow-sm">{sections.contact}</section>}
+      {sections.contact && <section className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.contact}</section>}
     </div>
   );
 }

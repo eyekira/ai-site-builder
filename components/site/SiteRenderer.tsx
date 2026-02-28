@@ -87,6 +87,16 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false }: Site
   const headingFontClass = FONT_CLASS_BY_KEY[brandPack.typography.headingFontKey];
   const bodyFontClass = FONT_CLASS_BY_KEY[brandPack.typography.bodyFontKey];
 
+  const densityClass =
+    brandPack.style.density === 'airy' ? 'gap-10' : brandPack.style.density === 'dense' ? 'gap-3' : 'gap-6';
+  const radiusClass =
+    brandPack.style.radius === 'soft' ? 'rounded-3xl' : brandPack.style.radius === 'sharp' ? 'rounded-none' : 'rounded-xl';
+  const shadowClass =
+    brandPack.style.shadow === 'none' ? 'shadow-none' : brandPack.style.shadow === 'elevated' ? 'shadow-xl' : 'shadow-sm';
+  const buttonShapeClass =
+    brandPack.style.button === 'pill' ? 'rounded-full' : brandPack.style.button === 'square' ? 'rounded-none' : 'rounded-lg';
+  const surfaceClass = `${radiusClass} ${shadowClass}`;
+
   const heroSection = site.sections.find((section) => section.type === 'HERO');
   const aboutSection = site.sections.find((section) => section.type === 'ABOUT');
   const menuSection = site.sections.find((section) => section.type === 'MENU');
@@ -137,7 +147,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false }: Site
         businessTitle={businessTitle}
         content={safeParseHeroContent(heroSection.contentJson ?? '{}')}
         heroClassName="text-current"
-        buttonClassName={theme.buttonClass}
+        buttonClassName={`${theme.buttonClass} ${buttonShapeClass}`}
       />
     ) : undefined,
     about: aboutSection ? <AboutContentBlock content={safeParseAboutContent(aboutSection.contentJson ?? '{}')} mutedTextClass={theme.mutedTextClass} /> : undefined,
@@ -150,7 +160,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false }: Site
         address={address}
         phone={phone}
         hoursText={hoursText}
-        buttonClassName={theme.buttonClass}
+        buttonClassName={`${theme.buttonClass} ${buttonShapeClass}`}
         mutedTextClass={theme.mutedTextClass}
       />
     ) : undefined,
@@ -173,7 +183,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false }: Site
       <div
         data-site-embed={embedMode ? 'true' : undefined}
         data-site-fullpage={fullPage ? 'true' : undefined}
-        className={`mx-auto flex w-full flex-col gap-6 bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
+        className={`mx-auto flex w-full flex-col ${densityClass} bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
         style={{
           ['--brand-primary' as string]: brandPack.palette.primary,
           ['--brand-secondary' as string]: brandPack.palette.secondary,
@@ -193,6 +203,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false }: Site
             heroCtaHref={heroHref}
             ctaLabel={ctaLabel}
             sections={sections}
+            surfaceClass={surfaceClass}
           />
         </div>
       </div>

@@ -17,4 +17,5 @@ export type LayoutRenderProps = {
   heroCtaHref: string;
   ctaLabel: string;
   sections: LayoutSectionMap;
+  surfaceClass?: string;
 };
