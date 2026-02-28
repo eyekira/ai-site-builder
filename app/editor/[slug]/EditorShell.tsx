@@ -449,7 +449,7 @@ export default function EditorShell({
   };
 
   return (
-    <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
+    <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Sections</h2>
@@ -528,7 +528,7 @@ export default function EditorShell({
             ))}
           </div>
         </div>
-        <div className="flex h-[calc(100%-3rem)] items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+        <div className="flex min-h-[75vh] flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
           <div
             className={`h-full transition-all ${
               previewViewport === 'desktop'
@@ -542,7 +542,7 @@ export default function EditorShell({
               key={previewKey}
               src={`/editor/${slug}/preview?embed=1&v=${previewKey}`}
               title="Live preview"
-              className="h-full w-full rounded-xl"
+              className="h-[85vh] w-full rounded-xl"
             />
           </div>
         </div>
