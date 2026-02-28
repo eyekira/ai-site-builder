@@ -70,6 +70,37 @@ const DENSITY_OPTIONS: BrandPack['style']['density'][] = ['airy', 'balanced', 'd
 const BUTTON_OPTIONS: BrandPack['style']['button'][] = ['pill', 'rounded', 'square'];
 const IMAGE_OPTIONS: BrandPack['style']['image'][] = ['natural', 'vibrant', 'editorial'];
 
+const BRAND_PRESETS: Record<
+  'luxury' | 'casual' | 'bakery' | 'asian' | 'bar',
+  {
+    primary: string;
+    accent: string;
+    headingFontKey: FontKey;
+    bodyFontKey: FontKey;
+    radius: BrandPack['style']['radius'];
+    shadow: BrandPack['style']['shadow'];
+    density: BrandPack['style']['density'];
+    button: BrandPack['style']['button'];
+    image: BrandPack['style']['image'];
+  }
+> = {
+  luxury: {
+    primary: '#1F2937', accent: '#D4AF37', headingFontKey: 'playfair_display', bodyFontKey: 'inter', radius: 'sharp', shadow: 'elevated', density: 'airy', button: 'rounded', image: 'editorial',
+  },
+  casual: {
+    primary: '#0EA5E9', accent: '#22C55E', headingFontKey: 'manrope', bodyFontKey: 'dm_sans', radius: 'rounded', shadow: 'soft', density: 'dense', button: 'square', image: 'vibrant',
+  },
+  bakery: {
+    primary: '#B45309', accent: '#EC4899', headingFontKey: 'lora', bodyFontKey: 'nunito', radius: 'soft', shadow: 'soft', density: 'balanced', button: 'pill', image: 'natural',
+  },
+  asian: {
+    primary: '#7C2D12', accent: '#F97316', headingFontKey: 'playfair_display', bodyFontKey: 'inter', radius: 'rounded', shadow: 'elevated', density: 'balanced', button: 'rounded', image: 'editorial',
+  },
+  bar: {
+    primary: '#111827', accent: '#8B5CF6', headingFontKey: 'manrope', bodyFontKey: 'dm_sans', radius: 'sharp', shadow: 'elevated', density: 'dense', button: 'square', image: 'vibrant',
+  },
+};
+
 function sectionTitle(section: EditorSection): string {
   if (section.type === 'HERO') {
     return parseHeroContent(section.contentJson).headline;
@@ -496,6 +527,19 @@ export default function EditorShell({
     });
   };
 
+  const onApplyBrandPreset = (presetKey: keyof typeof BRAND_PRESETS) => {
+    const preset = BRAND_PRESETS[presetKey];
+    setPrimaryColor(preset.primary);
+    setAccentColor(preset.accent);
+    setHeadingFontKey(preset.headingFontKey);
+    setBodyFontKey(preset.bodyFontKey);
+    setRadiusStyle(preset.radius);
+    setShadowStyle(preset.shadow);
+    setDensityStyle(preset.density);
+    setButtonStyle(preset.button);
+    setImageStyle(preset.image);
+  };
+
   return (
     <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
@@ -636,6 +680,18 @@ export default function EditorShell({
 
           <div className="mt-4 border-t border-zinc-200 pt-3">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Brand Customization</p>
+            <div className="mb-2 grid grid-cols-3 gap-1">
+              {(Object.keys(BRAND_PRESETS) as Array<keyof typeof BRAND_PRESETS>).map((presetKey) => (
+                <button
+                  key={presetKey}
+                  type="button"
+                  onClick={() => onApplyBrandPreset(presetKey)}
+                  className="rounded border border-zinc-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-700 hover:border-zinc-400"
+                >
+                  {presetKey}
+                </button>
+              ))}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[11px] text-zinc-600">
                 Primary
