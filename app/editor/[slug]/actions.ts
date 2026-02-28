@@ -13,6 +13,7 @@ import { isThemeLayoutKey, type ThemeLayoutKey } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
 import { ensureBrandPackContrast } from '@/lib/brandpack/safety';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
+import { extractMenuFromImages } from '@/lib/menu-ocr';
 
 const FONT_KEYS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
 
@@ -420,4 +421,43 @@ export async function updateBrandCustomization(
   revalidatePath(`/editor/${site.slug}`);
   revalidatePath(`/editor/${site.slug}/preview`);
   revalidatePath(`/s/${site.slug}`);
+}
+
+export async function importMenuFromMenuPhotos(siteId: number): Promise<string> {
+  const viewer = await getViewerContext();
+  if (!viewer.userId) {
+    throw new Error('Authentication required to edit this site.');
+  }
+
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, ownerId: viewer.userId },
+    select: { id: true, slug: true, ownerId: true, anonSessionId: true },
+  });
+
+  if (!site) {
+    throw new Error('Site not found.');
+  }
+
+  if (!canAccessSite(site, viewer)) {
+    throw new Error('Not authorized to edit this site.');
+  }
+
+  const menuPhotos = await prisma.photo.findMany({
+    where: {
+      siteId,
+      isDeleted: false,
+      deletedAt: null,
+      category: 'menu',
+    },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    select: { url: true },
+    take: 4,
+  });
+
+  if (menuPhotos.length === 0) {
+    throw new Error('No menu photos found. Upload or tag menu photos first.');
+  }
+
+  const menu = await extractMenuFromImages(menuPhotos.map((p) => p.url));
+  return JSON.stringify(menu);
 }

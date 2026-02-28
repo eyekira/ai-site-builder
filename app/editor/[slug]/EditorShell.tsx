@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateLayout, updateBrandCustomization } from './actions';
+import { addSection, reorderSections, updateSection, updateLayout, updateBrandCustomization, importMenuFromMenuPhotos } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -527,6 +527,11 @@ export default function EditorShell({
     });
   };
 
+  const onAutoImportMenu = async (): Promise<string> => {
+    const json = await importMenuFromMenuPhotos(siteId);
+    return json;
+  };
+
   const onApplyBrandPreset = (presetKey: keyof typeof BRAND_PRESETS) => {
     const preset = BRAND_PRESETS[presetKey];
     setPrimaryColor(preset.primary);
@@ -921,7 +926,11 @@ export default function EditorShell({
         )}
 
         {selectedSection?.type === 'MENU' && (
-          <MenuInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
+          <MenuInspector
+            json={currentDraft}
+            onChange={(next) => updateDraft(selectedSection.id, next)}
+            onAutoImport={onAutoImportMenu}
+          />
         )}
 
         {selectedSection?.type === 'GALLERY' && (
@@ -1451,8 +1460,32 @@ function PhotosInspector({
   );
 }
 
-function MenuInspector({ json, onChange }: { json: string; onChange: (json: string) => void }) {
+function MenuInspector({
+  json,
+  onChange,
+  onAutoImport,
+}: {
+  json: string;
+  onChange: (json: string) => void;
+  onAutoImport: () => Promise<string>;
+}) {
   const value = parseMenuContent(json);
+  const [importState, setImportState] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+
+  const handleImport = async () => {
+    setImportState('loading');
+    setImportMessage(null);
+    try {
+      const importedJson = await onAutoImport();
+      onChange(importedJson);
+      setImportState('success');
+      setImportMessage('Menu imported from menu photos.');
+    } catch (error) {
+      setImportState('error');
+      setImportMessage(error instanceof Error ? error.message : 'Menu import failed.');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1464,6 +1497,24 @@ function MenuInspector({ json, onChange }: { json: string; onChange: (json: stri
           className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
         />
       </label>
+
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <p className="text-[11px] text-zinc-600">Auto menu import</p>
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={importState === 'loading'}
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-700 disabled:opacity-50"
+          >
+            {importState === 'loading' ? 'Importing…' : 'Import from menu photos'}
+          </button>
+          <span className="text-[11px] text-zinc-500">Upload/tag photos as category &quot;menu&quot; in Photos section first.</span>
+        </div>
+        {importMessage && (
+          <p className={`mt-2 text-xs ${importState === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>{importMessage}</p>
+        )}
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
