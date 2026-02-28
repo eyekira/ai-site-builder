@@ -424,6 +424,7 @@ export async function POST(request: NextRequest) {
         title: placeTitle,
         businessTitle: placeTitle,
         status: SiteStatus.DRAFT,
+        ownerId: null,
         themeJson: JSON.stringify({
           name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
           templateKey: previewTemplateSelection.templateKey,

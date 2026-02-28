@@ -30,6 +30,8 @@ type SiteRendererProps = {
   site: SiteForRender;
   embedMode?: boolean;
   fullPage?: boolean;
+  canEdit?: boolean;
+  editorHref?: string;
 };
 
 function parseHoursJson(hoursJson: string | null): string | null {
@@ -74,7 +76,7 @@ function safeParsePhotosContent(raw: string) {
   }
 }
 
-export function SiteRenderer({ site, embedMode = false, fullPage = false }: SiteRendererProps) {
+export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdit = false, editorHref }: SiteRendererProps) {
   const businessTitle = site.businessTitle ?? site.title;
   const address = site.formattedAddress ?? site.place?.address ?? null;
   const phone = site.phone ?? site.place?.phone ?? null;
@@ -195,6 +197,13 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false }: Site
           ['--brand-border' as string]: brandPack.palette.border,
         }}
       >
+        {canEdit && editorHref && !embedMode && (
+          <div className="mx-auto mb-2 w-full max-w-6xl text-right">
+            <a href={editorHref} className="inline-flex rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
+              Edit site
+            </a>
+          </div>
+        )}
         <div className={headingFontClass}>
           <Layout
             title={businessTitle}

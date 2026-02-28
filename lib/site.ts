@@ -9,6 +9,7 @@ export type SiteForRender = {
   title: string;
   businessTitle: string | null;
   status: string;
+  ownerId: number | null;
   themeJson?: string | null;
   brandPackJson?: string | null;
   formattedAddress: string | null;
