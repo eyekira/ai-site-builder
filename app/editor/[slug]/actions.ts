@@ -15,7 +15,17 @@ import { ensureBrandPackContrast } from '@/lib/brandpack/safety';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 import { extractMenuFromImages } from '@/lib/menu-ocr';
 
-const FONT_KEYS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
+const FONT_KEYS: FontKey[] = [
+  'inter',
+  'playfair_display',
+  'manrope',
+  'nunito',
+  'dm_sans',
+  'lora',
+  'poppins',
+  'merriweather',
+  'space_grotesk',
+];
 
 function isHexColor(value: string): boolean {
   return /^#([0-9a-fA-F]{6})$/.test(value);
@@ -351,6 +361,11 @@ export async function updateBrandCustomization(
   payload: {
     primary: string;
     accent: string;
+    background?: string;
+    surface?: string;
+    text?: string;
+    muted?: string;
+    border?: string;
     headingFontKey: string;
     bodyFontKey: string;
     radius?: BrandPack['style']['radius'];
@@ -381,6 +396,11 @@ export async function updateBrandCustomization(
   if (!isHexColor(payload.primary) || !isHexColor(payload.accent)) {
     throw new Error('Colors must be valid hex values.');
   }
+  for (const optionalColor of [payload.background, payload.surface, payload.text, payload.muted, payload.border]) {
+    if (optionalColor && !isHexColor(optionalColor)) {
+      throw new Error('Colors must be valid hex values.');
+    }
+  }
 
   if (!FONT_KEYS.includes(payload.headingFontKey as FontKey) || !FONT_KEYS.includes(payload.bodyFontKey as FontKey)) {
     throw new Error('Unsupported font selection.');
@@ -393,6 +413,11 @@ export async function updateBrandCustomization(
       ...current.palette,
       primary: payload.primary,
       accent: payload.accent,
+      background: payload.background ?? current.palette.background,
+      surface: payload.surface ?? current.palette.surface,
+      text: payload.text ?? current.palette.text,
+      muted: payload.muted ?? current.palette.muted,
+      border: payload.border ?? current.palette.border,
     },
     typography: {
       headingFontKey: payload.headingFontKey as FontKey,

@@ -16,6 +16,7 @@ import {
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
+import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
@@ -63,18 +64,60 @@ type EditorShellProps = {
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 type PublishState = 'idle' | 'publishing' | 'success' | 'error';
 
-const FONT_OPTIONS: FontKey[] = ['inter', 'playfair_display', 'manrope', 'nunito', 'dm_sans', 'lora'];
+const FONT_OPTIONS: FontKey[] = [
+  'inter',
+  'playfair_display',
+  'manrope',
+  'nunito',
+  'dm_sans',
+  'lora',
+  'poppins',
+  'merriweather',
+  'space_grotesk',
+];
 const RADIUS_OPTIONS: BrandPack['style']['radius'][] = ['soft', 'rounded', 'sharp'];
 const SHADOW_OPTIONS: BrandPack['style']['shadow'][] = ['none', 'soft', 'elevated'];
 const DENSITY_OPTIONS: BrandPack['style']['density'][] = ['airy', 'balanced', 'dense'];
 const BUTTON_OPTIONS: BrandPack['style']['button'][] = ['pill', 'rounded', 'square'];
 const IMAGE_OPTIONS: BrandPack['style']['image'][] = ['natural', 'vibrant', 'editorial'];
 
+const LAYOUT_LABELS: Record<string, string> = {
+  bistro_editorial: 'Editorial Bistro',
+  minimal_cafe: 'Minimal Cafe',
+  premium_omakase: 'Premium Omakase',
+  modern_fast_casual: 'Modern Fast Casual',
+  cozy_bakery: 'Cozy Bakery',
+};
+
+type PaletteOption = {
+  key: string;
+  label: string;
+  primary: string;
+  accent: string;
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  border: string;
+};
+
+const PALETTE_OPTIONS: PaletteOption[] = [
+  { key: 'ivory-noir', label: 'Ivory Noir', primary: '#1F2937', accent: '#D4AF37', background: '#FFFDF7', surface: '#FFFFFF', text: '#111827', muted: '#6B7280', border: '#E5E7EB' },
+  { key: 'mint-fresh', label: 'Mint Fresh', primary: '#0EA5E9', accent: '#22C55E', background: '#F5FBFF', surface: '#FFFFFF', text: '#0F172A', muted: '#475569', border: '#CBD5E1' },
+  { key: 'warm-bakery', label: 'Warm Bakery', primary: '#B45309', accent: '#EC4899', background: '#FFFBF5', surface: '#FFFFFF', text: '#3F3F46', muted: '#71717A', border: '#FDE68A' },
+  { key: 'tokyo-night', label: 'Tokyo Night', primary: '#7C2D12', accent: '#F97316', background: '#111827', surface: '#1F2937', text: '#F9FAFB', muted: '#D1D5DB', border: '#374151' },
+];
+
 const BRAND_PRESETS: Record<
   'luxury' | 'casual' | 'bakery' | 'asian' | 'bar',
   {
     primary: string;
     accent: string;
+    background?: string;
+    surface?: string;
+    text?: string;
+    muted?: string;
+    border?: string;
     headingFontKey: FontKey;
     bodyFontKey: FontKey;
     radius: BrandPack['style']['radius'];
@@ -203,6 +246,12 @@ export default function EditorShell({
   const initialBrandPack = parseBrandPack(brandPackJson);
   const [primaryColor, setPrimaryColor] = useState(initialBrandPack.palette.primary);
   const [accentColor, setAccentColor] = useState(initialBrandPack.palette.accent);
+  const [backgroundColor, setBackgroundColor] = useState(initialBrandPack.palette.background);
+  const [surfaceColor, setSurfaceColor] = useState(initialBrandPack.palette.surface);
+  const [textColor, setTextColor] = useState(initialBrandPack.palette.text);
+  const [mutedColor, setMutedColor] = useState(initialBrandPack.palette.muted);
+  const [borderColor, setBorderColor] = useState(initialBrandPack.palette.border);
+  const [paletteKey, setPaletteKey] = useState<string>('custom');
   const [headingFontKey, setHeadingFontKey] = useState<FontKey>(initialBrandPack.typography.headingFontKey);
   const [bodyFontKey, setBodyFontKey] = useState<FontKey>(initialBrandPack.typography.bodyFontKey);
   const [radiusStyle, setRadiusStyle] = useState<BrandPack['style']['radius']>(initialBrandPack.style.radius);
@@ -509,6 +558,11 @@ export default function EditorShell({
         await updateBrandCustomization(siteId, {
           primary: primaryColor,
           accent: accentColor,
+          background: backgroundColor,
+          surface: surfaceColor,
+          text: textColor,
+          muted: mutedColor,
+          border: borderColor,
           headingFontKey,
           bodyFontKey,
           radius: radiusStyle,
@@ -536,6 +590,11 @@ export default function EditorShell({
     const preset = BRAND_PRESETS[presetKey];
     setPrimaryColor(preset.primary);
     setAccentColor(preset.accent);
+    if (preset.background) setBackgroundColor(preset.background);
+    if (preset.surface) setSurfaceColor(preset.surface);
+    if (preset.text) setTextColor(preset.text);
+    if (preset.muted) setMutedColor(preset.muted);
+    if (preset.border) setBorderColor(preset.border);
     setHeadingFontKey(preset.headingFontKey);
     setBodyFontKey(preset.bodyFontKey);
     setRadiusStyle(preset.radius);
@@ -545,8 +604,23 @@ export default function EditorShell({
     setImageStyle(preset.image);
   };
 
+  const onSelectPalette = (nextKey: string) => {
+    setPaletteKey(nextKey);
+    const selected = PALETTE_OPTIONS.find((p) => p.key === nextKey);
+    if (!selected) return;
+    setPrimaryColor(selected.primary);
+    setAccentColor(selected.accent);
+    setBackgroundColor(selected.background);
+    setSurfaceColor(selected.surface);
+    setTextColor(selected.text);
+    setMutedColor(selected.muted);
+    setBorderColor(selected.border);
+  };
+
+  const editorBodyFontClass = FONT_CLASS_BY_KEY[bodyFontKey] ?? '';
+
   return (
-    <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100">
+    <div className={`relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100 ${editorBodyFontClass}`}>
       <aside className="border-r border-zinc-200 bg-white p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Sections</h2>
@@ -648,23 +722,6 @@ export default function EditorShell({
       <aside className="bg-white p-4">
         <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
           <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
-          <div className="mt-3">
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Layout Theme</label>
-            <select
-              value={currentLayout ?? 'bistro_editorial'}
-              onChange={(event) => onLayoutChange(event.target.value)}
-              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-800"
-            >
-              {LAYOUT_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {key}
-                </option>
-              ))}
-            </select>
-            {layoutState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving layout…</p>}
-            {layoutState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Layout saved.</p>}
-            {layoutState === 'error' && <p className="mt-2 text-xs text-red-600">{layoutMessage}</p>}
-          </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {LAYOUT_KEYS.map((key) => (
               <button
@@ -677,11 +734,20 @@ export default function EditorShell({
                     : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
                 }`}
               >
-                <div className="mb-2 h-8 w-full rounded bg-gradient-to-r from-zinc-300 via-zinc-200 to-zinc-100" />
-                {key}
+                <div className="mb-2 rounded border border-zinc-200 bg-zinc-50 p-1.5">
+                  <div className="mb-1 h-1.5 w-full rounded bg-zinc-300" />
+                  <div className="grid grid-cols-2 gap-1">
+                    <div className="h-4 rounded bg-zinc-200" />
+                    <div className="h-4 rounded bg-zinc-100" />
+                  </div>
+                </div>
+                {LAYOUT_LABELS[key] ?? key}
               </button>
             ))}
           </div>
+          {layoutState === 'saving' && <p className="mt-2 text-[11px] text-zinc-500">Saving layout…</p>}
+          {layoutState === 'saved' && <p className="mt-2 text-[11px] text-emerald-600">Layout saved.</p>}
+          {layoutState === 'error' && <p className="mt-2 text-[11px] text-red-600">{layoutMessage}</p>}
 
           <div className="mt-4 border-t border-zinc-200 pt-3">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Brand Customization</p>
@@ -697,15 +763,22 @@ export default function EditorShell({
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="text-[11px] text-zinc-600">
-                Primary
-                <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="mt-1 h-8 w-full rounded border border-zinc-200" />
-              </label>
-              <label className="text-[11px] text-zinc-600">
-                Accent
-                <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="mt-1 h-8 w-full rounded border border-zinc-200" />
-              </label>
+            <label className="text-[11px] text-zinc-600">
+              Palette
+              <select value={paletteKey} onChange={(e) => onSelectPalette(e.target.value)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                <option value="custom">Custom</option>
+                {PALETTE_OPTIONS.map((palette) => (
+                  <option key={palette.key} value={palette.key}>{palette.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {[primaryColor, accentColor, backgroundColor].map((color, idx) => (
+                <div key={`${color}-${idx}`} className="rounded border border-zinc-200 p-1 text-[10px]">
+                  <div className="h-5 rounded" style={{ backgroundColor: color }} />
+                  <p className="mt-1 text-center text-zinc-500">{idx === 0 ? 'Primary' : idx === 1 ? 'Accent' : 'Background'}</p>
+                </div>
+              ))}
             </div>
             <div className="mt-2 grid grid-cols-1 gap-2">
               <label className="text-[11px] text-zinc-600">

@@ -1,11 +1,22 @@
 import type { MenuContent } from '@/lib/section-content';
 
+class OcrError extends Error {
+  code: 'MISSING_API_KEY' | 'EMPTY_RESULT' | 'RATE_LIMIT' | 'INVALID_JSON' | 'UPSTREAM' | 'BAD_INPUT';
+
+  constructor(code: OcrError['code'], message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 function normalizePrice(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';
-  const match = trimmed.match(/\$?\s*(\d+(?:\.\d{1,2})?)/);
-  if (!match) return trimmed;
-  return `$${match[1]}`;
+  const normalized = trimmed.replace(/[^\d.]/g, '');
+  if (!normalized) return '';
+  const num = Number.parseFloat(normalized);
+  if (Number.isNaN(num)) return '';
+  return `$${Number.isInteger(num) ? num : num.toFixed(2)}`;
 }
 
 function toAbsoluteUrl(input: string): string {
@@ -17,7 +28,7 @@ function toAbsoluteUrl(input: string): string {
 async function imageToDataUrl(url: string): Promise<string> {
   const absolute = toAbsoluteUrl(url);
   const res = await fetch(absolute);
-  if (!res.ok) throw new Error(`Failed to fetch menu image: ${absolute}`);
+  if (!res.ok) throw new OcrError('BAD_INPUT', `Failed to fetch menu image: ${absolute}`);
   const contentType = res.headers.get('content-type') || 'image/jpeg';
   const buf = Buffer.from(await res.arrayBuffer());
   return `data:${contentType};base64,${buf.toString('base64')}`;
@@ -25,8 +36,15 @@ async function imageToDataUrl(url: string): Promise<string> {
 
 function parseJsonFromText(text: string): Array<{ name: string; description: string; price: string }> {
   const fence = text.match(/```json\s*([\s\S]*?)```/i);
-  const payload = fence?.[1] ?? text;
-  const arr = JSON.parse(payload) as Array<{ name?: string; description?: string; price?: string }>;
+  const payload = (fence?.[1] ?? text).trim();
+
+  let arr: Array<{ name?: string; description?: string; price?: string }>;
+  try {
+    arr = JSON.parse(payload) as Array<{ name?: string; description?: string; price?: string }>;
+  } catch {
+    throw new OcrError('INVALID_JSON', 'OCR returned malformed JSON.');
+  }
+
   return arr
     .map((item) => ({
       name: item.name?.trim() ?? '',
@@ -37,13 +55,15 @@ function parseJsonFromText(text: string): Array<{ name: string; description: str
     .slice(0, 24);
 }
 
-export async function extractMenuFromImages(imageUrls: string[]): Promise<MenuContent> {
+async function runOcrWithDataUrls(dataUrls: string[]): Promise<MenuContent> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is required for OCR menu import.');
+    throw new OcrError('MISSING_API_KEY', 'OPENAI_API_KEY is missing. You can still enter menu items manually or skip for now.');
   }
 
-  const images = await Promise.all(imageUrls.slice(0, 4).map((url) => imageToDataUrl(url)));
+  if (dataUrls.length === 0) {
+    throw new OcrError('BAD_INPUT', 'No images uploaded for OCR.');
+  }
 
   const input: Array<Record<string, unknown>> = [
     {
@@ -54,7 +74,7 @@ export async function extractMenuFromImages(imageUrls: string[]): Promise<MenuCo
           text:
             'Read these menu images and return ONLY JSON array. Format: [{"name":"", "description":"", "price":""}]. Keep prices concise like "$12". Skip unreadable lines. Max 24 items.',
         },
-        ...images.map((dataUrl) => ({ type: 'input_image', image_url: dataUrl })),
+        ...dataUrls.map((dataUrl) => ({ type: 'input_image', image_url: dataUrl })),
       ],
     },
   ];
@@ -73,9 +93,13 @@ export async function extractMenuFromImages(imageUrls: string[]): Promise<MenuCo
     }),
   });
 
+  if (response.status === 429) {
+    throw new OcrError('RATE_LIMIT', 'OCR service is rate-limited. Try again in a moment, or continue with manual entry.');
+  }
+
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`OpenAI OCR failed: ${response.status} ${body}`);
+    throw new OcrError('UPSTREAM', `OCR provider failed (${response.status}). ${body.slice(0, 160)}`);
   }
 
   const data = (await response.json()) as { output_text?: string };
@@ -83,11 +107,45 @@ export async function extractMenuFromImages(imageUrls: string[]): Promise<MenuCo
   const items = parseJsonFromText(raw);
 
   if (items.length === 0) {
-    throw new Error('No menu items detected from images.');
+    throw new OcrError('EMPTY_RESULT', 'No readable menu items were found. You can add items manually or skip for now.');
   }
 
   return {
     title: 'Menu',
     items,
   };
+}
+
+export async function extractMenuFromImages(imageUrls: string[]): Promise<MenuContent> {
+  const images = await Promise.all(imageUrls.slice(0, 4).map((url) => imageToDataUrl(url)));
+  return runOcrWithDataUrls(images);
+}
+
+export async function extractMenuFromUploadedFiles(files: File[]): Promise<MenuContent> {
+  const accepted = files.filter((file) => file.type.startsWith('image/')).slice(0, 4);
+  if (accepted.length === 0) {
+    throw new OcrError('BAD_INPUT', 'Please upload at least one image file.');
+  }
+
+  const dataUrls = await Promise.all(
+    accepted.map(async (file) => {
+      const buf = Buffer.from(await file.arrayBuffer());
+      const contentType = file.type || 'image/jpeg';
+      return `data:${contentType};base64,${buf.toString('base64')}`;
+    }),
+  );
+
+  return runOcrWithDataUrls(dataUrls);
+}
+
+export function mapOcrError(error: unknown): { code: string; message: string } {
+  if (error instanceof OcrError) {
+    return { code: error.code, message: error.message };
+  }
+
+  if (error instanceof Error) {
+    return { code: 'UNKNOWN', message: error.message };
+  }
+
+  return { code: 'UNKNOWN', message: 'OCR failed unexpectedly.' };
 }

@@ -10,6 +10,13 @@ export type LayoutSectionMap = {
   policies?: ReactNode;
 };
 
+export type LayoutNavLink = {
+  label: string;
+  href: string;
+};
+
+export type LayoutAnchors = Partial<Record<'about' | 'menu' | 'photos' | 'reviews' | 'contact', string>>;
+
 export type LayoutRenderProps = {
   title: string;
   mutedTextClass: string;
@@ -17,6 +24,8 @@ export type LayoutRenderProps = {
   heroCtaHref: string;
   ctaLabel: string;
   sections: LayoutSectionMap;
+  navLinks?: LayoutNavLink[];
+  anchors?: LayoutAnchors;
   surfaceClass?: string;
   typographyScaleClass?: string;
 };

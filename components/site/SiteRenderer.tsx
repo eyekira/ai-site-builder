@@ -87,8 +87,19 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const Layout = LAYOUT_COMPONENTS[layoutKey] ?? LAYOUT_COMPONENTS.bistro_editorial;
   const { templateKey } = extractTemplateMetadata(site.themeJson);
   const brandPack = parseBrandPack(site.brandPackJson);
-  const headingFontClass = FONT_CLASS_BY_KEY[brandPack.typography.headingFontKey];
-  const bodyFontClass = FONT_CLASS_BY_KEY[brandPack.typography.bodyFontKey];
+  const hasEditorOverride = brandPack.source.signals.includes('editor_override');
+  const defaultPairingByLayout: Record<string, { heading: keyof typeof FONT_CLASS_BY_KEY; body: keyof typeof FONT_CLASS_BY_KEY }> = {
+    premium_omakase: { heading: 'playfair_display', body: 'merriweather' },
+    modern_fast_casual: { heading: 'space_grotesk', body: 'dm_sans' },
+    cozy_bakery: { heading: 'lora', body: 'nunito' },
+    minimal_cafe: { heading: 'poppins', body: 'inter' },
+    bistro_editorial: { heading: 'playfair_display', body: 'inter' },
+  };
+  const pairing = defaultPairingByLayout[layoutKey] ?? defaultPairingByLayout.bistro_editorial;
+  const headingFontKey = hasEditorOverride ? brandPack.typography.headingFontKey : pairing.heading;
+  const bodyFontKey = hasEditorOverride ? brandPack.typography.bodyFontKey : pairing.body;
+  const headingFontClass = FONT_CLASS_BY_KEY[headingFontKey];
+  const bodyFontClass = FONT_CLASS_BY_KEY[bodyFontKey];
 
   const densityClass =
     brandPack.style.density === 'airy' ? 'gap-12' : brandPack.style.density === 'dense' ? 'gap-2.5' : 'gap-6';
@@ -177,6 +188,15 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
     }
   })();
 
+  const anchorBase = `site-${site.id}-${layoutKey}`;
+  const anchors = {
+    about: `${anchorBase}-about`,
+    menu: `${anchorBase}-menu`,
+    photos: `${anchorBase}-photos`,
+    reviews: `${anchorBase}-reviews`,
+    contact: `${anchorBase}-contact`,
+  };
+
   const sections = {
     hero: heroSection ? (
       <HeroContentBlock
@@ -203,18 +223,51 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
     policies: <PoliciesSection />,
   };
 
+  const navLinks = [
+    sections.menu ? { label: 'Menu', href: `#${anchors.menu}` } : null,
+    sections.photos ? { label: 'Photos', href: `#${anchors.photos}` } : null,
+    sections.reviews ? { label: 'Reviews', href: `#${anchors.reviews}` } : null,
+    sections.contact ? { label: 'Visit', href: `#${anchors.contact}` } : null,
+  ].filter((entry): entry is { label: string; href: string } => Boolean(entry));
+
   return (
     <>
-      {(embedMode || fullPage) && (
-        <style>{`
-          body:has([data-site-embed="true"]) [data-app-chrome="true"],
-          body:has([data-site-fullpage="true"]) [data-app-chrome="true"] { display: none; }
-          body:has([data-site-embed="true"]) hr,
-          body:has([data-site-fullpage="true"]) hr { display: none; }
-          body:has([data-site-embed="true"]) [data-app-main="true"],
-          body:has([data-site-fullpage="true"]) [data-app-main="true"] { max-width: 100%; padding: 0; }
-        `}</style>
-      )}
+      <style>{`
+        [data-site-embed="true"], [data-site-fullpage="true"] {
+          --link-color: var(--brand-primary);
+          --link-hover: var(--brand-accent);
+        }
+        [data-site-embed="true"] a, [data-site-fullpage="true"] a {
+          color: var(--link-color);
+          transition: color .15s ease;
+        }
+        [data-site-embed="true"] a:hover, [data-site-fullpage="true"] a:hover {
+          color: var(--link-hover);
+        }
+        [data-site-embed="true"] .brand-btn, [data-site-fullpage="true"] .brand-btn,
+        [data-site-embed="true"] button, [data-site-fullpage="true"] button {
+          background: var(--brand-primary);
+          color: var(--brand-bg);
+          border-color: var(--brand-border);
+        }
+        [data-site-embed="true"] input, [data-site-fullpage="true"] input,
+        [data-site-embed="true"] select, [data-site-fullpage="true"] select,
+        [data-site-embed="true"] textarea, [data-site-fullpage="true"] textarea {
+          border-color: var(--brand-border);
+          background: var(--brand-surface);
+          color: var(--brand-text);
+        }
+        [data-site-embed="true"] :focus-visible, [data-site-fullpage="true"] :focus-visible {
+          outline: 2px solid var(--brand-accent);
+          outline-offset: 2px;
+        }
+        body:has([data-site-embed="true"]) [data-app-chrome="true"],
+        body:has([data-site-fullpage="true"]) [data-app-chrome="true"] { display: none; }
+        body:has([data-site-embed="true"]) hr,
+        body:has([data-site-fullpage="true"]) hr { display: none; }
+        body:has([data-site-embed="true"]) [data-app-main="true"],
+        body:has([data-site-fullpage="true"]) [data-app-main="true"] { max-width: 100%; padding: 0; }
+      `}</style>
 
       <div
         data-site-embed={embedMode ? 'true' : undefined}
@@ -246,6 +299,8 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
             heroCtaHref={heroHref}
             ctaLabel={ctaLabel}
             sections={sections}
+            navLinks={navLinks}
+            anchors={anchors}
             surfaceClass={surfaceClass}
             typographyScaleClass={typographyScaleClass}
           />

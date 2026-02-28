@@ -1,4 +1,13 @@
-export type FontKey = 'inter' | 'playfair_display' | 'manrope' | 'nunito' | 'dm_sans' | 'lora';
+export type FontKey =
+  | 'inter'
+  | 'playfair_display'
+  | 'manrope'
+  | 'nunito'
+  | 'dm_sans'
+  | 'lora'
+  | 'poppins'
+  | 'merriweather'
+  | 'space_grotesk';
 
 export type BrandPack = {
   version: 1;

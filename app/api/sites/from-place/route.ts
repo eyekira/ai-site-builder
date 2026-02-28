@@ -467,8 +467,11 @@ export async function POST(request: NextRequest) {
       };
 
       const previewSession = await createPreviewSession(previewSite);
+      const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+      console.info('[create-site] preview flow destination', { previewId: previewSession.id, nextPath });
       return NextResponse.json({
         previewId: previewSession.id,
+        nextPath,
         expiresAt: previewSession.expiresAt.toISOString(),
       });
     }

@@ -89,9 +89,18 @@ export function PlaceSearch() {
         throw new Error('Failed to create site.');
       }
 
-      const data = (await response.json()) as { slug?: string; previewId?: string };
+      const data = (await response.json()) as { slug?: string; previewId?: string; nextPath?: string };
       if (data.previewId) {
-        router.push(`/preview/${data.previewId}`);
+        const destination = data.nextPath && data.nextPath.startsWith('/preview/')
+          ? data.nextPath
+          : `/preview/${data.previewId}/menu-review`;
+
+        if (!destination.includes('/menu-review')) {
+          throw new Error(`Invalid preview destination: ${destination}`);
+        }
+
+        console.info('[create-site] client redirect destination', { previewId: data.previewId, destination });
+        router.push(destination);
         return;
       }
       if (!data.slug) {
