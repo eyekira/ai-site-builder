@@ -1,12 +1,12 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
 import type { LayoutRenderProps } from './types';
 
-export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
+export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">
       <header className={`sticky top-0 z-20 border border-zinc-200 bg-white px-4 py-3 shadow-sm ${surfaceClass ?? ''}`}>
-        <div className="flex items-center justify-between">
-          <h1 className="text-sm font-bold uppercase tracking-wide">{title}</h1>
+        <div className={`flex items-center justify-between ${typographyScaleClass ?? ''}`}>
+          <h1 className="text-xs font-extrabold uppercase tracking-[0.14em]">{title}</h1>
           <nav className={`hidden items-center gap-3 text-xs ${mutedTextClass} md:flex`}>
             <span>Order</span>
             <span>Deals</span>

@@ -90,7 +90,23 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const bodyFontClass = FONT_CLASS_BY_KEY[brandPack.typography.bodyFontKey];
 
   const densityClass =
-    brandPack.style.density === 'airy' ? 'gap-10' : brandPack.style.density === 'dense' ? 'gap-3' : 'gap-6';
+    brandPack.style.density === 'airy' ? 'gap-12' : brandPack.style.density === 'dense' ? 'gap-2.5' : 'gap-6';
+  const typographyScaleClass =
+    brandPack.style.density === 'airy'
+      ? '[&_.text-2xl]:text-3xl [&_.text-sm]:text-base [&_.text-xs]:tracking-[0.12em]'
+      : brandPack.style.density === 'dense'
+        ? '[&_.text-2xl]:text-xl [&_.text-sm]:text-xs [&_.text-base]:text-sm'
+        : '';
+  const layoutFrameClass =
+    layoutKey === 'premium_omakase'
+      ? 'max-w-[78rem]'
+      : layoutKey === 'modern_fast_casual'
+        ? 'max-w-[92rem]'
+        : layoutKey === 'cozy_bakery'
+          ? 'max-w-[84rem]'
+          : layoutKey === 'minimal_cafe'
+            ? 'max-w-[76rem]'
+            : 'max-w-[88rem]';
   const radiusClass =
     brandPack.style.radius === 'soft' ? 'rounded-3xl' : brandPack.style.radius === 'sharp' ? 'rounded-none' : 'rounded-xl';
   const shadowClass =
@@ -185,7 +201,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
       <div
         data-site-embed={embedMode ? 'true' : undefined}
         data-site-fullpage={fullPage ? 'true' : undefined}
-        className={`mx-auto flex w-full flex-col ${densityClass} bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
+        className={`mx-auto flex w-full flex-col ${densityClass} ${layoutFrameClass} bg-[var(--brand-bg)] px-4 py-10 text-[var(--brand-text)] sm:px-6 lg:px-8 ${bodyFontClass}`}
         style={{
           ['--brand-primary' as string]: brandPack.palette.primary,
           ['--brand-secondary' as string]: brandPack.palette.secondary,
@@ -213,6 +229,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
             ctaLabel={ctaLabel}
             sections={sections}
             surfaceClass={surfaceClass}
+            typographyScaleClass={typographyScaleClass}
           />
         </div>
       </div>

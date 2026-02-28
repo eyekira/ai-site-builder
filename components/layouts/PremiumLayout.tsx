@@ -1,13 +1,13 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
 import type { LayoutRenderProps } from './types';
 
-export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
+export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-10">
       <header className={`border border-white/10 bg-black/40 px-6 py-5 backdrop-blur ${surfaceClass ?? ''}`}>
-        <div className="text-center">
-          <p className={`text-[10px] uppercase tracking-[0.3em] ${mutedTextClass}`}>Premium Experience</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
+        <div className={`text-center ${typographyScaleClass ?? ''}`}>
+          <p className={`text-[10px] uppercase tracking-[0.35em] ${mutedTextClass}`}>Premium Experience</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
         </div>
       </header>
 

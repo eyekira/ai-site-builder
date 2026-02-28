@@ -1,11 +1,11 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
 import type { LayoutRenderProps } from './types';
 
-export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
+export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ctaLabel, sections, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <header className={`border px-6 py-4 ${cardClass} ${surfaceClass ?? ''}`}>
-        <div className="flex items-center justify-center gap-6">
+        <div className={`flex items-center justify-center gap-6 ${typographyScaleClass ?? ''}`}>
           <span className={`text-xs uppercase tracking-[0.2em] ${mutedTextClass}`}>Bistro Editorial</span>
           <h1 className="text-lg font-semibold tracking-wide">{title}</h1>
           <nav className={`hidden items-center gap-4 text-xs ${mutedTextClass} md:flex`}>

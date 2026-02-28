@@ -1,10 +1,10 @@
 import type { LayoutRenderProps } from './types';
 
-export function MinimalLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass }: LayoutRenderProps) {
+export function MinimalLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
       <header className={`sticky top-2 z-20 border border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur ${surfaceClass ?? ''}`}>
-        <div className="flex items-center justify-between">
+        <div className={`flex items-center justify-between ${typographyScaleClass ?? ''}`}>
           <h1 className="text-sm font-semibold tracking-wide">{title}</h1>
           <nav className={`hidden items-center gap-4 text-xs ${mutedTextClass} md:flex`}>
             <span>Menu</span>

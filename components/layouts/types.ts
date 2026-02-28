@@ -18,4 +18,5 @@ export type LayoutRenderProps = {
   ctaLabel: string;
   sections: LayoutSectionMap;
   surfaceClass?: string;
+  typographyScaleClass?: string;
 };
