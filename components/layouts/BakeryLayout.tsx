@@ -17,13 +17,17 @@ export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sec
 
       {sections.hero && <section className={`border border-pink-100 bg-white px-6 py-8 shadow-sm ${surfaceClass ?? ''}`}>{sections.hero}</section>}
       {sections.photos && <section className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.photos}</section>}
-      <section className="grid gap-6 md:grid-cols-2">
-        {sections.menu && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.menu}</article>}
-        <div className="space-y-6">
-          {sections.about && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.about}</article>}
-          {sections.reviews && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
-        </div>
-      </section>
+      {(sections.menu || sections.about || sections.reviews) && (
+        <section className={`grid gap-6 ${(sections.menu && (sections.about || sections.reviews)) ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          {sections.menu && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.menu}</article>}
+          {(sections.about || sections.reviews) && (
+            <div className="space-y-6">
+              {sections.about && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.about}</article>}
+              {sections.reviews && <article className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
+            </div>
+          )}
+        </section>
+      )}
       {sections.contact && <section className={`border border-pink-100 bg-white px-6 py-6 shadow-sm ${surfaceClass ?? ''}`}>{sections.contact}</section>}
     </div>
   );

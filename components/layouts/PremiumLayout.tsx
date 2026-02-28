@@ -15,12 +15,14 @@ export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
       {sections.about && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.about}</section>}
       {sections.menu && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.menu}</section>}
 
-      <section className="grid gap-8 md:grid-cols-2">
-        {sections.reviews && <article className={`border border-white/10 bg-black/20 px-6 py-6 ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
-        {(sections.policies || sections.contact) && (
-          <article className={`border border-white/10 bg-black/20 px-6 py-6 ${surfaceClass ?? ''}`}>{sections.policies ?? sections.contact}</article>
-        )}
-      </section>
+      {(sections.reviews || sections.policies || sections.contact) && (
+        <section className={`grid gap-8 ${sections.reviews && (sections.policies || sections.contact) ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          {sections.reviews && <article className={`border border-white/10 bg-black/20 px-6 py-6 ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
+          {(sections.policies || sections.contact) && (
+            <article className={`border border-white/10 bg-black/20 px-6 py-6 ${surfaceClass ?? ''}`}>{sections.policies ?? sections.contact}</article>
+          )}
+        </section>
+      )}
 
       {sections.photos && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.photos}</section>}
       {sections.contact && <section className={`border border-white/10 bg-black/20 px-8 py-8 ${surfaceClass ?? ''}`}>{sections.contact}</section>}

@@ -21,17 +21,21 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
 
       {sections.hero && <section className={`border px-8 py-10 ${cardClass} ${surfaceClass ?? ''}`}>{sections.hero}</section>}
 
-      <section className="grid gap-8 md:grid-cols-2">
-        {sections.about && <article className={`border p-6 ${cardClass} ${surfaceClass ?? ''}`}>{sections.about}</article>}
-        <div className="space-y-8">
-          {sections.menu && (
-            <article id="menu" className={`border p-6 ${cardClass} ${surfaceClass ?? ''}`}>
-              {sections.menu}
-            </article>
+      {(sections.about || sections.menu || sections.reviews) && (
+        <section className={`grid gap-8 ${(sections.about && (sections.menu || sections.reviews)) ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          {sections.about && <article className={`border p-6 ${cardClass} ${surfaceClass ?? ''}`}>{sections.about}</article>}
+          {(sections.menu || sections.reviews) && (
+            <div className="space-y-8">
+              {sections.menu && (
+                <article id="menu" className={`border p-6 ${cardClass} ${surfaceClass ?? ''}`}>
+                  {sections.menu}
+                </article>
+              )}
+              {sections.reviews && <article id="reviews" className={`border p-6 ${cardClass} ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
+            </div>
           )}
-          {sections.reviews && <article id="reviews" className={`border p-6 ${cardClass} ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
-        </div>
-      </section>
+        </section>
+      )}
 
       {sections.photos && <section id="photos" className="space-y-6">{sections.photos}</section>}
       {sections.contact && (

@@ -20,16 +20,22 @@ export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel,
 
       {sections.hero && <section className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.hero}</section>}
 
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <div className="space-y-4">
-          {sections.menu && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.menu}</article>}
-          {sections.photos && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.photos}</article>}
+      {(sections.menu || sections.photos || sections.reviews || sections.contact) && (
+        <div className={`grid gap-4 ${(sections.reviews || sections.contact) && (sections.menu || sections.photos) ? 'lg:grid-cols-[1.5fr_1fr]' : 'grid-cols-1'}`}>
+          {(sections.menu || sections.photos) && (
+            <div className="space-y-4">
+              {sections.menu && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.menu}</article>}
+              {sections.photos && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.photos}</article>}
+            </div>
+          )}
+          {(sections.reviews || sections.contact) && (
+            <aside className="space-y-4">
+              {sections.reviews && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
+              {sections.contact && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.contact}</article>}
+            </aside>
+          )}
         </div>
-        <aside className="space-y-4">
-          {sections.reviews && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.reviews}</article>}
-          {sections.contact && <article className={`border border-zinc-200 bg-white px-4 py-4 ${surfaceClass ?? ''}`}>{sections.contact}</article>}
-        </aside>
-      </div>
+      )}
 
       <StickyMobileCTA label={ctaLabel} href={heroCtaHref} />
     </div>
