@@ -37,14 +37,54 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  .cultural-japanese { background-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.02) 100%); }
-  .cultural-korean { background-image: radial-gradient(circle at 12% 12%, rgba(0,0,0,0.04) 0, transparent 40%); }
-  .cultural-chinese { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04); }
-  .cultural-mediterranean { background-image: linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px); background-size: 16px 16px; }
-  .cultural-latin { background-image: radial-gradient(circle at 80% 10%, rgba(0,0,0,0.03) 0, transparent 30%); }
-  .cultural-american { box-shadow: inset 0 1px 0 rgba(0,0,0,0.05); }
-  .cultural-indian { background-image: radial-gradient(circle at 10% 90%, rgba(0,0,0,0.03) 0, transparent 26%); }
-  .cultural-middle-eastern { background-image: linear-gradient(to right, rgba(0,0,0,0.02), transparent 30%); }
-  .cultural-french { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03); }
-  .cultural-italian { background-image: linear-gradient(to bottom, rgba(0,0,0,0.02), transparent 24%); }
+  .site-renderer[data-pattern='grid'] {
+    background-image: linear-gradient(to right, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 1px, transparent 1px);
+    background-size: var(--cultural-pattern-scale, 20px) var(--cultural-pattern-scale, 20px);
+  }
+
+  .site-renderer[data-pattern='wave'] {
+    background-image: radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 0, transparent 36%);
+  }
+
+  .site-renderer[data-pattern='tiles'] {
+    background-image: linear-gradient(45deg, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 25%, transparent 25%),
+      linear-gradient(-45deg, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 25%, transparent 25%);
+    background-size: var(--cultural-pattern-scale, 20px) var(--cultural-pattern-scale, 20px);
+  }
+
+  .site-renderer[data-pattern='linen'] {
+    background-image: repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 0,
+      color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  }
+
+  .site-renderer[data-pattern='stamp'] {
+    background-image: radial-gradient(circle at 85% 12%, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 0, transparent 30%);
+  }
+
+  .site-renderer[data-divider-style='hairline'] section,
+  .site-renderer[data-divider-style='hairline'] article {
+    border-top: 1px solid color-mix(in srgb, var(--brand-border) calc(var(--cultural-divider-opacity, 0.24) * 100%), transparent);
+  }
+
+  .site-renderer[data-divider-style='stamp'] section,
+  .site-renderer[data-divider-style='stamp'] article {
+    border-top: 1px dashed color-mix(in srgb, var(--brand-border) calc(var(--cultural-divider-opacity, 0.24) * 100%), transparent);
+  }
+
+  .site-renderer[data-divider-style='pattern'] section,
+  .site-renderer[data-divider-style='pattern'] article {
+    border-top: 2px solid color-mix(in srgb, var(--brand-border) calc(var(--cultural-divider-opacity, 0.24) * 100%), transparent);
+  }
+
+  .site-renderer[data-divider-style='none'] section,
+  .site-renderer[data-divider-style='none'] article {
+    border-top: none;
+  }
+
 }

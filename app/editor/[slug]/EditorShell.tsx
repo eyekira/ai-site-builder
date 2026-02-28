@@ -83,11 +83,11 @@ const BUTTON_OPTIONS: BrandPack['style']['button'][] = ['pill', 'rounded', 'squa
 const IMAGE_OPTIONS: BrandPack['style']['image'][] = ['natural', 'vibrant', 'editorial'];
 
 const LAYOUT_LABELS: Record<string, string> = {
-  luxury: 'Luxury',
-  modern_casual: 'Modern Casual',
-  cozy_local: 'Cozy Local',
-  minimal_contemporary: 'Minimal Contemporary',
-  menu_first: 'Menu First',
+  luxury: 'Luxury Layout',
+  modern_casual: 'Modern Casual Layout',
+  cozy_local: 'Cozy Local Layout',
+  minimal_contemporary: 'Minimal Contemporary Layout',
+  menu_first: 'Menu First Layout',
 };
 
 type PaletteOption = {
