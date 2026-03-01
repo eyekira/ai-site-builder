@@ -340,6 +340,13 @@ export async function POST(request: NextRequest) {
       if (existingSite) {
         if (existingSite.ownerId === ownerId) {
           const existingRenderSite = await getSiteForOwnerRender(existingSite.slug, ownerId!);
+          if (process.env.NODE_ENV !== 'production') {
+            console.info('[create-site][diag] existing-site render fetch', {
+              slug: existingSite.slug,
+              ownerId,
+              found: Boolean(existingRenderSite),
+            });
+          }
           if (!existingRenderSite) {
             return NextResponse.json(
               { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for existing site.' },
@@ -347,6 +354,12 @@ export async function POST(request: NextRequest) {
             );
           }
           const previewSession = await createPreviewSession(existingRenderSite);
+          if (process.env.NODE_ENV !== 'production') {
+            console.info('[create-site][diag] existing-site preview session created', {
+              previewId: previewSession.id,
+              expiresAt: previewSession.expiresAt?.toISOString?.() ?? null,
+            });
+          }
           const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
           if (process.env.NODE_ENV !== 'production') {
             console.info('[create-site][from-place] existing-site-preview', {
@@ -699,6 +712,14 @@ export async function POST(request: NextRequest) {
     });
 
     const createdRenderSite = await getSiteForOwnerRender(created.slug, ownerId!);
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[create-site][diag] created-site render fetch', {
+        siteId: created.id,
+        slug: created.slug,
+        ownerId,
+        found: Boolean(createdRenderSite),
+      });
+    }
     if (!createdRenderSite) {
       return NextResponse.json(
         { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for created site.' },
@@ -707,6 +728,12 @@ export async function POST(request: NextRequest) {
     }
 
     const previewSession = await createPreviewSession(createdRenderSite);
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[create-site][diag] created-site preview session created', {
+        previewId: previewSession.id,
+        expiresAt: previewSession.expiresAt?.toISOString?.() ?? null,
+      });
+    }
     const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
     if (process.env.NODE_ENV !== 'production') {
       console.info('[create-site][from-place] owner-site-preview', {
@@ -728,13 +755,25 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
     const missingDbUrl = message.includes('Environment variable not found: DATABASE_URL');
+    const migrationLikely = /P30\d+|no such column|no such table|migrate|schema/i.test(message);
 
     console.error('Failed to create site from place', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[create-site][diag] failure classification', {
+        missingDbUrl,
+        migrationLikely,
+        message,
+        stackTop: stack?.split('\n').slice(0, 4).join('\n') ?? null,
+      });
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to create site from place.',
         detail: missingDbUrl ? 'Server is missing DATABASE_URL configuration.' : message,
+        debug: process.env.NODE_ENV !== 'production' ? { migrationLikely } : undefined,
       },
       { status: 500 },
     );
