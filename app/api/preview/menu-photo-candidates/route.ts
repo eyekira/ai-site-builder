@@ -27,7 +27,8 @@ type ScanState = {
 };
 
 const SCAN_CAP = 120;
-const LOAD_BATCH = 20;
+const LOAD_BATCH = 16;
+const CLASSIFY_CONCURRENCY = 4;
 
 function toPhotoUrl(ref: string, maxwidth: number) {
   return `/api/places/photo?ref=${encodeURIComponent(ref)}&maxwidth=${maxwidth}`;
@@ -74,51 +75,54 @@ export async function POST(request: NextRequest) {
   const state: ScanState = body.action === 'rescan' ? { cursor: undefined, scannedCount: 0, cache: {} } : existingState;
 
   const start = state.cursor ? Math.max(0, allRefs.findIndex((r) => r === state.cursor) + 1) : 0;
-  const refsToProcess =
-    body.action === 'rescan'
-      ? allRefs.slice(0, SCAN_CAP)
-      : allRefs.slice(start, start + LOAD_BATCH);
+  const refsToProcess = allRefs.slice(start, start + LOAD_BATCH);
 
-  const heuristicSorted = refsToProcess
+  const heuristicRanked = refsToProcess
     .map((ref) => {
       const dim = dimensionMap.get(ref);
       return { ref, h: heuristicScore({ ref, width: dim?.width ?? null, height: dim?.height ?? null }) };
     })
-    .sort((a, b) => b.h - a.h)
-    .map((x) => x.ref);
+    .sort((a, b) => b.h - a.h);
 
-  let menuHits = 0;
-  let lastProcessed: string | undefined;
-  for (const ref of heuristicSorted) {
-    lastProcessed = ref;
-    if (state.cache[ref]) {
-      if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(state.cache[ref].label)) menuHits += 1;
-      continue;
+  const refsNeedingClassification = heuristicRanked
+    .map((x) => x.ref)
+    .filter((ref) => !state.cache[ref]);
+
+  let menuHits = Object.values(state.cache).filter((x) => ['menu_board', 'printed_menu', 'menu_screenshot'].includes(x.label)).length;
+
+  for (let i = 0; i < refsNeedingClassification.length; i += CLASSIFY_CONCURRENCY) {
+    const chunk = refsNeedingClassification.slice(i, i + CLASSIFY_CONCURRENCY);
+    const results = await Promise.all(
+      chunk.map(async (ref) => {
+        const thumbUrl = toPhotoUrl(ref, 420);
+        const mediumUrl = toPhotoUrl(ref, 1200);
+        const vision = await classifyMenuPhotoViaVision(thumbUrl, ref);
+        return { ref, thumbUrl, mediumUrl, vision };
+      }),
+    );
+
+    for (const { ref, thumbUrl, mediumUrl, vision } of results) {
+      state.cache[ref] = {
+        ref,
+        thumbUrl,
+        mediumUrl,
+        source: 'Google photo',
+        score: vision.score,
+        label: vision.label,
+        reason: vision.notes,
+        textDensity: vision.text_density,
+        hasPrices: vision.has_prices,
+        status: vision.status,
+        errorCode: vision.errorCode,
+      };
+      state.scannedCount += 1;
+      if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(vision.label)) menuHits += 1;
     }
-
-    const thumbUrl = toPhotoUrl(ref, 420);
-    const mediumUrl = toPhotoUrl(ref, 1200);
-    const vision = await classifyMenuPhotoViaVision(thumbUrl, ref);
-
-    state.cache[ref] = {
-      ref,
-      thumbUrl,
-      mediumUrl,
-      source: 'Google photo',
-      score: vision.score,
-      label: vision.label,
-      reason: vision.notes,
-      textDensity: vision.text_density,
-      hasPrices: vision.has_prices,
-      status: vision.status,
-      errorCode: vision.errorCode,
-    };
-    state.scannedCount += 1;
-    if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(vision.label)) menuHits += 1;
 
     if (body.action === 'rescan' && menuHits >= 3) break;
   }
 
+  const lastProcessed = refsToProcess.length > 0 ? refsToProcess[refsToProcess.length - 1] : undefined;
   state.cursor = lastProcessed ?? state.cursor;
   state.lastScanAt = new Date().toISOString();
 
@@ -183,9 +187,14 @@ export async function POST(request: NextRequest) {
     fetchedCount: merged.length,
     uniqueCount: allRefs.length,
     duplicatesDropped: merged.length - allRefs.length,
-    selectionStrategy: body.action === 'rescan' ? 'paged+deep-rescan' : 'paged-load-more',
+    selectionStrategy: 'paged-firstN-heuristic-then-vision',
     orderedAsReturned: true,
     cursor: state.cursor ?? null,
+    processedRefs: refsToProcess,
+    processedPhotoMeta: refsToProcess.map((ref) => {
+      const dim = dimensionMap.get(ref);
+      return { ref, width: dim?.width ?? null, height: dim?.height ?? null };
+    }),
   };
 
   if (process.env.NODE_ENV !== 'production') {
