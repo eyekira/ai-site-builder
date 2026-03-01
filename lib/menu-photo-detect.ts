@@ -85,14 +85,15 @@ function parseJsonLoose(raw: string): Record<string, unknown> | null {
 export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string): Promise<MenuPhotoClassification> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    const h = heuristicScore({ ref });
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0,
+      confidence: h,
       text_density: 'low',
       has_prices: false,
-      notes: 'vision-unavailable',
-      score: 0,
+      notes: 'vision-unavailable; heuristic-only',
+      score: h,
       status: 'unclassified',
       errorCode: 'MISSING_API_KEY',
     };
@@ -106,14 +107,15 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     resolvedUrl = converted.resolvedUrl;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'IMAGE_FETCH_FAILED';
+    const h = heuristicScore({ ref });
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0,
+      confidence: h,
       text_density: 'low',
       has_prices: false,
       notes: `image-fetch-failed:${message}`,
-      score: 0,
+      score: h,
       status: 'unclassified',
       errorCode: message,
     };
@@ -176,14 +178,15 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
       });
     }
 
+    const h = heuristicScore({ ref });
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0,
+      confidence: h,
       text_density: 'low',
       has_prices: false,
       notes: `vision-request-failed:${errorBody.slice(0, 120) || 'no-body'}`,
-      score: 0,
+      score: h,
       status: 'unclassified',
       errorCode: `HTTP_${response.status}`,
     };
@@ -192,14 +195,15 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
   const data = (await response.json()) as { output_text?: string };
   const parsed = parseJsonLoose((data.output_text ?? '').trim());
   if (!parsed) {
+    const h = heuristicScore({ ref });
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0,
+      confidence: h,
       text_density: 'low',
       has_prices: false,
       notes: 'vision-parse-failed',
-      score: 0,
+      score: h,
       status: 'unclassified',
       errorCode: 'PARSE_FAILED',
     };
