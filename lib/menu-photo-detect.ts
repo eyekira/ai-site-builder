@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { withRetry } from '@/lib/net-retry';
 
 export type MenuPhotoLabel =
@@ -28,9 +30,19 @@ export type MenuPhotoClassification = {
   score: number;
   categoryScores: CategoryScores;
   primaryCategory: keyof CategoryScores;
-  status: 'classified' | 'unclassified';
+  status: 'classified' | 'unclassified' | 'failed';
   errorCode?: string;
+  rawModelText?: string;
 };
+
+const classificationSchema = z.object({
+  label: z.enum(['menu_board', 'printed_menu', 'menu_screenshot', 'food', 'interior', 'exterior', 'logo', 'other']),
+  is_menu: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  text_density: z.enum(['low', 'med', 'high']),
+  has_prices: z.boolean(),
+  notes: z.string(),
+});
 
 function clamp(n: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, n));
@@ -82,6 +94,23 @@ function computeCategoryScores(input: {
   return { categoryScores: scores, primaryCategory };
 }
 
+function failedResult(errorCode: string, notes: string, rawModelText?: string): MenuPhotoClassification {
+  return {
+    label: 'other',
+    is_menu: false,
+    confidence: 0,
+    text_density: 'low',
+    has_prices: false,
+    notes,
+    score: 0,
+    categoryScores: { menu: 0, food: 0, interior: 0, exterior: 0, ambience: 0 },
+    primaryCategory: 'menu',
+    status: 'failed',
+    errorCode,
+    rawModelText: process.env.NODE_ENV !== 'production' ? rawModelText?.slice(0, 400) : undefined,
+  };
+}
+
 export function heuristicScore(input: { ref: string; width?: number | null; height?: number | null }): number {
   const ref = input.ref.toLowerCase();
   let score = 0.2;
@@ -126,10 +155,11 @@ function parseJsonLoose(raw: string): Record<string, unknown> | null {
         // continue
       }
     }
-    const firstObj = raw.match(/\{[\s\S]*\}/);
-    if (firstObj?.[0]) {
+    const first = raw.indexOf('{');
+    const last = raw.lastIndexOf('}');
+    if (first >= 0 && last > first) {
       try {
-        return JSON.parse(firstObj[0]) as Record<string, unknown>;
+        return JSON.parse(raw.slice(first, last + 1)) as Record<string, unknown>;
       } catch {
         return null;
       }
@@ -166,22 +196,7 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     resolvedUrl = converted.resolvedUrl;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'IMAGE_FETCH_FAILED';
-    const h = heuristicScore({ ref });
-    const notes = `image-fetch-failed:${message}`;
-    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes });
-    return {
-      label: 'other',
-      is_menu: false,
-      confidence: h,
-      text_density: 'low',
-      has_prices: false,
-      notes,
-      score: h,
-      categoryScores: category.categoryScores,
-      primaryCategory: category.primaryCategory,
-      status: 'unclassified',
-      errorCode: message,
-    };
+    return failedResult(message, `image-fetch-failed:${message}`);
   }
 
   const model = 'gpt-4o-mini';
@@ -195,7 +210,7 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
           {
             type: 'input_text',
             text:
-              'Classify this restaurant image. Distinguish menu photos from food photos. Return ONLY JSON with exact keys: {"label":"menu_board|printed_menu|menu_screenshot|food|interior|exterior|logo|other","is_menu":boolean,"confidence":0..1,"text_density":"low|med|high","has_prices":boolean,"notes":string}.',
+              'Classify this restaurant image. Return ONLY JSON with exact keys: {"label":"menu_board|printed_menu|menu_screenshot|food|interior|exterior|logo|other","is_menu":boolean,"confidence":0..1,"text_density":"low|med|high","has_prices":boolean,"notes":string}.',
           },
           { type: 'input_image', image_url: dataUrl },
         ],
@@ -209,117 +224,83 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
       ref,
       model,
       finalImageUrl: resolvedUrl,
-      payloadShape: {
-        hasInputArray: Array.isArray(payload.input),
-        contentTypes: ['input_text', 'input_image'],
-        imageEncoding: 'data_url',
-      },
       payloadBytes: JSON.stringify(payload).length,
     });
   }
 
-  const response = await withRetry(
-    async () =>
-      fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }),
-    { retries: 2, baseDelayMs: 350 },
-  );
+  let response: Response;
+  try {
+    response = await withRetry(
+      async () => {
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (res.status === 429 || res.status >= 500) {
+          const body = await res.text().catch(() => '');
+          throw new Error(`HTTP_${res.status}:${body.slice(0, 120)}`);
+        }
+        return res;
+      },
+      { retries: 3, baseDelayMs: 700, factor: 2 },
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'HTTP_429';
+    const isRateLimited = /HTTP_429/.test(message);
+    return failedResult(isRateLimited ? 'HTTP_429' : 'HTTP_RETRY_FAILED', `vision-request-failed:${message}`);
+  }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[menu-photo-classifier][http-fail]', {
-        ref,
-        model,
-        imageUrl,
-        inputType: 'data-url',
-        payloadBytes: JSON.stringify(payload).length,
-        status: response.status,
-        errorBody: errorBody.slice(0, 500),
-      });
-    }
-
-    const h = heuristicScore({ ref });
-    const notes = `vision-request-failed:${errorBody.slice(0, 120) || 'no-body'}`;
-    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes });
-    return {
-      label: 'other',
-      is_menu: false,
-      confidence: h,
-      text_density: 'low',
-      has_prices: false,
-      notes,
-      score: h,
-      categoryScores: category.categoryScores,
-      primaryCategory: category.primaryCategory,
-      status: 'unclassified',
-      errorCode: `HTTP_${response.status}`,
-    };
+    return failedResult(`HTTP_${response.status}`, `vision-request-failed:${errorBody.slice(0, 140) || 'no-body'}`);
   }
 
   const data = (await response.json()) as { output_text?: string };
+  const rawText = (data.output_text ?? '').trim();
+
   if (process.env.NODE_ENV !== 'production') {
     console.info('[menu-photo-classifier][response]', {
       ref,
-      outputPreview: (data.output_text ?? '').slice(0, 240),
+      outputPreview: rawText.slice(0, 240),
     });
   }
-  const parsed = parseJsonLoose((data.output_text ?? '').trim());
+
+  const parsed = parseJsonLoose(rawText);
   if (!parsed) {
-    const h = heuristicScore({ ref });
-    const notes = 'vision-parse-failed';
-    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes });
-    return {
-      label: 'other',
-      is_menu: false,
-      confidence: h,
-      text_density: 'low',
-      has_prices: false,
-      notes,
-      score: h,
-      categoryScores: category.categoryScores,
-      primaryCategory: category.primaryCategory,
-      status: 'unclassified',
-      errorCode: 'PARSE_FAILED',
-    };
+    return failedResult('PARSE_FAILED', 'vision-parse-failed', rawText);
   }
 
-  const rawLabel = String(parsed.label ?? '').toLowerCase().replace(/[\s-]+/g, '_');
-  const labelMap: Record<string, MenuPhotoLabel> = {
-    menu_board: 'menu_board',
-    printed_menu: 'printed_menu',
-    menu_screenshot: 'menu_screenshot',
-    food: 'food',
-    food_photo: 'food',
-    interior: 'interior',
-    exterior: 'exterior',
-    logo: 'logo',
-    other: 'other',
-  };
-  const label = labelMap[rawLabel] ?? 'other';
+  const validated = classificationSchema.safeParse(parsed);
+  if (!validated.success) {
+    return failedResult('PARSE_FAILED', `schema-invalid:${validated.error.issues[0]?.message ?? 'unknown'}`, rawText);
+  }
 
-  const confidence = clamp(Number(parsed.confidence ?? heuristicScore({ ref })));
-  const densityRaw = String(parsed.text_density ?? '').toLowerCase();
-  const text_density = densityRaw === 'high' ? 'high' : densityRaw === 'medium' || densityRaw === 'med' ? 'med' : 'low';
-  const has_prices = Boolean(parsed.has_prices ?? parsed.price_pattern_detected);
-  const is_menu = Boolean(parsed.is_menu ?? ['menu_board', 'printed_menu', 'menu_screenshot'].includes(label));
-  const notes = typeof parsed.notes === 'string' ? parsed.notes : typeof parsed.reason === 'string' ? parsed.reason : '';
-  const score = menuScoreFromClassification({ label, confidence, text_density, has_prices });
-  const category = computeCategoryScores({ label, confidence, text_density, has_prices, notes });
+  const value = validated.data;
+  const score = menuScoreFromClassification({
+    label: value.label,
+    confidence: clamp(value.confidence),
+    text_density: value.text_density,
+    has_prices: value.has_prices,
+  });
+  const category = computeCategoryScores({
+    label: value.label,
+    confidence: clamp(value.confidence),
+    text_density: value.text_density,
+    has_prices: value.has_prices,
+    notes: value.notes,
+  });
 
   return {
-    label,
-    is_menu,
-    confidence,
-    text_density,
-    has_prices,
-    notes,
+    label: value.label,
+    is_menu: value.is_menu,
+    confidence: clamp(value.confidence),
+    text_density: value.text_density,
+    has_prices: value.has_prices,
+    notes: value.notes,
     score,
     categoryScores: category.categoryScores,
     primaryCategory: category.primaryCategory,
