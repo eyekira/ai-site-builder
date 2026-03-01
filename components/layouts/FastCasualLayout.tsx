@@ -8,7 +8,7 @@ export function FastCasualLayout({ title, mutedTextClass, heroCtaHref, ctaLabel,
         <div className={`flex items-center justify-between ${typographyScaleClass ?? ''}`}>
           <h1 className="text-xs font-extrabold uppercase tracking-[0.14em]">{title}</h1>
           {navLinks.length > 0 && <nav className={`cs-nav hidden items-center gap-3 text-xs ${mutedTextClass} md:flex`}>{navLinks.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</nav>}
-          <a href={heroCtaHref} className="rounded-md bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-bg)]">{ctaLabel}</a>
+          <a href={heroCtaHref} className="cs-primary-cta rounded-md px-3 py-1.5 text-xs font-semibold">{ctaLabel}</a>
         </div>
       </header>
 

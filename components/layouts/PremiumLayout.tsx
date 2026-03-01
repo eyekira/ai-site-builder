@@ -11,7 +11,7 @@ export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
           </div>
           {navLinks.length > 0 && <nav className={`cs-nav hidden items-center gap-4 text-xs ${mutedTextClass} md:flex`}>{navLinks.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</nav>}
-          <a href={heroCtaHref} className="rounded-md bg-[var(--brand-primary)] px-4 py-2 text-xs font-semibold text-[var(--brand-bg)]">{ctaLabel}</a>
+          <a href={heroCtaHref} className="cs-primary-cta rounded-md px-4 py-2 text-xs font-semibold">{ctaLabel}</a>
         </div>
       </header>
 

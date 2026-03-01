@@ -178,8 +178,8 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const effectiveButtonStyle = culturalStyle.button.shape === 'pill' ? 'pill' : culturalStyle.button.shape === 'sharp' ? 'square' : brandPack.style.button;
   const buttonShapeClass = effectiveButtonStyle === 'pill' ? 'rounded-full' : effectiveButtonStyle === 'square' ? 'rounded-none' : 'rounded-lg';
   const surfaceClass = `${radiusClass} ${shadowClass}`;
-  const onPrimary = pickOnColor(brandPack.palette.primary);
-  const onAccent = pickOnColor(brandPack.palette.accent);
+  const onPrimary = brandPack.palette.onPrimary ?? pickOnColor(brandPack.palette.primary);
+  const onAccent = brandPack.palette.onAccent ?? pickOnColor(brandPack.palette.accent);
 
   const heroSection = site.sections.find((section) => section.type === 'HERO');
   const aboutSection = site.sections.find((section) => section.type === 'ABOUT');
@@ -307,6 +307,15 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
         [data-site-embed="true"] .brand-accent, [data-site-fullpage="true"] .brand-accent {
           background: var(--bp-accent);
           color: var(--bp-on-accent);
+        }
+        [data-site-embed="true"] .cs-primary-cta, [data-site-fullpage="true"] .cs-primary-cta {
+          background: var(--bp-primary);
+          color: var(--bp-on-primary);
+          border-color: var(--bp-border);
+        }
+        [data-site-embed="true"] .cs-primary-cta:hover, [data-site-fullpage="true"] .cs-primary-cta:hover {
+          color: var(--bp-on-primary);
+          filter: brightness(0.96);
         }
         [data-site-embed="true"] input, [data-site-fullpage="true"] input,
         [data-site-embed="true"] select, [data-site-fullpage="true"] select,

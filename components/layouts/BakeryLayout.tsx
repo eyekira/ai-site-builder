@@ -10,7 +10,7 @@ export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sec
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           </div>
           {navLinks.length > 0 && <nav className={`cs-nav hidden items-center gap-3 text-xs ${mutedTextClass} md:flex`}>{navLinks.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</nav>}
-          <a href={heroCtaHref} className="rounded-full bg-[var(--brand-accent)] px-4 py-2 text-xs font-semibold text-[var(--brand-bg)]">{ctaLabel}</a>
+          <a href={heroCtaHref} className="cs-primary-cta rounded-full px-4 py-2 text-xs font-semibold">{ctaLabel}</a>
         </div>
       </header>
 

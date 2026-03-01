@@ -11,7 +11,7 @@ export function MinimalLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
               {navLinks.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
             </nav>
           )}
-          <a href={heroCtaHref} className="rounded-lg bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-bg)]">{ctaLabel}</a>
+          <a href={heroCtaHref} className="cs-primary-cta rounded-lg px-3 py-1.5 text-xs font-semibold">{ctaLabel}</a>
         </div>
       </header>
 

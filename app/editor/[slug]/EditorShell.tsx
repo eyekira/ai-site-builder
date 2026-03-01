@@ -92,6 +92,19 @@ const LAYOUT_LABELS: Record<string, string> = {
   menu_first: 'Menu First Layout',
 };
 
+const CULTURAL_STYLE_DESCRIPTORS: Record<string, string> = {
+  japanese_minimal: 'Hairline divider · outline CTA · minimal pattern',
+  korean_modern: 'Pill CTAs · subtle grid · soft cards',
+  chinese_contemporary: 'Stamp divider · tile pattern · rounded CTA',
+  mediterranean_coastal: 'Wave pattern · patterned divider · outline pill',
+  latin_street: 'Stamp pattern · bold pill CTA · energetic divider',
+  american_classic: 'Linen pattern · hairline divider · balanced CTA',
+  indian_spice_house: 'Patterned divider · tiled texture · rounded CTA',
+  middle_eastern_modern: 'Geometric pattern · patterned divider · outline CTA',
+  french_atelier: 'Linen texture · hairline divider · sharp CTA',
+  italian_warm_modern: 'Linen texture · hairline divider · soft rounded CTA',
+};
+
 type PaletteOption = {
   key: string;
   label: string;
@@ -789,10 +802,15 @@ export default function EditorShell({
                       : 'border-zinc-200 bg-white text-zinc-700'
                   }`}
                 >
-                  <div className="mb-1 flex justify-center">
-                    <CulturalThumbnail styleKey={style.key} isSelected={selected} />
+                  <div className="flex items-center gap-2">
+                    <div className="shrink-0">
+                      <CulturalThumbnail styleKey={style.key} isSelected={selected} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold leading-tight">{style.label}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[10px] text-zinc-500">{CULTURAL_STYLE_DESCRIPTORS[style.key] ?? 'Visual overlay style'}</p>
+                    </div>
                   </div>
-                  <p className="text-center text-[11px] font-medium">{style.label}</p>
                 </button>
               );
             })}

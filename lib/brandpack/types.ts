@@ -18,8 +18,10 @@ export type BrandPack = {
   version: 1;
   palette: {
     primary: string;
+    onPrimary: string;
     secondary: string;
     accent: string;
+    onAccent: string;
     background: string;
     surface: string;
     text: string;

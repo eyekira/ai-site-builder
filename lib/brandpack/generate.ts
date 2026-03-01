@@ -26,7 +26,21 @@ function contrast(a: string, b: string) {
 
 function ensureContrast(pack: BrandPack): BrandPack {
   const ratio = contrast(pack.palette.text, pack.palette.background);
-  if (ratio >= 4.5) return pack;
+  const white = '#FFFFFF';
+  const black = '#111111';
+  const onPrimary = contrast(pack.palette.primary, white) >= contrast(pack.palette.primary, black) ? white : black;
+  const onAccent = contrast(pack.palette.accent, white) >= contrast(pack.palette.accent, black) ? white : black;
+
+  if (ratio >= 4.5) {
+    return {
+      ...pack,
+      palette: {
+        ...pack.palette,
+        onPrimary,
+        onAccent,
+      },
+    };
+  }
 
   return {
     ...pack,
@@ -36,6 +50,8 @@ function ensureContrast(pack: BrandPack): BrandPack {
       background: '#FFFFFF',
       surface: '#F8FAFC',
       border: '#CBD5E1',
+      onPrimary,
+      onAccent,
     },
   };
 }
@@ -45,7 +61,7 @@ const KEYWORD_PACKS: Array<{ match: string[]; pack: Omit<BrandPack, 'source' | '
     match: ['omakase', 'fine dining', 'steakhouse'],
     pack: {
       palette: {
-        primary: '#1F2937', secondary: '#111827', accent: '#D4AF37', background: '#0B0F14', surface: '#111827', text: '#F9FAFB', muted: '#9CA3AF', border: '#374151',
+        primary: '#1F2937', onPrimary: '#FFFFFF', secondary: '#111827', accent: '#D4AF37', onAccent: '#111111', background: '#0B0F14', surface: '#111827', text: '#F9FAFB', muted: '#9CA3AF', border: '#374151',
       },
       typography: { headingFontKey: 'playfair_display', bodyFontKey: 'inter' },
       style: { radius: 'sharp', shadow: 'elevated', density: 'airy', button: 'rounded', image: 'editorial' },
@@ -55,7 +71,7 @@ const KEYWORD_PACKS: Array<{ match: string[]; pack: Omit<BrandPack, 'source' | '
     match: ['bakery', 'brunch', 'cafe'],
     pack: {
       palette: {
-        primary: '#B45309', secondary: '#F59E0B', accent: '#EC4899', background: '#FFFBF5', surface: '#FFFFFF', text: '#3F3F46', muted: '#71717A', border: '#FDE68A',
+        primary: '#B45309', onPrimary: '#FFFFFF', secondary: '#F59E0B', accent: '#EC4899', onAccent: '#111111', background: '#FFFBF5', surface: '#FFFFFF', text: '#3F3F46', muted: '#71717A', border: '#FDE68A',
       },
       typography: { headingFontKey: 'lora', bodyFontKey: 'nunito' },
       style: { radius: 'soft', shadow: 'soft', density: 'balanced', button: 'pill', image: 'natural' },
@@ -65,7 +81,7 @@ const KEYWORD_PACKS: Array<{ match: string[]; pack: Omit<BrandPack, 'source' | '
     match: ['fast', 'delivery', 'takeout', 'casual'],
     pack: {
       palette: {
-        primary: '#0EA5E9', secondary: '#0284C7', accent: '#22C55E', background: '#F8FAFC', surface: '#FFFFFF', text: '#0F172A', muted: '#475569', border: '#CBD5E1',
+        primary: '#0EA5E9', onPrimary: '#111111', secondary: '#0284C7', accent: '#22C55E', onAccent: '#111111', background: '#F8FAFC', surface: '#FFFFFF', text: '#0F172A', muted: '#475569', border: '#CBD5E1',
       },
       typography: { headingFontKey: 'manrope', bodyFontKey: 'dm_sans' },
       style: { radius: 'rounded', shadow: 'soft', density: 'dense', button: 'square', image: 'vibrant' },

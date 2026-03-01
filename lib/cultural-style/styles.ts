@@ -72,25 +72,47 @@ export function getCulturalStyle(key?: string | null): CulturalStyle {
   return CULTURAL_STYLES.find((s) => s.key === key) ?? CULTURAL_STYLES.find((s) => s.key === 'american_classic')!;
 }
 
-export function inferCulturalStyleKey(textSignals: string[]): string {
-  const text = textSignals.join(' ').toLowerCase();
-  if (/(sushi|omakase|izakaya)/.test(text)) return 'japanese_minimal';
-  if (/(korean|bbq|kimchi)/.test(text)) return 'korean_modern';
-  if (/(chinese|dim sum|noodle)/.test(text)) return 'chinese_contemporary';
-  if (/(greek|mediterranean|coastal|seafood)/.test(text)) return 'mediterranean_coastal';
-  if (/(taco|mexican|taqueria|latin)/.test(text)) return 'latin_street';
-  if (/(american|steakhouse|bbq|diner)/.test(text)) return 'american_classic';
-  if (/(indian|curry|tandoor)/.test(text)) return 'indian_spice_house';
-  if (/(lebanese|shawarma|middle eastern)/.test(text)) return 'middle_eastern_modern';
-  if (/(french|brasserie|patisserie|bistro)/.test(text)) return 'french_atelier';
-  if (/(italian|trattoria|osteria)/.test(text)) return 'italian_warm_modern';
-  return 'american_classic';
+type MatchResult = { culturalStyleKey: string; matchReason: string; matchedKeyword: string | null };
+
+function matchStyleByKeywords(text: string): MatchResult {
+  const rules: Array<{ key: string; style: string; reason: string }> = [
+    { key: 'sushi|omakase|izakaya', style: 'japanese_minimal', reason: 'jp-keyword' },
+    { key: 'korean|k-bbq|kbbq|bulgogi|kimchi|bibimbap|tteokbokki|gochujang|soju|seoul', style: 'korean_modern', reason: 'kr-keyword' },
+    { key: 'chinese|dim sum|noodle', style: 'chinese_contemporary', reason: 'cn-keyword' },
+    { key: 'greek|mediterranean|coastal|seafood', style: 'mediterranean_coastal', reason: 'med-keyword' },
+    { key: 'taco|mexican|taqueria|latin', style: 'latin_street', reason: 'latin-keyword' },
+    { key: 'american|steakhouse|diner', style: 'american_classic', reason: 'us-keyword' },
+    { key: 'indian|curry|tandoor', style: 'indian_spice_house', reason: 'in-keyword' },
+    { key: 'lebanese|shawarma|middle eastern', style: 'middle_eastern_modern', reason: 'me-keyword' },
+    { key: 'french|brasserie|patisserie|bistro', style: 'french_atelier', reason: 'fr-keyword' },
+    { key: 'italian|trattoria|osteria', style: 'italian_warm_modern', reason: 'it-keyword' },
+  ];
+
+  for (const rule of rules) {
+    const rx = new RegExp(`(${rule.key})`, 'i');
+    const hit = text.match(rx);
+    if (hit) {
+      return { culturalStyleKey: rule.style, matchReason: rule.reason, matchedKeyword: hit[1]?.toLowerCase() ?? null };
+    }
+  }
+
+  return { culturalStyleKey: 'american_classic', matchReason: 'fallback-default', matchedKeyword: null };
 }
 
-export function inferLayoutAndCulturalStyle(input: { textSignals: string[] }): { layoutKey: string; culturalStyleKey: string } {
-  const text = input.textSignals.join(' ').toLowerCase();
-  if (/(sushi|omakase|fine dining|italian fine dining)/.test(text)) return { layoutKey: 'luxury', culturalStyleKey: inferCulturalStyleKey(input.textSignals) };
-  if (/(taco|mexican|korean bbq|bbq)/.test(text)) return { layoutKey: 'modern_casual', culturalStyleKey: inferCulturalStyleKey(input.textSignals) };
-  if (/(bakery|patisserie)/.test(text)) return { layoutKey: 'cozy_local', culturalStyleKey: inferCulturalStyleKey(input.textSignals) };
-  return { layoutKey: 'minimal_contemporary', culturalStyleKey: inferCulturalStyleKey(input.textSignals) };
+export function inferCulturalStyle(input: { textSignals: string[] }): MatchResult {
+  const text = input.textSignals.filter(Boolean).join(' ').toLowerCase();
+  return matchStyleByKeywords(text);
+}
+
+export function inferCulturalStyleKey(textSignals: string[]): string {
+  return inferCulturalStyle({ textSignals }).culturalStyleKey;
+}
+
+export function inferLayoutAndCulturalStyle(input: { textSignals: string[] }): { layoutKey: string; culturalStyleKey: string; matchReason: string; matchedKeyword: string | null } {
+  const text = input.textSignals.filter(Boolean).join(' ').toLowerCase();
+  const cultural = inferCulturalStyle({ textSignals: input.textSignals });
+  if (/(sushi|omakase|fine dining|italian fine dining)/.test(text)) return { layoutKey: 'luxury', ...cultural };
+  if (/(taco|mexican|korean bbq|k-bbq|kbbq|bbq)/.test(text)) return { layoutKey: 'modern_casual', ...cultural };
+  if (/(bakery|patisserie)/.test(text)) return { layoutKey: 'cozy_local', ...cultural };
+  return { layoutKey: 'minimal_contemporary', ...cultural };
 }

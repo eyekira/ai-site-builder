@@ -361,8 +361,40 @@ export async function POST(request: NextRequest) {
       hoursText,
     });
 
-    const textSignals = [placeTitle, place.address ?? '', place.website ?? ''];
+    const placeTypes = Array.isArray((place as { types?: string[] }).types) ? ((place as { types?: string[] }).types ?? []) : [];
+    const primaryType = (place as { primaryType?: string | null }).primaryType ?? null;
+    const reviewSnippets = Array.isArray((place as { reviews?: Array<{ text?: string | null }> }).reviews)
+      ? (((place as { reviews?: Array<{ text?: string | null }> }).reviews ?? [])
+          .map((review) => review.text ?? '')
+          .filter((text) => text.trim().length > 0)
+          .slice(0, 3))
+      : [];
+
+    const textSignals = [
+      placeTitle,
+      place.address ?? '',
+      place.website ?? '',
+      ...placeTypes,
+      primaryType ?? '',
+      ...reviewSnippets,
+      copy.hero.subheadline,
+      typeof copy.about === 'string' ? copy.about : copy.about.title,
+      typeof copy.about === 'string' ? '' : copy.about.body,
+    ].filter((v): v is string => typeof v === 'string');
     const inferredStyle = inferLayoutAndCulturalStyle({ textSignals });
+    const culturalDebug = {
+      placeName: placeTitle,
+      placeTypes,
+      primaryType,
+      computedKeywords: textSignals.filter(Boolean).slice(0, 20),
+      reviewSnippets,
+      matchedCulturalStyleKey: inferredStyle.culturalStyleKey,
+      matchReason: inferredStyle.matchReason,
+      matchedKeyword: inferredStyle.matchedKeyword,
+    };
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[cultural-style][from-place]', culturalDebug);
+    }
     const ownerTemplateSelection = selectTemplate({ textSignals });
 
     const brandPhotoClassifications = limitedPhotos.length
@@ -426,6 +458,7 @@ export async function POST(request: NextRequest) {
           templateSignals: previewTemplateSelection.signals,
           layoutKey: previewLayoutKey,
           culturalStyleKey: inferredStyle.culturalStyleKey,
+          styleDebug: culturalDebug,
         }),
         brandPackJson: JSON.stringify(previewBrandPack),
         formattedAddress: place.address,
@@ -522,6 +555,7 @@ export async function POST(request: NextRequest) {
             templateSignals: ownerTemplateSelection.signals,
             layoutKey: ownerLayoutKey,
             culturalStyleKey: inferredStyle.culturalStyleKey,
+            styleDebug: culturalDebug,
           }),
           brandPackJson: JSON.stringify(ownerBrandPack),
           ownerId,
