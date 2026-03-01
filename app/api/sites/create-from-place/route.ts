@@ -131,15 +131,12 @@ export async function POST(request: NextRequest) {
     const place = await resolvePlaceForCreation(placeId);
     const ownerId = user.id;
 
-    const existingSite = await prisma.site.findUnique({
-      where: { placeId },
+    const existingSite = await prisma.site.findFirst({
+      where: { placeId, ownerId },
       select: { id: true, slug: true, ownerId: true },
     });
     if (existingSite) {
-      if (existingSite.ownerId === ownerId) {
-        return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
-      }
-      return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
+      return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
     }
 
     await prisma.place.upsert({

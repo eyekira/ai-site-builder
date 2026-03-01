@@ -77,7 +77,7 @@ model Site {
   brandPackJson  String?
   ownerId        Int?
   anonSessionId  String?
-  placeId        String?    @unique
+  placeId        String?
   customDomain   String?    @unique
 
   owner    User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -87,6 +87,7 @@ model Site {
   photos   Photo[]
 
   @@index([anonSessionId])
+  @@index([placeId])
 }
 
 model Photo {

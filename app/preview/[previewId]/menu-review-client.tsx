@@ -25,13 +25,25 @@ function parseMenuFromSite(site: SiteForRender): MenuContent | null {
   }
 }
 
+function autoMenuFromSite(site: SiteForRender): MenuContent {
+  const title = site.businessTitle || site.title || 'Menu';
+  return {
+    title: 'Menu',
+    items: [
+      { name: `${title} Signature`, description: 'Chef-recommended house favorite', price: '$18', category: 'Mains' },
+      { name: 'Seasonal Special', description: 'Fresh seasonal ingredients', price: '$16', category: 'Mains' },
+      { name: 'Guest Favorite', description: 'Most ordered by regulars', price: '$14', category: 'Starters' },
+    ],
+  };
+}
+
 export function MenuReviewClient({ previewId, initialSite, continueHref }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<'auto' | 'upload' | 'skip'>('auto');
   const [mergeMode, setMergeMode] = useState<'replace' | 'merge'>('replace');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [menu, setMenu] = useState<MenuContent | null>(parseMenuFromSite(initialSite));
+  const [menu, setMenu] = useState<MenuContent | null>(parseMenuFromSite(initialSite) ?? autoMenuFromSite(initialSite));
 
   const updateItem = (index: number, patch: Partial<MenuItem>) => {
     if (!menu) return;
@@ -100,7 +112,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
         <p className="mt-2 text-sm text-zinc-600">You can auto-generate, upload menu images, or skip for now.</p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <button type="button" onClick={() => setMode('auto')} className={`rounded-lg border px-3 py-3 text-left ${mode === 'auto' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-800'}`}>
+          <button type="button" onClick={() => { setMode('auto'); setMenu(autoMenuFromSite(initialSite)); }} className={`rounded-lg border px-3 py-3 text-left ${mode === 'auto' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-800'}`}>
             <p className="text-sm font-semibold">Use auto-generated menu</p>
             <p className="mt-1 text-xs opacity-80">Generate menu from place data + AI.</p>
           </button>

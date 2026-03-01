@@ -333,52 +333,49 @@ export async function POST(request: NextRequest) {
     const isLoggedIn = Boolean(ownerId);
 
     if (isLoggedIn) {
-      const existingSite = await prisma.site.findUnique({
-        where: { placeId },
+      const existingSite = await prisma.site.findFirst({
+        where: { placeId, ownerId: ownerId ?? undefined },
         select: { id: true, slug: true, ownerId: true },
       });
       if (existingSite) {
-        if (existingSite.ownerId === ownerId) {
-          const existingRenderSite = await getSiteForOwnerRender(existingSite.slug, ownerId!);
-          if (process.env.NODE_ENV !== 'production') {
-            console.info('[create-site][diag] existing-site render fetch', {
-              slug: existingSite.slug,
-              ownerId,
-              found: Boolean(existingRenderSite),
-            });
-          }
-          if (!existingRenderSite) {
-            return NextResponse.json(
-              { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for existing site.' },
-              { status: 500 },
-            );
-          }
-          const previewSession = await createPreviewSession(existingRenderSite);
-          if (process.env.NODE_ENV !== 'production') {
-            console.info('[create-site][diag] existing-site preview session created', {
-              previewId: previewSession.id,
-              expiresAt: previewSession.expiresAt?.toISOString?.() ?? null,
-            });
-          }
-          const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
-          if (process.env.NODE_ENV !== 'production') {
-            console.info('[create-site][from-place] existing-site-preview', {
-              siteId: existingSite.id,
-              previewId: previewSession.id,
-              nextPath,
-            });
-          }
-          return NextResponse.json({
-            siteId: existingSite.id,
+        const existingRenderSite = await getSiteForOwnerRender(existingSite.slug, ownerId!);
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][diag] existing-site render fetch', {
             slug: existingSite.slug,
-            existed: true,
-            previewId: previewSession.id,
-            nextPath,
-            forceMenuReview: true,
-            expiresAt: previewSession.expiresAt.toISOString(),
+            ownerId,
+            found: Boolean(existingRenderSite),
           });
         }
-        return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
+        if (!existingRenderSite) {
+          return NextResponse.json(
+            { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for existing site.' },
+            { status: 500 },
+          );
+        }
+        const previewSession = await createPreviewSession(existingRenderSite);
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][diag] existing-site preview session created', {
+            previewId: previewSession.id,
+            expiresAt: previewSession.expiresAt?.toISOString?.() ?? null,
+          });
+        }
+        const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][from-place] existing-site-preview', {
+            siteId: existingSite.id,
+            previewId: previewSession.id,
+            nextPath,
+          });
+        }
+        return NextResponse.json({
+          siteId: existingSite.id,
+          slug: existingSite.slug,
+          existed: true,
+          previewId: previewSession.id,
+          nextPath,
+          forceMenuReview: true,
+          expiresAt: previewSession.expiresAt.toISOString(),
+        });
       }
     }
 
