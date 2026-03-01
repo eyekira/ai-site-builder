@@ -78,6 +78,42 @@ function safeParsePhotosContent(raw: string) {
   }
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.trim().replace('#', '');
+  const value = normalized.length === 3 ? normalized.split('').map((c) => c + c).join('') : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) return null;
+  const n = Number.parseInt(value, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function relativeLuminance(rgb: { r: number; g: number; b: number }): number {
+  const linear = [rgb.r, rgb.g, rgb.b].map((c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastRatio(a: string, b: string): number {
+  const rgbA = hexToRgb(a);
+  const rgbB = hexToRgb(b);
+  if (!rgbA || !rgbB) return 1;
+  const l1 = relativeLuminance(rgbA);
+  const l2 = relativeLuminance(rgbB);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function pickOnColor(bg: string): string {
+  const white = '#FFFFFF';
+  const black = '#111111';
+  const whiteRatio = contrastRatio(bg, white);
+  const blackRatio = contrastRatio(bg, black);
+  if (whiteRatio >= 4.5 || blackRatio >= 4.5) return whiteRatio >= blackRatio ? white : black;
+  return whiteRatio > blackRatio ? white : black;
+}
+
 export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdit = false, editorHref }: SiteRendererProps) {
   const businessTitle = site.businessTitle ?? site.title;
   const address = site.formattedAddress ?? site.place?.address ?? null;
@@ -142,6 +178,8 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const effectiveButtonStyle = culturalStyle.button.shape === 'pill' ? 'pill' : culturalStyle.button.shape === 'sharp' ? 'square' : brandPack.style.button;
   const buttonShapeClass = effectiveButtonStyle === 'pill' ? 'rounded-full' : effectiveButtonStyle === 'square' ? 'rounded-none' : 'rounded-lg';
   const surfaceClass = `${radiusClass} ${shadowClass}`;
+  const onPrimary = pickOnColor(brandPack.palette.primary);
+  const onAccent = pickOnColor(brandPack.palette.accent);
 
   const heroSection = site.sections.find((section) => section.type === 'HERO');
   const aboutSection = site.sections.find((section) => section.type === 'ABOUT');
@@ -250,8 +288,8 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
     <>
       <style>{`
         [data-site-embed="true"], [data-site-fullpage="true"] {
-          --link-color: var(--brand-primary);
-          --link-hover: var(--brand-accent);
+          --link-color: var(--bp-primary);
+          --link-hover: var(--bp-accent);
         }
         [data-site-embed="true"] a, [data-site-fullpage="true"] a {
           color: var(--link-color);
@@ -262,19 +300,23 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
         }
         [data-site-embed="true"] .brand-btn, [data-site-fullpage="true"] .brand-btn,
         [data-site-embed="true"] button, [data-site-fullpage="true"] button {
-          background: var(--brand-primary);
-          color: var(--brand-bg);
-          border-color: var(--brand-border);
+          background: var(--bp-primary);
+          color: var(--bp-on-primary);
+          border-color: var(--bp-border);
+        }
+        [data-site-embed="true"] .brand-accent, [data-site-fullpage="true"] .brand-accent {
+          background: var(--bp-accent);
+          color: var(--bp-on-accent);
         }
         [data-site-embed="true"] input, [data-site-fullpage="true"] input,
         [data-site-embed="true"] select, [data-site-fullpage="true"] select,
         [data-site-embed="true"] textarea, [data-site-fullpage="true"] textarea {
-          border-color: var(--brand-border);
-          background: var(--brand-surface);
-          color: var(--brand-text);
+          border-color: var(--bp-border);
+          background: var(--bp-surface);
+          color: var(--bp-text);
         }
         [data-site-embed="true"] :focus-visible, [data-site-fullpage="true"] :focus-visible {
-          outline: 2px solid var(--brand-accent);
+          outline: 2px solid var(--bp-accent);
           outline-offset: 2px;
         }
         body:has([data-site-embed="true"]) [data-app-chrome="true"],
@@ -298,6 +340,8 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
           ['--bp-text' as string]: brandPack.palette.text,
           ['--bp-muted' as string]: brandPack.palette.muted,
           ['--bp-border' as string]: brandPack.palette.border,
+          ['--bp-on-primary' as string]: onPrimary,
+          ['--bp-on-accent' as string]: onAccent,
           ['--brand-primary' as string]: brandPack.palette.primary,
           ['--brand-secondary' as string]: brandPack.palette.secondary,
           ['--brand-accent' as string]: brandPack.palette.accent,
@@ -312,7 +356,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
       >
         {canEdit && editorHref && !embedMode && (
           <div className="mx-auto mb-2 w-full max-w-6xl text-right">
-            <a href={editorHref} className="inline-flex rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
+            <a href={editorHref} className="inline-flex rounded-md border border-[var(--bp-border)] bg-[var(--bp-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--bp-text)] hover:opacity-90">
               Edit site
             </a>
           </div>

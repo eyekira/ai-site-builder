@@ -17,6 +17,7 @@ import {
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
 import { CulturalThumbnail } from '@/components/cultural/CulturalThumbnail';
+import { LayoutThumbnail } from '@/components/cultural/LayoutThumbnail';
 import { CULTURAL_STYLES } from '@/lib/cultural-style/styles';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
@@ -271,6 +272,11 @@ export default function EditorShell({
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [previewViewport, setPreviewViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [groupOpen, setGroupOpen] = useState<{ layout: boolean; cultural: boolean; brand: boolean }>({
+    layout: true,
+    cultural: false,
+    brand: false,
+  });
 
   const orderedSections = useMemo(
     () => [...sections].sort((a, b) => (a.order === b.order ? a.id - b.id : a.order - b.order)),
@@ -743,8 +749,11 @@ export default function EditorShell({
 
       <aside className="bg-white p-4">
         <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
-          <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, layout: !s.layout }))} className="flex w-full items-center justify-between text-left font-semibold uppercase tracking-wide text-zinc-500">
+            <span>Layout (Structure)</span>
+            <span>{groupOpen.layout ? '−' : '+'}</span>
+          </button>
+          {groupOpen.layout && <div className="mt-3 grid grid-cols-2 gap-2">
             {LAYOUT_KEYS.map((key) => (
               <button
                 key={key}
@@ -756,20 +765,17 @@ export default function EditorShell({
                     : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
                 }`}
               >
-                <div className="mb-2 rounded border border-zinc-200 bg-zinc-50 p-1.5">
-                  <div className="mb-1 h-1.5 w-full rounded bg-zinc-300" />
-                  <div className="grid grid-cols-2 gap-1">
-                    <div className="h-4 rounded bg-zinc-200" />
-                    <div className="h-4 rounded bg-zinc-100" />
-                  </div>
-                </div>
+                <div className="mb-2 flex justify-center"><LayoutThumbnail layoutKey={key} /></div>
                 {LAYOUT_LABELS[key] ?? key}
               </button>
             ))}
-          </div>
+          </div>}
 
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Cultural Style</p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, cultural: !s.cultural }))} className="mt-3 flex w-full items-center justify-between text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <span>Cultural Style (Overlay)</span>
+            <span>{groupOpen.cultural ? '−' : '+'}</span>
+          </button>
+          {groupOpen.cultural && <div className="mt-2 grid grid-cols-2 gap-2">
             {CULTURAL_STYLES.map((style) => {
               const selected = currentCulturalStyle === style.key;
               return (
@@ -779,7 +785,7 @@ export default function EditorShell({
                   onClick={() => onCulturalStyleChange(style.key)}
                   className={`group rounded-md border p-2 text-left text-[11px] transition hover:-translate-y-0.5 hover:shadow-sm ${
                     selected
-                      ? 'ring-2 ring-[var(--bp-accent)] border-zinc-900 bg-zinc-50 text-zinc-900'
+                      ? 'ring-2 ring-zinc-400 border-zinc-900 bg-zinc-50 text-zinc-900'
                       : 'border-zinc-200 bg-white text-zinc-700'
                   }`}
                 >
@@ -790,13 +796,17 @@ export default function EditorShell({
                 </button>
               );
             })}
-          </div>
+          </div>}
 
           {layoutState === 'saving' && <p className="mt-2 text-[11px] text-zinc-500">Saving layout…</p>}
           {layoutState === 'saved' && <p className="mt-2 text-[11px] text-emerald-600">Layout saved.</p>}
           {layoutState === 'error' && <p className="mt-2 text-[11px] text-red-600">{layoutMessage}</p>}
 
-          <div className="mt-4 border-t border-zinc-200 pt-3">
+          <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, brand: !s.brand }))} className="mt-4 flex w-full items-center justify-between border-t border-zinc-200 pt-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <span>Brand (Colors + Typography)</span>
+            <span>{groupOpen.brand ? '−' : '+'}</span>
+          </button>
+          {groupOpen.brand && <div className="mt-2">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Brand Customization</p>
             <div className="mb-2 grid grid-cols-3 gap-1">
               {(Object.keys(BRAND_PRESETS) as Array<keyof typeof BRAND_PRESETS>).map((presetKey) => (
@@ -893,7 +903,7 @@ export default function EditorShell({
             {brandState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving brand…</p>}
             {brandState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Brand saved.</p>}
             {brandState === 'error' && <p className="mt-2 text-xs text-red-600">{brandMessage}</p>}
-          </div>
+          </div>}
         </div>
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing</p>
