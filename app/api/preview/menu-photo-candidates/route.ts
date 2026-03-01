@@ -26,6 +26,9 @@ type ScanState = {
   cache: Record<string, ScanCacheEntry>;
 };
 
+const SCAN_CAP = 120;
+const LOAD_BATCH = 20;
+
 function toPhotoUrl(ref: string, maxwidth: number) {
   return `/api/places/photo?ref=${encodeURIComponent(ref)}&maxwidth=${maxwidth}`;
 }
@@ -57,8 +60,8 @@ export async function POST(request: NextRequest) {
     detailRefs = [];
   }
 
-  const merged = [...beforeRefs, ...detailRefs.map((p) => p.ref)].slice(0, 80);
-  const allRefs = Array.from(new Set(merged)).slice(0, 60);
+  const merged = [...beforeRefs, ...detailRefs.map((p) => p.ref)].slice(0, SCAN_CAP * 2);
+  const allRefs = Array.from(new Set(merged)).slice(0, SCAN_CAP);
 
   const dimensionMap = new Map(detailRefs.map((p) => [p.ref, { width: p.width, height: p.height }]));
 
@@ -71,9 +74,12 @@ export async function POST(request: NextRequest) {
   const state: ScanState = body.action === 'rescan' ? { cursor: undefined, scannedCount: 0, cache: {} } : existingState;
 
   const start = state.cursor ? Math.max(0, allRefs.findIndex((r) => r === state.cursor) + 1) : 0;
-  const batchRefs = allRefs.slice(start, start + 20);
+  const refsToProcess =
+    body.action === 'rescan'
+      ? allRefs.slice(0, SCAN_CAP)
+      : allRefs.slice(start, start + LOAD_BATCH);
 
-  const heuristicSorted = batchRefs
+  const heuristicSorted = refsToProcess
     .map((ref) => {
       const dim = dimensionMap.get(ref);
       return { ref, h: heuristicScore({ ref, width: dim?.width ?? null, height: dim?.height ?? null }) };
@@ -81,12 +87,18 @@ export async function POST(request: NextRequest) {
     .sort((a, b) => b.h - a.h)
     .map((x) => x.ref);
 
+  let menuHits = 0;
+  let lastProcessed: string | undefined;
   for (const ref of heuristicSorted) {
-    if (state.cache[ref]) continue;
+    lastProcessed = ref;
+    if (state.cache[ref]) {
+      if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(state.cache[ref].label)) menuHits += 1;
+      continue;
+    }
 
     const thumbUrl = toPhotoUrl(ref, 420);
     const mediumUrl = toPhotoUrl(ref, 1200);
-    const vision = await classifyMenuPhotoViaVision(thumbUrl);
+    const vision = await classifyMenuPhotoViaVision(thumbUrl, ref);
 
     state.cache[ref] = {
       ref,
@@ -102,14 +114,19 @@ export async function POST(request: NextRequest) {
       errorCode: vision.errorCode,
     };
     state.scannedCount += 1;
+    if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(vision.label)) menuHits += 1;
+
+    if (body.action === 'rescan' && menuHits >= 3) break;
   }
 
-  state.cursor = batchRefs.length > 0 ? batchRefs[batchRefs.length - 1] : state.cursor;
+  state.cursor = lastProcessed ?? state.cursor;
   state.lastScanAt = new Date().toISOString();
 
   const candidatesAll = Object.values(state.cache)
     .sort((a, b) => b.score - a.score)
     .map((entry) => ({
+      key: entry.ref,
+
       ref: entry.ref,
       url: entry.mediumUrl,
       thumbUrl: entry.thumbUrl,
@@ -144,15 +161,35 @@ export async function POST(request: NextRequest) {
     data: { dataJson: updatedJson },
   });
 
+  const labelCounts = candidatesAll.reduce<Record<string, number>>((acc, c) => {
+    const k = c.label ?? 'other';
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+
   const payload = {
     scannedCount: state.scannedCount,
     returnedCount: filtered.length,
     candidateRefs: filtered.map((c) => c.ref),
-    deduped: { before: merged.length, after: allRefs.length },
+    deduped: { before: merged.length, after: allRefs.length, duplicatesDropped: merged.length - allRefs.length },
+    cursor: state.cursor ?? null,
+    labelCounts,
+  };
+
+  const debug = {
+    placeId: site.placeId ?? null,
+    endpoint: 'GET https://places.googleapis.com/v1/places/{placeId}',
+    fieldMask: 'id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,regularOpeningHours,location,addressComponents,photos',
+    fetchedCount: merged.length,
+    uniqueCount: allRefs.length,
+    duplicatesDropped: merged.length - allRefs.length,
+    selectionStrategy: body.action === 'rescan' ? 'paged+deep-rescan' : 'paged-load-more',
+    orderedAsReturned: true,
     cursor: state.cursor ?? null,
   };
 
   if (process.env.NODE_ENV !== 'production') {
+    console.info('[menu-photo-candidates][selection-debug]', debug);
     console.info('[menu-photo-candidates][counts]', payload);
   }
 
@@ -165,5 +202,6 @@ export async function POST(request: NextRequest) {
       topCandidates: candidatesAll.slice(0, 8).map((c) => ({ ref: c.ref, score: c.score, reason: c.label })),
     },
     ...payload,
+    debug: process.env.NODE_ENV !== 'production' ? debug : undefined,
   });
 }

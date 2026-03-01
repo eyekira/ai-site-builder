@@ -43,12 +43,22 @@ export function heuristicScore(input: { ref: string; width?: number | null; heig
   const h = input.height ?? 0;
   if (w > 0 && h > 0) {
     const ratio = w / h;
-    if (ratio > 0.6 && ratio < 0.95) score += 0.25; // document-ish portrait
+    if (ratio > 0.6 && ratio < 0.95) score += 0.25;
     if (ratio > 2.3 || ratio < 0.45) score -= 0.1;
   }
   if (/(menu|board|price|special|pdf|scan|list|poster|receipt)/.test(ref)) score += 0.2;
   if (/(food|dish|interior|exterior|facade|table|plating)/.test(ref)) score -= 0.12;
   return clamp(score);
+}
+
+async function imageUrlToDataUrl(imageUrl: string): Promise<string> {
+  const res = await fetch(imageUrl, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`IMAGE_FETCH_${res.status}`);
+  }
+  const contentType = res.headers.get('content-type') || 'image/jpeg';
+  const buf = Buffer.from(await res.arrayBuffer());
+  return `data:${contentType};base64,${buf.toString('base64')}`;
 }
 
 function parseJsonLoose(raw: string): Record<string, unknown> | null {
@@ -65,22 +75,59 @@ function parseJsonLoose(raw: string): Record<string, unknown> | null {
   }
 }
 
-export async function classifyMenuPhotoViaVision(url: string): Promise<MenuPhotoClassification> {
+export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string): Promise<MenuPhotoClassification> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    // deterministic non-constant fallback
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0.18,
+      confidence: heuristicScore({ ref }),
       text_density: 'low',
       has_prices: false,
-      notes: 'vision-unavailable',
-      score: 0.18,
+      notes: 'vision-unavailable; heuristic-only',
+      score: heuristicScore({ ref }),
       status: 'unclassified',
       errorCode: 'MISSING_API_KEY',
     };
   }
+
+  let dataUrl: string;
+  try {
+    dataUrl = await imageUrlToDataUrl(imageUrl);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'IMAGE_FETCH_FAILED';
+    return {
+      label: 'other',
+      is_menu: false,
+      confidence: heuristicScore({ ref }),
+      text_density: 'low',
+      has_prices: false,
+      notes: `image-fetch-failed:${message}`,
+      score: heuristicScore({ ref }),
+      status: 'unclassified',
+      errorCode: message,
+    };
+  }
+
+  const model = 'gpt-4o-mini';
+  const payload = {
+    model,
+    temperature: 0,
+    input: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text:
+              'Classify this restaurant image. Distinguish menu photos from food photos. Return ONLY JSON with exact keys: {"label":"menu_board|printed_menu|menu_screenshot|food|interior|exterior|logo|other","is_menu":boolean,"confidence":0..1,"text_density":"low|med|high","has_prices":boolean,"notes":string}.',
+          },
+          { type: 'input_image', image_url: dataUrl },
+        ],
+      },
+    ],
+    max_output_tokens: 220,
+  };
 
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -88,35 +135,31 @@ export async function classifyMenuPhotoViaVision(url: string): Promise<MenuPhoto
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0,
-      input: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text:
-                'Classify this restaurant image. Distinguish menu photos from food photos. Return ONLY JSON with exact keys: {"label":"menu_board|printed_menu|menu_screenshot|food|interior|exterior|logo|other","is_menu":boolean,"confidence":0..1,"text_density":"low|med|high","has_prices":boolean,"notes":string}.',
-            },
-            { type: 'input_image', image_url: url },
-          ],
-        },
-      ],
-      max_output_tokens: 220,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[menu-photo-classifier][http-fail]', {
+        ref,
+        model,
+        imageUrl,
+        inputType: 'data-url',
+        payloadBytes: JSON.stringify(payload).length,
+        status: response.status,
+        errorBody: errorBody.slice(0, 500),
+      });
+    }
+
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0,
+      confidence: heuristicScore({ ref }),
       text_density: 'low',
       has_prices: false,
-      notes: 'vision-request-failed',
-      score: 0,
+      notes: `vision-request-failed:${errorBody.slice(0, 120) || 'no-body'}`,
+      score: heuristicScore({ ref }),
       status: 'unclassified',
       errorCode: `HTTP_${response.status}`,
     };
@@ -128,18 +171,18 @@ export async function classifyMenuPhotoViaVision(url: string): Promise<MenuPhoto
     return {
       label: 'other',
       is_menu: false,
-      confidence: 0,
+      confidence: heuristicScore({ ref }),
       text_density: 'low',
       has_prices: false,
       notes: 'vision-parse-failed',
-      score: 0,
+      score: heuristicScore({ ref }),
       status: 'unclassified',
       errorCode: 'PARSE_FAILED',
     };
   }
 
   const label = (parsed.label as MenuPhotoLabel) ?? 'other';
-  const confidence = clamp(Number(parsed.confidence ?? 0));
+  const confidence = clamp(Number(parsed.confidence ?? heuristicScore({ ref })));
   const text_density = parsed.text_density === 'high' || parsed.text_density === 'med' ? (parsed.text_density as 'high' | 'med') : 'low';
   const has_prices = Boolean(parsed.has_prices);
   const is_menu = Boolean(parsed.is_menu);

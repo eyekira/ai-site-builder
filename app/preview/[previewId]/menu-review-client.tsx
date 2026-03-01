@@ -156,19 +156,14 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load more');
 
-      setCandidates((prev) => {
-        const merged = [...prev, ...(data.candidates ?? [])];
-        const deduped = Array.from(new Map(merged.map((c: Candidate) => [c.ref, c])).values());
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[menu-candidates][client][load-more]', {
-            prev: prev.length,
-            incoming: data.candidates?.length ?? 0,
-            deduped: deduped.length,
-            scannedCount: data.scannedCount,
-          });
-        }
-        return deduped;
-      });
+      setCandidates(data.candidates ?? []);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[menu-candidates][client][load-more]', {
+          incoming: data.candidates?.length ?? 0,
+          unique: new Set((data.candidates ?? []).map((c: Candidate) => c.ref)).size,
+          scannedCount: data.scannedCount,
+        });
+      }
       setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
       setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
     } catch (e) {
@@ -368,6 +363,12 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                     Show all photos
                   </button>
                 )}
+              </div>
+            )}
+            {scannedCount >= 120 && candidates.filter((c) => ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label ?? '')).length === 0 && (
+              <div className="mt-2 rounded border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-700">
+                No menu images found on Google photos for this place. Please upload menu photos.
+                <div className="mt-1 text-[10px] text-zinc-500">TODO: website menu extraction fallback (from place website).</div>
               </div>
             )}
             <div className="mt-2">
