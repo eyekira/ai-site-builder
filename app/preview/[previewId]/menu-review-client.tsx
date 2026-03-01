@@ -30,7 +30,7 @@ type Candidate = {
   thumbUrl?: string;
   source: 'Google photo';
   selected: boolean;
-  status: 'pending' | 'success' | 'empty' | 'error' | 'classified' | 'unclassified';
+  status: 'pending' | 'success' | 'empty' | 'error' | 'classified' | 'unclassified' | 'failed';
   score: number;
   label?: string;
   reason: string;
@@ -45,6 +45,7 @@ type Candidate = {
   };
   primaryCategory?: 'menu' | 'food' | 'interior' | 'exterior' | 'ambience';
   errorCode?: string;
+  rawModelText?: string;
   extractedItemCount?: number;
 };
 
@@ -280,6 +281,35 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
     }
   };
 
+  const classifySelectedOne = async () => {
+    if (selectedCandidates.length !== 1) {
+      setError('Select exactly 1 photo for debug classification.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const target = selectedCandidates[0];
+      const res = await fetch('/api/preview/menu-photo-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ previewId, action: 'classify_one', ref: target.ref, menuOnly: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to classify one');
+      setCandidates(data.candidates ?? []);
+      setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
+      setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
+      setHasMore(Boolean(data.hasMore));
+      setTotalAvailableRefs(Number(data.totalAvailableRefs ?? 0));
+      setGroupedCandidates((data.groupedCandidates ?? {}) as Record<string, Array<{ ref: string; score: number; label?: string }>>);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to classify one');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const runGoogleCandidateOcr = async () => {
     if (selectedCandidates.length === 0) {
       setError('Select at least one candidate photo.');
@@ -442,6 +472,11 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                   </div>
                   <p className="truncate text-[10px] text-zinc-500">{candidate.reason || candidate.status}</p>
                   {candidate.status === 'unclassified' && <p className="text-[10px] text-amber-600">unclassified{candidate.errorCode ? ` (${candidate.errorCode})` : ''}</p>}
+                  {candidate.status === 'failed' && (
+                    <p className="text-[10px] text-red-600">
+                      {candidate.errorCode === 'HTTP_429' ? 'rate limited (HTTP_429)' : `failed${candidate.errorCode ? ` (${candidate.errorCode})` : ''}`}
+                    </p>
+                  )}
                 </label>
               ))}
             </div>
@@ -468,7 +503,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                 <div className="mt-1 text-[10px] text-zinc-500">Website-menu extraction fallback can be used next when available.</div>
               </div>
             )}
-            <div className="mt-2">
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={classifySelectedOne} disabled={selectedCandidates.length !== 1 || loading} className="rounded border border-zinc-300 px-2 py-1 text-xs disabled:opacity-50">Classify selected (1)</button>
               <button type="button" onClick={runGoogleCandidateOcr} disabled={!hasGoodSelected} className="rounded border border-zinc-300 px-2 py-1 text-xs disabled:opacity-50">Run OCR on selected</button>
             </div>
           </div>

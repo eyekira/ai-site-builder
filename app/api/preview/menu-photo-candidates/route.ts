@@ -23,8 +23,9 @@ type ScanCacheEntry = {
     ambience: number;
   };
   primaryCategory?: 'menu' | 'food' | 'interior' | 'exterior' | 'ambience';
-  status: 'classified' | 'unclassified';
+  status: 'classified' | 'unclassified' | 'failed';
   errorCode?: string;
+  rawModelText?: string;
 };
 
 type ScanState = {
@@ -36,7 +37,12 @@ type ScanState = {
 
 const SCAN_CAP = 120;
 const LOAD_BATCH = 16;
-const CLASSIFY_CONCURRENCY = 4;
+const CLASSIFY_CONCURRENCY = 1;
+const CLASSIFY_DELAY_MS = 800;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function toPhotoUrl(ref: string, maxwidth: number) {
   return `/api/places/photo?ref=${encodeURIComponent(ref)}&maxwidth=${maxwidth}`;
@@ -44,7 +50,7 @@ function toPhotoUrl(ref: string, maxwidth: number) {
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as
-    | { previewId?: string; action?: 'load_more' | 'rescan'; menuOnly?: boolean }
+    | { previewId?: string; action?: 'load_more' | 'rescan' | 'classify_one'; menuOnly?: boolean; ref?: string }
     | null;
 
   if (!body?.previewId) return NextResponse.json({ error: 'PREVIEW_ID_REQUIRED' }, { status: 400 });
@@ -80,11 +86,13 @@ export async function POST(request: NextRequest) {
     cache: {},
   }) as ScanState;
 
-  const state: ScanState = body.action === 'rescan' ? { cursor: undefined, scannedCount: 0, cache: {} } : existingState;
+  // Keep cache across rescans to avoid re-classifying the same refs (rate-limit protection).
+  const state: ScanState = existingState;
 
   const start = state.cursor ? Math.max(0, allRefs.findIndex((r) => r === state.cursor) + 1) : 0;
-  const refsToProcess = allRefs.slice(start, start + LOAD_BATCH);
-  const hasMore = start + LOAD_BATCH < allRefs.length;
+  const singleRef = body.action === 'classify_one' && body.ref ? body.ref : null;
+  const refsToProcess = singleRef ? [singleRef] : allRefs.slice(start, start + LOAD_BATCH);
+  const hasMore = singleRef ? false : start + LOAD_BATCH < allRefs.length;
 
   const heuristicRanked = refsToProcess
     .map((ref) => {
@@ -105,7 +113,6 @@ export async function POST(request: NextRequest) {
       chunk.map(async (ref) => {
         const thumbUrl = toPhotoUrl(ref, 420);
         const mediumUrl = toPhotoUrl(ref, 1200);
-        // Use medium resolution for classification so menu text/price patterns are readable.
         const vision = await classifyMenuPhotoViaVision(mediumUrl, ref);
         return { ref, thumbUrl, mediumUrl, vision };
       }),
@@ -126,12 +133,16 @@ export async function POST(request: NextRequest) {
         primaryCategory: vision.primaryCategory,
         status: vision.status,
         errorCode: vision.errorCode,
+        rawModelText: vision.rawModelText,
       };
       state.scannedCount += 1;
       if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(vision.label)) menuHits += 1;
     }
 
     if (body.action === 'rescan' && menuHits >= 3) break;
+    if (i + CLASSIFY_CONCURRENCY < refsNeedingClassification.length) {
+      await sleep(CLASSIFY_DELAY_MS);
+    }
   }
 
   const lastProcessed = refsToProcess.length > 0 ? refsToProcess[refsToProcess.length - 1] : undefined;
@@ -169,6 +180,7 @@ export async function POST(request: NextRequest) {
       primaryCategory: entry.primaryCategory,
       status: entry.status,
       errorCode: entry.errorCode,
+      rawModelText: entry.rawModelText,
       selected: entry.score >= 0.65,
     }));
 
