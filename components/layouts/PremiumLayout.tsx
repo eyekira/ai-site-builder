@@ -1,4 +1,5 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
+import { Button } from '@/components/ui/button';
 import type { LayoutRenderProps } from './types';
 
 export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, navLinks = [], anchors = {}, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
@@ -11,7 +12,7 @@ export function PremiumLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
           </div>
           {navLinks.length > 0 && <nav className={`hidden items-center gap-4 text-xs ${mutedTextClass} md:flex`}>{navLinks.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</nav>}
-          <a href={heroCtaHref} className="bp-primary-cta rounded-md px-4 py-2 text-xs font-semibold">{ctaLabel}</a>
+          <Button asChild intent="primary" variant="solid" size="sm"><a href={heroCtaHref}>{ctaLabel}</a></Button>
         </div>
       </header>
 

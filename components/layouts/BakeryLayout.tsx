@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { LayoutRenderProps } from './types';
 
 export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, navLinks = [], anchors = {}, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
@@ -10,7 +11,7 @@ export function BakeryLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sec
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           </div>
           {navLinks.length > 0 && <nav className={`hidden items-center gap-3 text-xs ${mutedTextClass} md:flex`}>{navLinks.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</nav>}
-          <a href={heroCtaHref} className="bp-primary-cta rounded-full px-4 py-2 text-xs font-semibold">{ctaLabel}</a>
+          <Button asChild intent="primary" variant="solid" size="sm"><a href={heroCtaHref}>{ctaLabel}</a></Button>
         </div>
       </header>
 

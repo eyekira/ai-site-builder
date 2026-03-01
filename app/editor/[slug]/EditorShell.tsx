@@ -729,38 +729,40 @@ export default function EditorShell({
         </div>
       </main>
 
-      <aside className="bg-white p-4">
+      <aside className="h-screen overflow-y-auto overflow-x-hidden bg-white p-4">
         <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
           <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, layout: !s.layout }))} className="flex w-full items-center justify-between text-left font-semibold uppercase tracking-wide text-zinc-500">
             <span>Layout (Structure)</span>
             <span>{groupOpen.layout ? '−' : '+'}</span>
           </button>
-          {groupOpen.layout && <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-2 min-h-[18px] text-[11px]">
+            {layoutState === 'saving' && <p className="text-zinc-500">Saving layout…</p>}
+            {layoutState === 'saved' && <p className="text-emerald-600">Layout saved.</p>}
+            {layoutState === 'error' && <p className="text-red-600">{layoutMessage}</p>}
+          </div>
+
+          {groupOpen.layout && <div className="mt-3 grid grid-cols-2 gap-3 overflow-x-hidden">
             {LAYOUT_KEYS.map((key) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => onLayoutChange(key)}
-                className={`rounded-md border p-2 text-left text-[11px] transition ${
+                className={`w-full min-h-[116px] rounded-xl border p-3 text-left text-[11px] transition ${
                   currentLayout === key
-                    ? 'border-zinc-900 bg-zinc-50 text-zinc-900'
-                    : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400'
+                    ? 'ring-2 ring-zinc-400 ring-offset-1 border-zinc-900 bg-zinc-50 text-zinc-900'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:shadow-sm'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <div className="shrink-0"><LayoutThumbnail layoutKey={key} /></div>
+                <div className="flex h-full flex-col gap-2">
+                  <div className="h-20 w-full"><LayoutThumbnail layoutKey={key} /></div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold leading-tight">{LAYOUT_LABELS[key] ?? key}</p>
-                    <p className="mt-0.5 text-[10px] text-zinc-500">{LAYOUT_DESCRIPTORS[key] ?? 'Structure preset'}</p>
+                    <p className="line-clamp-2 text-[11px] font-semibold leading-snug">{LAYOUT_LABELS[key] ?? key}</p>
+                    <p className="mt-0.5 truncate text-[10px] text-zinc-500">{LAYOUT_DESCRIPTORS[key] ?? 'Structure preset'}</p>
                   </div>
                 </div>
               </button>
             ))}
           </div>}
-
-          {layoutState === 'saving' && <p className="mt-2 text-[11px] text-zinc-500">Saving layout…</p>}
-          {layoutState === 'saved' && <p className="mt-2 text-[11px] text-emerald-600">Layout saved.</p>}
-          {layoutState === 'error' && <p className="mt-2 text-[11px] text-red-600">{layoutMessage}</p>}
 
           <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, brand: !s.brand }))} className="mt-4 flex w-full items-center justify-between border-t border-zinc-200 pt-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             <span>Brand (Colors + Typography)</span>

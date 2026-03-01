@@ -1,4 +1,5 @@
 import { StickyMobileCTA } from '@/components/shared/StickyMobileCTA';
+import { Button } from '@/components/ui/button';
 import type { LayoutRenderProps } from './types';
 
 export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ctaLabel, sections, navLinks = [], anchors = {}, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
@@ -10,7 +11,7 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
         <div className={`flex items-center justify-center gap-6 ${typographyScaleClass ?? ''}`}>
           <h1 className="text-lg font-semibold tracking-wide">{title}</h1>
           {navLinks.length > 0 && <nav className={`hidden items-center gap-4 text-xs ${mutedTextClass} md:flex`}>{navLinks.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</nav>}
-          <a href={heroCtaHref} className="bp-primary-cta border px-3 py-1 text-xs font-semibold uppercase">{primaryLabel}</a>
+          <Button asChild intent="primary" variant="solid" size="sm" className="uppercase"><a href={heroCtaHref}>{primaryLabel}</a></Button>
         </div>
       </header>
 
@@ -35,7 +36,7 @@ export function BistroLayout({ title, mutedTextClass, cardClass, heroCtaHref, ct
         <div className={`fixed inset-x-0 bottom-0 z-40 border-t bg-[var(--brand-surface)]/95 px-3 py-2 backdrop-blur md:hidden ${surfaceClass ?? ''}`}>
           <div className="flex items-center justify-between text-[11px] font-semibold">
             <div className="flex items-center gap-3">{navLinks.slice(0, 3).map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}</div>
-            <a href={heroCtaHref} className="bp-primary-cta rounded-full px-3 py-1.5">{primaryLabel}</a>
+            <Button asChild intent="primary" variant="solid" size="sm"><a href={heroCtaHref}>{primaryLabel}</a></Button>
           </div>
         </div>
       )}

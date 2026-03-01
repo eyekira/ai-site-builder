@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { ContactContent } from '@/lib/section-content';
 
 export function ContactContentBlock({
@@ -5,14 +6,12 @@ export function ContactContentBlock({
   address,
   phone,
   hoursText,
-  buttonClassName,
   mutedTextClass,
 }: {
   content: ContactContent;
   address: string | null;
   phone: string | null;
   hoursText: string | null;
-  buttonClassName: string;
   mutedTextClass: string;
 }) {
   const actionHref = content.website || (phone ? `tel:${phone.replace(/[^0-9+]/g, '')}` : '#');
@@ -26,9 +25,9 @@ export function ContactContentBlock({
         {phone && <p>{phone}</p>}
         {hoursText && <p>{hoursText}</p>}
       </div>
-      <a href={actionHref} className={`mt-5 inline-flex rounded-full px-4 py-2 text-sm font-semibold ${buttonClassName}`}>
-        {content.ctaLabel || 'Contact'}
-      </a>
+      <Button asChild intent="primary" variant="solid" size="md" className="mt-5">
+        <a href={actionHref}>{content.ctaLabel || 'Contact'}</a>
+      </Button>
     </>
   );
 }

@@ -158,7 +158,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const radiusClass = brandPack.style.radius === 'soft' ? 'rounded-3xl' : brandPack.style.radius === 'sharp' ? 'rounded-none' : 'rounded-xl';
   const shadowClass =
     brandPack.style.shadow === 'none' ? 'shadow-none' : brandPack.style.shadow === 'elevated' ? 'shadow-xl' : 'shadow-sm';
-  const buttonShapeClass = brandPack.style.button === 'pill' ? 'rounded-full' : brandPack.style.button === 'square' ? 'rounded-none' : 'rounded-lg';
   const surfaceClass = `${radiusClass} ${shadowClass}`;
   const onPrimary = brandPack.palette.onPrimary ?? pickOnColor(brandPack.palette.primary);
   const onAccent = brandPack.palette.onAccent ?? pickOnColor(brandPack.palette.accent);
@@ -239,7 +238,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
         businessTitle={businessTitle}
         content={safeParseHeroContent(heroSection.contentJson ?? '{}')}
         heroClassName="text-current"
-        buttonClassName={`${theme.buttonClass} ${buttonShapeClass}`}
       />
     ) : undefined,
     about: aboutSection ? <AboutContentBlock content={safeParseAboutContent(aboutSection.contentJson ?? '{}')} mutedTextClass={theme.mutedTextClass} /> : undefined,
@@ -252,7 +250,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
         address={address}
         phone={phone}
         hoursText={hoursText}
-        buttonClassName={`${theme.buttonClass} ${buttonShapeClass}`}
         mutedTextClass={theme.mutedTextClass}
       />
     ) : undefined,
@@ -290,15 +287,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
           background: var(--bp-accent);
           color: var(--bp-on-accent);
         }
-        [data-site-embed="true"] .bp-primary-cta, [data-site-fullpage="true"] .bp-primary-cta {
-          background: var(--bp-primary);
-          color: var(--bp-on-primary);
-          border-color: var(--bp-border);
-        }
-        [data-site-embed="true"] .bp-primary-cta:hover, [data-site-fullpage="true"] .bp-primary-cta:hover {
-          color: var(--bp-on-primary);
-          filter: brightness(0.96);
-        }
         [data-site-embed="true"] input, [data-site-fullpage="true"] input,
         [data-site-embed="true"] select, [data-site-fullpage="true"] select,
         [data-site-embed="true"] textarea, [data-site-fullpage="true"] textarea {
@@ -332,6 +320,7 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
           ['--bp-border' as string]: brandPack.palette.border,
           ['--bp-on-primary' as string]: onPrimary,
           ['--bp-on-accent' as string]: onAccent,
+          ['--bp-radius-button' as string]: brandPack.style.button === 'pill' ? '999px' : brandPack.style.button === 'square' ? '4px' : '12px',
           ['--brand-primary' as string]: brandPack.palette.primary,
           ['--brand-secondary' as string]: brandPack.palette.secondary,
           ['--brand-accent' as string]: brandPack.palette.accent,

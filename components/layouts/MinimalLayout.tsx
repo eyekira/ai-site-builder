@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { LayoutRenderProps } from './types';
 
 export function MinimalLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, sections, navLinks = [], anchors = {}, surfaceClass, typographyScaleClass }: LayoutRenderProps) {
@@ -11,7 +12,7 @@ export function MinimalLayout({ title, mutedTextClass, heroCtaHref, ctaLabel, se
               {navLinks.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
             </nav>
           )}
-          <a href={heroCtaHref} className="bp-primary-cta rounded-lg px-3 py-1.5 text-xs font-semibold">{ctaLabel}</a>
+          <Button asChild intent="primary" variant="solid" size="sm"><a href={heroCtaHref}>{ctaLabel}</a></Button>
         </div>
       </header>
 
