@@ -127,12 +127,38 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to scan candidates');
+      const received = data.candidates?.length ?? 0;
+
+      // Auto-fallback: if menu-only filter hides everything, immediately rescan with all photos.
+      if (menuOnly && received === 0) {
+        setMenuOnly(false);
+        const retry = await fetch('/api/preview/menu-photo-candidates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ previewId, action: 'rescan', menuOnly: false }),
+        });
+        const retryData = await retry.json();
+        if (!retry.ok) throw new Error(retryData.error || 'Failed to scan candidates');
+        setCandidates(retryData.candidates ?? []);
+        setScannedCount(retryData.scannedCount ?? retryData.menuPhotoScan?.scannedCount ?? 0);
+        setReturnedCount(retryData.returnedCount ?? (retryData.candidates?.length ?? 0));
+
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[menu-candidates][client][rescan][fallback-all]', {
+            received: retryData.candidates?.length ?? 0,
+            unique: new Set((retryData.candidates ?? []).map((c: Candidate) => c.ref)).size,
+            scannedCount: retryData.scannedCount,
+          });
+        }
+        return;
+      }
+
       setCandidates(data.candidates ?? []);
       setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
       setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
       if (process.env.NODE_ENV !== 'production') {
         console.log('[menu-candidates][client][rescan]', {
-          received: data.candidates?.length ?? 0,
+          received,
           unique: new Set((data.candidates ?? []).map((c: Candidate) => c.ref)).size,
           scannedCount: data.scannedCount,
         });
