@@ -2,7 +2,7 @@
 
 import { Loader2, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,6 @@ type PlaceSuggestion = {
 };
 
 export function PlaceSearch() {
-  const router = useRouter();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -119,11 +118,7 @@ export function PlaceSearch() {
         window.location.assign(destination);
         return;
       }
-      if (!data.slug) {
-        throw new Error('Missing slug in response.');
-      }
-
-      router.push(`/editor/${data.slug}`);
+      throw new Error('Missing previewId in response. Expected preview flow.');
     } catch {
       setError('Failed to create the site. Please try again.');
     } finally {

@@ -341,7 +341,10 @@ export async function POST(request: NextRequest) {
         if (existingSite.ownerId === ownerId) {
           const existingRenderSite = await getSiteForOwnerRender(existingSite.slug, ownerId!);
           if (!existingRenderSite) {
-            return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+            return NextResponse.json(
+              { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for existing site.' },
+              { status: 500 },
+            );
           }
           const previewSession = await createPreviewSession(existingRenderSite);
           const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
@@ -697,7 +700,10 @@ export async function POST(request: NextRequest) {
 
     const createdRenderSite = await getSiteForOwnerRender(created.slug, ownerId!);
     if (!createdRenderSite) {
-      return NextResponse.json({ siteId: created.id, slug: created.slug });
+      return NextResponse.json(
+        { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for created site.' },
+        { status: 500 },
+      );
     }
 
     const previewSession = await createPreviewSession(createdRenderSite);
