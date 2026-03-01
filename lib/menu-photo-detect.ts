@@ -51,14 +51,21 @@ export function heuristicScore(input: { ref: string; width?: number | null; heig
   return clamp(score);
 }
 
-async function imageUrlToDataUrl(imageUrl: string): Promise<string> {
-  const res = await fetch(imageUrl, { cache: 'no-store' });
+function toAbsoluteImageUrl(imageUrl: string): string {
+  if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+  const base = process.env.AUTH_URL || process.env.NEXTAUTH_URL || 'http://localhost:5000';
+  return `${base.replace(/\/$/, '')}/${imageUrl.replace(/^\//, '')}`;
+}
+
+async function imageUrlToDataUrl(imageUrl: string): Promise<{ dataUrl: string; resolvedUrl: string }> {
+  const resolvedUrl = toAbsoluteImageUrl(imageUrl);
+  const res = await fetch(resolvedUrl, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(`IMAGE_FETCH_${res.status}`);
   }
   const contentType = res.headers.get('content-type') || 'image/jpeg';
   const buf = Buffer.from(await res.arrayBuffer());
-  return `data:${contentType};base64,${buf.toString('base64')}`;
+  return { dataUrl: `data:${contentType};base64,${buf.toString('base64')}`, resolvedUrl };
 }
 
 function parseJsonLoose(raw: string): Record<string, unknown> | null {
@@ -81,29 +88,32 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     return {
       label: 'other',
       is_menu: false,
-      confidence: heuristicScore({ ref }),
+      confidence: 0,
       text_density: 'low',
       has_prices: false,
-      notes: 'vision-unavailable; heuristic-only',
-      score: heuristicScore({ ref }),
+      notes: 'vision-unavailable',
+      score: 0,
       status: 'unclassified',
       errorCode: 'MISSING_API_KEY',
     };
   }
 
   let dataUrl: string;
+  let resolvedUrl: string;
   try {
-    dataUrl = await imageUrlToDataUrl(imageUrl);
+    const converted = await imageUrlToDataUrl(imageUrl);
+    dataUrl = converted.dataUrl;
+    resolvedUrl = converted.resolvedUrl;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'IMAGE_FETCH_FAILED';
     return {
       label: 'other',
       is_menu: false,
-      confidence: heuristicScore({ ref }),
+      confidence: 0,
       text_density: 'low',
       has_prices: false,
       notes: `image-fetch-failed:${message}`,
-      score: heuristicScore({ ref }),
+      score: 0,
       status: 'unclassified',
       errorCode: message,
     };
@@ -128,6 +138,20 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     ],
     max_output_tokens: 220,
   };
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[menu-photo-classifier][request]', {
+      ref,
+      model,
+      finalImageUrl: resolvedUrl,
+      payloadShape: {
+        hasInputArray: Array.isArray(payload.input),
+        contentTypes: ['input_text', 'input_image'],
+        imageEncoding: 'data_url',
+      },
+      payloadBytes: JSON.stringify(payload).length,
+    });
+  }
 
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -155,11 +179,11 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     return {
       label: 'other',
       is_menu: false,
-      confidence: heuristicScore({ ref }),
+      confidence: 0,
       text_density: 'low',
       has_prices: false,
       notes: `vision-request-failed:${errorBody.slice(0, 120) || 'no-body'}`,
-      score: heuristicScore({ ref }),
+      score: 0,
       status: 'unclassified',
       errorCode: `HTTP_${response.status}`,
     };
@@ -171,11 +195,11 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     return {
       label: 'other',
       is_menu: false,
-      confidence: heuristicScore({ ref }),
+      confidence: 0,
       text_density: 'low',
       has_prices: false,
       notes: 'vision-parse-failed',
-      score: heuristicScore({ ref }),
+      score: 0,
       status: 'unclassified',
       errorCode: 'PARSE_FAILED',
     };
