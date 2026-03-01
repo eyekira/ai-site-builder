@@ -73,12 +73,22 @@ function parseJsonLoose(raw: string): Record<string, unknown> | null {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     const fence = raw.match(/```json\s*([\s\S]*?)```/i);
-    if (!fence?.[1]) return null;
-    try {
-      return JSON.parse(fence[1]) as Record<string, unknown>;
-    } catch {
-      return null;
+    if (fence?.[1]) {
+      try {
+        return JSON.parse(fence[1]) as Record<string, unknown>;
+      } catch {
+        // continue
+      }
     }
+    const firstObj = raw.match(/\{[\s\S]*\}/);
+    if (firstObj?.[0]) {
+      try {
+        return JSON.parse(firstObj[0]) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 }
 
@@ -215,12 +225,26 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     };
   }
 
-  const label = (parsed.label as MenuPhotoLabel) ?? 'other';
+  const rawLabel = String(parsed.label ?? '').toLowerCase().replace(/[\s-]+/g, '_');
+  const labelMap: Record<string, MenuPhotoLabel> = {
+    menu_board: 'menu_board',
+    printed_menu: 'printed_menu',
+    menu_screenshot: 'menu_screenshot',
+    food: 'food',
+    food_photo: 'food',
+    interior: 'interior',
+    exterior: 'exterior',
+    logo: 'logo',
+    other: 'other',
+  };
+  const label = labelMap[rawLabel] ?? 'other';
+
   const confidence = clamp(Number(parsed.confidence ?? heuristicScore({ ref })));
-  const text_density = parsed.text_density === 'high' || parsed.text_density === 'med' ? (parsed.text_density as 'high' | 'med') : 'low';
-  const has_prices = Boolean(parsed.has_prices);
-  const is_menu = Boolean(parsed.is_menu);
-  const notes = typeof parsed.notes === 'string' ? parsed.notes : '';
+  const densityRaw = String(parsed.text_density ?? '').toLowerCase();
+  const text_density = densityRaw === 'high' ? 'high' : densityRaw === 'medium' || densityRaw === 'med' ? 'med' : 'low';
+  const has_prices = Boolean(parsed.has_prices ?? parsed.price_pattern_detected);
+  const is_menu = Boolean(parsed.is_menu ?? ['menu_board', 'printed_menu', 'menu_screenshot'].includes(label));
+  const notes = typeof parsed.notes === 'string' ? parsed.notes : typeof parsed.reason === 'string' ? parsed.reason : '';
   const score = menuScoreFromClassification({ label, confidence, text_density, has_prices });
 
   return {
