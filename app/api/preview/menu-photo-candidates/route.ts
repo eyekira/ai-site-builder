@@ -7,12 +7,16 @@ import { prisma } from '@/lib/prisma';
 
 type ScanCacheEntry = {
   ref: string;
-  url: string;
+  thumbUrl: string;
+  mediumUrl: string;
   source: 'Google photo';
   score: number;
+  label: string;
   reason: string;
-  textDensity: 'low' | 'medium' | 'high';
-  pricePatternDetected: boolean;
+  textDensity: 'low' | 'med' | 'high';
+  hasPrices: boolean;
+  status: 'classified' | 'unclassified';
+  errorCode?: string;
 };
 
 type ScanState = {
@@ -22,8 +26,8 @@ type ScanState = {
   cache: Record<string, ScanCacheEntry>;
 };
 
-function toPhotoUrl(ref: string) {
-  return `/api/places/photo?ref=${encodeURIComponent(ref)}&maxwidth=1200`;
+function toPhotoUrl(ref: string, maxwidth: number) {
+  return `/api/places/photo?ref=${encodeURIComponent(ref)}&maxwidth=${maxwidth}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -39,18 +43,24 @@ export async function POST(request: NextRequest) {
   const parsed = JSON.parse(session.dataJson) as Record<string, unknown>;
   const site = parsed as { placeId?: string | null; photos?: Array<{ googlePhotoRef?: string | null; url?: string }> };
 
-  const baseRefs = (site.photos ?? []).map((p) => p.googlePhotoRef).filter((x): x is string => Boolean(x));
-  let detailRefs: string[] = [];
+  const beforeRefs = [
+    ...(site.photos ?? []).map((p) => p.googlePhotoRef).filter((x): x is string => Boolean(x)),
+  ];
+
+  let detailRefs: Array<{ ref: string; width: number | null; height: number | null }> = [];
   try {
     if (site.placeId) {
       const details = await fetchPlaceDetails(site.placeId);
-      detailRefs = details.photos.map((p) => p.ref);
+      detailRefs = details.photos.map((p) => ({ ref: p.ref, width: p.width, height: p.height }));
     }
   } catch {
     detailRefs = [];
   }
 
-  const allRefs = Array.from(new Set([...baseRefs, ...detailRefs])).slice(0, 60);
+  const merged = [...beforeRefs, ...detailRefs.map((p) => p.ref)].slice(0, 80);
+  const allRefs = Array.from(new Set(merged)).slice(0, 60);
+
+  const dimensionMap = new Map(detailRefs.map((p) => [p.ref, { width: p.width, height: p.height }]));
 
   const existingState = ((parsed.__menuPhotoScan as ScanState | undefined) ?? {
     cursor: undefined,
@@ -61,26 +71,35 @@ export async function POST(request: NextRequest) {
   const state: ScanState = body.action === 'rescan' ? { cursor: undefined, scannedCount: 0, cache: {} } : existingState;
 
   const start = state.cursor ? Math.max(0, allRefs.findIndex((r) => r === state.cursor) + 1) : 0;
-  const batchRefs = allRefs.slice(start, start + 12);
+  const batchRefs = allRefs.slice(start, start + 20);
 
   const heuristicSorted = batchRefs
-    .map((ref) => ({ ref, h: heuristicScore({ ref }) }))
+    .map((ref) => {
+      const dim = dimensionMap.get(ref);
+      return { ref, h: heuristicScore({ ref, width: dim?.width ?? null, height: dim?.height ?? null }) };
+    })
     .sort((a, b) => b.h - a.h)
-    .slice(0, 30)
     .map((x) => x.ref);
 
   for (const ref of heuristicSorted) {
     if (state.cache[ref]) continue;
-    const url = toPhotoUrl(ref);
-    const vision = await classifyMenuPhotoViaVision(url);
+
+    const thumbUrl = toPhotoUrl(ref, 420);
+    const mediumUrl = toPhotoUrl(ref, 1200);
+    const vision = await classifyMenuPhotoViaVision(thumbUrl);
+
     state.cache[ref] = {
       ref,
-      url,
+      thumbUrl,
+      mediumUrl,
       source: 'Google photo',
-      score: vision.menuLikelihoodScore,
-      reason: vision.reason,
+      score: vision.score,
+      label: vision.label,
+      reason: vision.notes,
       textDensity: vision.text_density,
-      pricePatternDetected: vision.price_pattern_detected,
+      hasPrices: vision.has_prices,
+      status: vision.status,
+      errorCode: vision.errorCode,
     };
     state.scannedCount += 1;
   }
@@ -88,20 +107,26 @@ export async function POST(request: NextRequest) {
   state.cursor = batchRefs.length > 0 ? batchRefs[batchRefs.length - 1] : state.cursor;
   state.lastScanAt = new Date().toISOString();
 
-  const topCandidates = Object.values(state.cache)
+  const candidatesAll = Object.values(state.cache)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
     .map((entry) => ({
       ref: entry.ref,
-      url: entry.url,
+      url: entry.mediumUrl,
+      thumbUrl: entry.thumbUrl,
       source: entry.source,
       score: entry.score,
+      label: entry.label,
       reason: entry.reason,
-      status: 'pending' as const,
+      textDensity: entry.textDensity,
+      hasPrices: entry.hasPrices,
+      status: entry.status,
+      errorCode: entry.errorCode,
       selected: entry.score >= 0.65,
     }));
 
-  const filtered = body.menuOnly ? topCandidates.filter((c) => c.score >= 0.5) : topCandidates;
+  const filtered = body.menuOnly
+    ? candidatesAll.filter((c) => ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label) || c.score >= 0.65)
+    : candidatesAll;
 
   const updatedJson = JSON.stringify({
     ...parsed,
@@ -109,7 +134,7 @@ export async function POST(request: NextRequest) {
       cursor: state.cursor,
       scannedCount: state.scannedCount,
       lastScanAt: state.lastScanAt,
-      topCandidates: topCandidates.map((c) => ({ ref: c.ref, score: c.score, reason: c.reason })),
+      topCandidates: candidatesAll.slice(0, 8).map((c) => ({ ref: c.ref, score: c.score, reason: c.label })),
       cache: state.cache,
     },
   });
@@ -119,13 +144,26 @@ export async function POST(request: NextRequest) {
     data: { dataJson: updatedJson },
   });
 
+  const payload = {
+    scannedCount: state.scannedCount,
+    returnedCount: filtered.length,
+    candidateRefs: filtered.map((c) => c.ref),
+    deduped: { before: merged.length, after: allRefs.length },
+    cursor: state.cursor ?? null,
+  };
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[menu-photo-candidates][counts]', payload);
+  }
+
   return NextResponse.json({
     candidates: filtered,
     menuPhotoScan: {
       cursor: state.cursor,
       scannedCount: state.scannedCount,
       lastScanAt: state.lastScanAt,
-      topCandidates: topCandidates.map((c) => ({ ref: c.ref, score: c.score, reason: c.reason })),
+      topCandidates: candidatesAll.slice(0, 8).map((c) => ({ ref: c.ref, score: c.score, reason: c.label })),
     },
+    ...payload,
   });
 }

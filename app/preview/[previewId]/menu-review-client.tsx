@@ -27,11 +27,16 @@ type MenuOcrEvidence = {
 type Candidate = {
   ref: string;
   url: string;
+  thumbUrl?: string;
   source: 'Google photo';
   selected: boolean;
-  status: 'pending' | 'success' | 'empty' | 'error';
+  status: 'pending' | 'success' | 'empty' | 'error' | 'classified' | 'unclassified';
   score: number;
+  label?: string;
   reason: string;
+  textDensity?: 'low' | 'med' | 'high';
+  hasPrices?: boolean;
+  errorCode?: string;
   extractedItemCount?: number;
 };
 
@@ -80,6 +85,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [menuOnly, setMenuOnly] = useState(false);
   const [scannedCount, setScannedCount] = useState(0);
+  const [returnedCount, setReturnedCount] = useState(0);
+  const [imageFailures, setImageFailures] = useState<Record<string, boolean>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,7 +95,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   }, []);
 
   const selectedCandidates = useMemo(() => candidates.filter((c) => c.selected), [candidates]);
-  const hasGoodSelected = selectedCandidates.some((c) => c.score >= 0.5);
+  const hasGoodSelected = selectedCandidates.some((c) => c.score >= 0.5 || ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label ?? ''));
 
   const updateItem = (index: number, patch: Partial<MenuItem>) => {
     if (!menu) return;
@@ -120,8 +127,16 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to scan candidates');
-      setCandidates(data.candidates);
-      setScannedCount(data.menuPhotoScan?.scannedCount ?? 0);
+      setCandidates(data.candidates ?? []);
+      setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
+      setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[menu-candidates][client][rescan]', {
+          received: data.candidates?.length ?? 0,
+          unique: new Set((data.candidates ?? []).map((c: Candidate) => c.ref)).size,
+          scannedCount: data.scannedCount,
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to scan candidates');
     } finally {
@@ -140,8 +155,22 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load more');
-      setCandidates(data.candidates);
-      setScannedCount(data.menuPhotoScan?.scannedCount ?? 0);
+
+      setCandidates((prev) => {
+        const merged = [...prev, ...(data.candidates ?? [])];
+        const deduped = Array.from(new Map(merged.map((c: Candidate) => [c.ref, c])).values());
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[menu-candidates][client][load-more]', {
+            prev: prev.length,
+            incoming: data.candidates?.length ?? 0,
+            deduped: deduped.length,
+            scannedCount: data.scannedCount,
+          });
+        }
+        return deduped;
+      });
+      setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
+      setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load more');
     } finally {
@@ -293,13 +322,24 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                 <button type="button" onClick={rescanCandidates} className="rounded border border-zinc-300 px-2 py-1">Rescan for menus</button>
               </div>
             </div>
-            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos</p>
+            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos · showing {candidates.length} (api returned {returnedCount})</p>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               {candidates.map((candidate) => (
                 <label key={candidate.ref} className="rounded border border-zinc-200 p-1 text-xs">
-                  <img src={candidate.url} alt={candidate.ref} className="h-20 w-full rounded object-cover" />
+                  {imageFailures[candidate.ref] ? (
+                    <div className="flex h-20 w-full items-center justify-center rounded border border-zinc-200 bg-zinc-50 text-[10px] text-zinc-500">image failed to load</div>
+                  ) : (
+                    <img
+                      src={candidate.thumbUrl ?? candidate.url}
+                      alt={candidate.ref}
+                      className="h-20 w-full rounded object-cover"
+                      onError={() => setImageFailures((prev) => ({ ...prev, [candidate.ref]: true }))}
+                    />
+                  )}
                   <div className="mt-1 flex items-center justify-between gap-1">
-                    <span className="truncate text-[10px]">Menu {candidate.score.toFixed(2)}</span>
+                    <span className="truncate text-[10px]" title={`${candidate.label ?? 'other'} • ${candidate.score.toFixed(2)} | ${candidate.reason || 'no-notes'} | density:${candidate.textDensity ?? 'low'} | prices:${candidate.hasPrices ? 'yes' : 'no'}`}>
+                      {(candidate.label ?? 'other')} • {candidate.score.toFixed(2)}
+                    </span>
                     <input
                       type="checkbox"
                       checked={candidate.selected}
@@ -308,7 +348,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                       }
                     />
                   </div>
-                  <p className="truncate text-[10px] text-zinc-500">{candidate.reason}</p>
+                  <p className="truncate text-[10px] text-zinc-500">{candidate.reason || candidate.status}</p>
+                  {candidate.status === 'unclassified' && <p className="text-[10px] text-amber-600">unclassified{candidate.errorCode ? ` (${candidate.errorCode})` : ''}</p>}
                 </label>
               ))}
             </div>
