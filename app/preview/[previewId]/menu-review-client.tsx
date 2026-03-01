@@ -86,6 +86,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   const [menuOnly, setMenuOnly] = useState(false);
   const [scannedCount, setScannedCount] = useState(0);
   const [returnedCount, setReturnedCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalAvailableRefs, setTotalAvailableRefs] = useState(0);
   const [imageFailures, setImageFailures] = useState<Record<string, boolean>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -142,6 +144,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
         setCandidates(retryData.candidates ?? []);
         setScannedCount(retryData.scannedCount ?? retryData.menuPhotoScan?.scannedCount ?? 0);
         setReturnedCount(retryData.returnedCount ?? (retryData.candidates?.length ?? 0));
+        setHasMore(Boolean(retryData.hasMore));
+        setTotalAvailableRefs(Number(retryData.totalAvailableRefs ?? 0));
 
         if (process.env.NODE_ENV !== 'production') {
           console.log('[menu-candidates][client][rescan][fallback-all]', {
@@ -156,6 +160,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       setCandidates(data.candidates ?? []);
       setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
       setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
+      setHasMore(Boolean(data.hasMore));
+      setTotalAvailableRefs(Number(data.totalAvailableRefs ?? 0));
       if (process.env.NODE_ENV !== 'production') {
         console.log('[menu-candidates][client][rescan]', {
           received,
@@ -192,6 +198,8 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       }
       setScannedCount(data.scannedCount ?? data.menuPhotoScan?.scannedCount ?? 0);
       setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
+      setHasMore(Boolean(data.hasMore));
+      setTotalAvailableRefs(Number(data.totalAvailableRefs ?? 0));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load more');
     } finally {
@@ -339,11 +347,12 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                 <label className="inline-flex items-center gap-1">
                   <input type="checkbox" checked={menuOnly} onChange={(e) => setMenuOnly(e.target.checked)} /> Menu only
                 </label>
-                <button type="button" onClick={loadMoreCandidates} className="rounded border border-zinc-300 px-2 py-1">Load more photos</button>
+                <button type="button" onClick={loadMoreCandidates} disabled={!hasMore} className="rounded border border-zinc-300 px-2 py-1 disabled:opacity-50">Load more photos</button>
                 <button type="button" onClick={rescanCandidates} className="rounded border border-zinc-300 px-2 py-1">Rescan for menus</button>
               </div>
             </div>
-            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos · showing {candidates.length} (api returned {returnedCount})</p>
+            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos (source max {totalAvailableRefs}) · showing {candidates.length} (api returned {returnedCount})</p>
+            {!hasMore && <p className="mb-2 text-[11px] text-zinc-500">No more Google photos available for this place.</p>}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               {candidates.map((candidate) => (
                 <label key={candidate.ref} className="rounded border border-zinc-200 p-1 text-xs">

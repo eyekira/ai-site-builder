@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
 
   const start = state.cursor ? Math.max(0, allRefs.findIndex((r) => r === state.cursor) + 1) : 0;
   const refsToProcess = allRefs.slice(start, start + LOAD_BATCH);
+  const hasMore = start + LOAD_BATCH < allRefs.length;
 
   const heuristicRanked = refsToProcess
     .map((ref) => {
@@ -178,6 +179,8 @@ export async function POST(request: NextRequest) {
     candidateRefs: filtered.map((c) => c.ref),
     deduped: { before: merged.length, after: allRefs.length, duplicatesDropped: merged.length - allRefs.length },
     cursor: state.cursor ?? null,
+    hasMore,
+    totalAvailableRefs: allRefs.length,
     labelCounts,
   };
 
