@@ -159,12 +159,3 @@ export function extractLayoutKey(themeJson: string | null | undefined): string |
   }
 }
 
-export function extractCulturalStyleKey(themeJson: string | null | undefined): string | null {
-  if (!themeJson) return null;
-  try {
-    const parsed = JSON.parse(themeJson) as { culturalStyleKey?: string } | null;
-    return typeof parsed?.culturalStyleKey === 'string' ? parsed.culturalStyleKey : null;
-  } catch {
-    return null;
-  }
-}

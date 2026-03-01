@@ -356,42 +356,6 @@ export async function updateLayout(siteId: number, layoutKey: string) {
   revalidatePath(`/s/${site.slug}`);
 }
 
-export async function updateCulturalStyle(siteId: number, culturalStyleKey: string) {
-  const viewer = await getViewerContext();
-  if (!viewer.userId) throw new Error('Authentication required to edit this site.');
-
-  const site = await prisma.site.findFirst({
-    where: { id: siteId, ownerId: viewer.userId },
-    select: { id: true, slug: true, ownerId: true, anonSessionId: true, themeJson: true },
-  });
-
-  if (!site || !canAccessSite(site, viewer)) throw new Error('Not authorized to edit this site.');
-
-  let existingThemeJson: Record<string, unknown> = {};
-  if (site.themeJson) {
-    try {
-      existingThemeJson = JSON.parse(site.themeJson) as Record<string, unknown>;
-    } catch {
-      existingThemeJson = {};
-    }
-  }
-
-  await prisma.site.update({
-    where: { id: siteId },
-    data: {
-      themeJson: JSON.stringify({
-        ...existingThemeJson,
-        culturalStyleKey,
-      }),
-    },
-  });
-
-  revalidatePath(`/${site.slug}`);
-  revalidatePath(`/editor/${site.slug}`);
-  revalidatePath(`/editor/${site.slug}/preview`);
-  revalidatePath(`/s/${site.slug}`);
-}
-
 export async function updateBrandCustomization(
   siteId: number,
   payload: {

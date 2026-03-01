@@ -6,7 +6,6 @@ import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
 import { generateBrandPack } from '@/lib/brandpack/generate';
-import { inferLayoutAndCulturalStyle } from '@/lib/cultural-style/styles';
 
 function slugify(value: string) {
   return value
@@ -175,43 +174,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const placeTypes = Array.isArray((place as { types?: string[] }).types) ? ((place as { types?: string[] }).types ?? []) : [];
-    const primaryType = (place as { primaryType?: string | null }).primaryType ?? null;
-    const reviewSnippets = Array.isArray((place as { reviews?: Array<{ text?: string | null }> }).reviews)
-      ? (((place as { reviews?: Array<{ text?: string | null }> }).reviews ?? [])
-          .map((review) => review.text ?? '')
-          .filter((text) => text.trim().length > 0)
-          .slice(0, 3))
-      : [];
-
-    const textSignals = [place.name, place.address ?? '', place.website ?? '', ...placeTypes, primaryType ?? '', ...reviewSnippets];
+    const textSignals = [place.name, place.address ?? '', place.website ?? ''];
     const brandPack = generateBrandPack({ textSignals });
-    const inferredStyle = inferLayoutAndCulturalStyle({ textSignals });
-    const culturalDebug = {
-      placeName: place.name,
-      placeTypes,
-      primaryType,
-      computedKeywords: textSignals.filter(Boolean).slice(0, 20),
-      reviewSnippets,
-      matchedCulturalStyleKey: inferredStyle.culturalStyleKey,
-      matchReason: inferredStyle.matchReason,
-      matchedKeyword: inferredStyle.matchedKeyword,
-    };
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[cultural-style][create-from-place]', culturalDebug);
-    }
 
     const site = await prisma.site.create({
       data: {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
-        themeJson: JSON.stringify({
-          name: 'bistro_core',
-          layoutKey: inferredStyle.layoutKey,
-          culturalStyleKey: inferredStyle.culturalStyleKey,
-          styleDebug: culturalDebug,
-        }),
+        themeJson: JSON.stringify({ name: 'bistro_core' }),
         brandPackJson: JSON.stringify(brandPack),
         ownerId,
         placeId: place.id,

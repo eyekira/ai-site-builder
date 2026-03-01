@@ -24,8 +24,6 @@ import { extractTemplateMetadata, parseThemeJson } from '@/lib/theme';
 import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 import { parseBrandPack } from '@/lib/brandpack/parse';
 import { FONT_CLASS_BY_KEY } from '@/lib/brandpack/fonts';
-import { CulturalStyleProvider } from '@/components/cultural/CulturalStyleProvider';
-import { getCulturalStyle } from '@/lib/cultural-style/styles';
 
 
 type SiteRendererProps = {
@@ -125,14 +123,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
   const Layout = LAYOUT_COMPONENTS[layoutKey] ?? LAYOUT_COMPONENTS.minimal_contemporary;
   const { templateKey } = extractTemplateMetadata(site.themeJson);
   const brandPack = parseBrandPack(site.brandPackJson);
-  const themeMeta = (() => {
-    try {
-      return JSON.parse(site.themeJson ?? '{}') as { culturalStyleKey?: string };
-    } catch {
-      return {} as { culturalStyleKey?: string };
-    }
-  })();
-  const culturalStyle = getCulturalStyle(themeMeta.culturalStyleKey);
   const hasEditorOverride = brandPack.source.signals.includes('editor_override');
   const defaultPairingByLayout: Record<string, { heading: keyof typeof FONT_CLASS_BY_KEY; body: keyof typeof FONT_CLASS_BY_KEY }> = {
     luxury: { heading: 'playfair_display', body: 'merriweather' },
@@ -142,13 +132,8 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
     menu_first: { heading: 'manrope', body: 'inter' },
   };
   const pairing = defaultPairingByLayout[layoutKey] ?? defaultPairingByLayout.minimal_contemporary;
-  const culturalPairing = culturalStyle.defaultFontPairing;
-  const headingFontKey = hasEditorOverride
-    ? brandPack.typography.headingFontKey
-    : (culturalPairing?.headingKey as keyof typeof FONT_CLASS_BY_KEY) ?? pairing.heading;
-  const bodyFontKey = hasEditorOverride
-    ? brandPack.typography.bodyFontKey
-    : (culturalPairing?.bodyKey as keyof typeof FONT_CLASS_BY_KEY) ?? pairing.body;
+  const headingFontKey = hasEditorOverride ? brandPack.typography.headingFontKey : pairing.heading;
+  const bodyFontKey = hasEditorOverride ? brandPack.typography.bodyFontKey : pairing.body;
   const headingFontClass = FONT_CLASS_BY_KEY[headingFontKey];
   const bodyFontClass = FONT_CLASS_BY_KEY[bodyFontKey];
 
@@ -170,13 +155,10 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
           : layoutKey === 'minimal_contemporary'
             ? 'max-w-[76rem]'
             : 'max-w-[88rem]';
-  const effectiveRadius =
-    culturalStyle.surface.radiusBias === 'pill' ? 'soft' : culturalStyle.surface.radiusBias === 'sharp' ? 'sharp' : brandPack.style.radius;
-  const radiusClass = effectiveRadius === 'soft' ? 'rounded-3xl' : effectiveRadius === 'sharp' ? 'rounded-none' : 'rounded-xl';
+  const radiusClass = brandPack.style.radius === 'soft' ? 'rounded-3xl' : brandPack.style.radius === 'sharp' ? 'rounded-none' : 'rounded-xl';
   const shadowClass =
     brandPack.style.shadow === 'none' ? 'shadow-none' : brandPack.style.shadow === 'elevated' ? 'shadow-xl' : 'shadow-sm';
-  const effectiveButtonStyle = culturalStyle.button.shape === 'pill' ? 'pill' : culturalStyle.button.shape === 'sharp' ? 'square' : brandPack.style.button;
-  const buttonShapeClass = effectiveButtonStyle === 'pill' ? 'rounded-full' : effectiveButtonStyle === 'square' ? 'rounded-none' : 'rounded-lg';
+  const buttonShapeClass = brandPack.style.button === 'pill' ? 'rounded-full' : brandPack.style.button === 'square' ? 'rounded-none' : 'rounded-lg';
   const surfaceClass = `${radiusClass} ${shadowClass}`;
   const onPrimary = brandPack.palette.onPrimary ?? pickOnColor(brandPack.palette.primary);
   const onAccent = brandPack.palette.onAccent ?? pickOnColor(brandPack.palette.accent);
@@ -308,12 +290,12 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
           background: var(--bp-accent);
           color: var(--bp-on-accent);
         }
-        [data-site-embed="true"] .cs-primary-cta, [data-site-fullpage="true"] .cs-primary-cta {
+        [data-site-embed="true"] .bp-primary-cta, [data-site-fullpage="true"] .bp-primary-cta {
           background: var(--bp-primary);
           color: var(--bp-on-primary);
           border-color: var(--bp-border);
         }
-        [data-site-embed="true"] .cs-primary-cta:hover, [data-site-fullpage="true"] .cs-primary-cta:hover {
+        [data-site-embed="true"] .bp-primary-cta:hover, [data-site-fullpage="true"] .bp-primary-cta:hover {
           color: var(--bp-on-primary);
           filter: brightness(0.96);
         }
@@ -336,7 +318,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
         body:has([data-site-fullpage="true"]) [data-app-main="true"] { max-width: 100%; padding: 0; }
       `}</style>
 
-      <CulturalStyleProvider styleKey={culturalStyle.key}>
       <div
         data-site-embed={embedMode ? 'true' : undefined}
         data-site-fullpage={fullPage ? 'true' : undefined}
@@ -385,7 +366,6 @@ export function SiteRenderer({ site, embedMode = false, fullPage = false, canEdi
           />
         </div>
       </div>
-      </CulturalStyleProvider>
     </>
   );
 }

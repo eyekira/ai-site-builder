@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateLayout, updateCulturalStyle, updateBrandCustomization, importMenuFromMenuPhotos } from './actions';
+import { addSection, reorderSections, updateSection, updateLayout, updateBrandCustomization, importMenuFromMenuPhotos } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -16,9 +16,7 @@ import {
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
-import { CulturalThumbnail } from '@/components/cultural/CulturalThumbnail';
-import { LayoutThumbnail } from '@/components/cultural/LayoutThumbnail';
-import { CULTURAL_STYLES } from '@/lib/cultural-style/styles';
+import { LayoutThumbnail } from '@/components/layouts/LayoutThumbnail';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
@@ -54,7 +52,6 @@ type EditorShellProps = {
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
   layoutKey: string | null;
-  culturalStyleKey: string | null;
   brandPackJson: string | null;
   isLoggedIn: boolean;
   isSubscribed: boolean;
@@ -92,17 +89,12 @@ const LAYOUT_LABELS: Record<string, string> = {
   menu_first: 'Menu First Layout',
 };
 
-const CULTURAL_STYLE_DESCRIPTORS: Record<string, string> = {
-  japanese_minimal: 'Hairline divider · outline CTA · minimal pattern',
-  korean_modern: 'Pill CTAs · subtle grid · soft cards',
-  chinese_contemporary: 'Stamp divider · tile pattern · rounded CTA',
-  mediterranean_coastal: 'Wave pattern · patterned divider · outline pill',
-  latin_street: 'Stamp pattern · bold pill CTA · energetic divider',
-  american_classic: 'Linen pattern · hairline divider · balanced CTA',
-  indian_spice_house: 'Patterned divider · tiled texture · rounded CTA',
-  middle_eastern_modern: 'Geometric pattern · patterned divider · outline CTA',
-  french_atelier: 'Linen texture · hairline divider · sharp CTA',
-  italian_warm_modern: 'Linen texture · hairline divider · soft rounded CTA',
+const LAYOUT_DESCRIPTORS: Record<string, string> = {
+  luxury: 'Reservation-led, photo hero',
+  modern_casual: 'Order CTA, fast scanning',
+  cozy_local: 'Warm story + specials',
+  minimal_contemporary: 'Typography + whitespace',
+  menu_first: 'Best for large menus',
 };
 
 type PaletteOption = {
@@ -231,7 +223,6 @@ export default function EditorShell({
   slug,
   siteStatus,
   layoutKey,
-  culturalStyleKey,
   brandPackJson,
   isLoggedIn,
   isSubscribed,
@@ -257,7 +248,6 @@ export default function EditorShell({
   const [upgradeState, setUpgradeState] = useState<'idle' | 'subscribing' | 'error'>('idle');
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
   const [currentLayout, setCurrentLayout] = useState<string | null>(layoutKey ?? 'minimal_contemporary');
-  const [currentCulturalStyle, setCurrentCulturalStyle] = useState<string>(culturalStyleKey ?? 'american_classic');
   const [layoutState, setLayoutState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [layoutMessage, setLayoutMessage] = useState<string | null>(null);
 
@@ -285,9 +275,8 @@ export default function EditorShell({
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [previewViewport, setPreviewViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [groupOpen, setGroupOpen] = useState<{ layout: boolean; cultural: boolean; brand: boolean }>({
+  const [groupOpen, setGroupOpen] = useState<{ layout: boolean; brand: boolean }>({
     layout: true,
-    cultural: false,
     brand: false,
   });
 
@@ -572,26 +561,6 @@ export default function EditorShell({
     });
   };
 
-  const onCulturalStyleChange = (nextStyle: string) => {
-    if (nextStyle === currentCulturalStyle) return;
-
-    setCurrentCulturalStyle(nextStyle);
-    setLayoutState('saving');
-    setLayoutMessage(null);
-
-    startTransition(async () => {
-      try {
-        await updateCulturalStyle(siteId, nextStyle);
-        setLayoutState('saved');
-        setPreviewKey(Date.now());
-        router.refresh();
-      } catch {
-        setLayoutState('error');
-        setLayoutMessage('Unable to update cultural style.');
-      }
-    });
-  };
-
   const onSaveBrand = () => {
     setBrandState('saving');
     setBrandMessage(null);
@@ -772,48 +741,21 @@ export default function EditorShell({
                 key={key}
                 type="button"
                 onClick={() => onLayoutChange(key)}
-                className={`rounded-md border px-2 py-2 text-left text-[11px] font-medium transition ${
+                className={`rounded-md border p-2 text-left text-[11px] transition ${
                   currentLayout === key
-                    ? 'border-zinc-900 bg-white text-zinc-900'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
+                    ? 'border-zinc-900 bg-zinc-50 text-zinc-900'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400'
                 }`}
               >
-                <div className="mb-2 flex justify-center"><LayoutThumbnail layoutKey={key} /></div>
-                {LAYOUT_LABELS[key] ?? key}
+                <div className="flex items-center gap-2">
+                  <div className="shrink-0"><LayoutThumbnail layoutKey={key} /></div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold leading-tight">{LAYOUT_LABELS[key] ?? key}</p>
+                    <p className="mt-0.5 text-[10px] text-zinc-500">{LAYOUT_DESCRIPTORS[key] ?? 'Structure preset'}</p>
+                  </div>
+                </div>
               </button>
             ))}
-          </div>}
-
-          <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, cultural: !s.cultural }))} className="mt-3 flex w-full items-center justify-between text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            <span>Cultural Style (Overlay)</span>
-            <span>{groupOpen.cultural ? '−' : '+'}</span>
-          </button>
-          {groupOpen.cultural && <div className="mt-2 grid grid-cols-2 gap-2">
-            {CULTURAL_STYLES.map((style) => {
-              const selected = currentCulturalStyle === style.key;
-              return (
-                <button
-                  key={style.key}
-                  type="button"
-                  onClick={() => onCulturalStyleChange(style.key)}
-                  className={`group rounded-md border p-2 text-left text-[11px] transition hover:-translate-y-0.5 hover:shadow-sm ${
-                    selected
-                      ? 'ring-2 ring-zinc-400 border-zinc-900 bg-zinc-50 text-zinc-900'
-                      : 'border-zinc-200 bg-white text-zinc-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="shrink-0">
-                      <CulturalThumbnail styleKey={style.key} isSelected={selected} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold leading-tight">{style.label}</p>
-                      <p className="mt-0.5 line-clamp-2 text-[10px] text-zinc-500">{CULTURAL_STYLE_DESCRIPTORS[style.key] ?? 'Visual overlay style'}</p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
           </div>}
 
           {layoutState === 'saving' && <p className="mt-2 text-[11px] text-zinc-500">Saving layout…</p>}

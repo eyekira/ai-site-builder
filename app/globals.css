@@ -37,17 +37,4 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  .cs-root h1, .cs-root h2, .cs-root h3 { text-transform: var(--cs-heading-case, none); letter-spacing: var(--cs-heading-tracking, normal); }
-  .cs-root .cs-section, .cs-root .cs-card { border-radius: var(--cs-radius-mult, 16px); box-shadow: var(--cs-shadow-level, none) color-mix(in oklab, var(--bp-border) 12%, transparent); }
-  .cs-root .cs-divider { height: var(--cs-divider-thickness, 1px); background: color-mix(in oklab, var(--bp-border) calc(var(--cs-divider-opacity, .35) * 100%), transparent); }
-  .cs-root .cs-btn-outline { background: transparent; border: 1px solid var(--bp-border); color: var(--bp-text); }
-  .cs-root .cs-photo { transition: transform .2s ease, box-shadow .2s ease; }
-  .cs-root.cs-korean_modern .cs-photo:hover, .cs-root.cs-latin_street .cs-photo:hover, .cs-root.cs-italian_warm_modern .cs-photo:hover { transform: translateY(-2px); }
-  .cs-root.cs-chinese_contemporary .cs-photo:hover, .cs-root.cs-indian_spice_house .cs-photo:hover { transform: scale(1.02); }
-
-  .cs-root.cs-korean_modern { background-image: repeating-linear-gradient(0deg, color-mix(in oklab, var(--bp-border) 3%, transparent) 0 1px, transparent 1px 18px), repeating-linear-gradient(90deg, color-mix(in oklab, var(--bp-border) 3%, transparent) 0 1px, transparent 1px 18px); }
-  .cs-root.cs-mediterranean_coastal { background-image: radial-gradient(100% 22px at 50% -8px, color-mix(in oklab, var(--bp-border) 8%, transparent) 4%, transparent 5%); background-size: 120px 28px; }
-  .cs-root.cs-chinese_contemporary, .cs-root.cs-middle_eastern_modern, .cs-root.cs-indian_spice_house { background-image: repeating-linear-gradient(45deg, color-mix(in oklab, var(--bp-border) 5%, transparent) 0 1px, transparent 1px 14px); }
-  .cs-root.cs-american_classic, .cs-root.cs-french_atelier, .cs-root.cs-italian_warm_modern { background-image: repeating-linear-gradient(0deg, color-mix(in oklab, var(--bp-border) 4%, transparent) 0 1px, transparent 1px 8px); }
-  .cs-root.cs-latin_street { background-image: repeating-linear-gradient(135deg, color-mix(in oklab, var(--bp-border) 6%, transparent) 0 2px, transparent 2px 12px); }
 }

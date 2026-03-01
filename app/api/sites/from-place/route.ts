@@ -12,7 +12,7 @@ import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
 import { buildTemplateSections } from '@/lib/templates/sections';
 import { generateBrandPack } from '@/lib/brandpack/generate';
-import { inferLayoutAndCulturalStyle } from '@/lib/cultural-style/styles';
+import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 
 type PlacePhoto = {
   ref: string;
@@ -361,40 +361,7 @@ export async function POST(request: NextRequest) {
       hoursText,
     });
 
-    const placeTypes = Array.isArray((place as { types?: string[] }).types) ? ((place as { types?: string[] }).types ?? []) : [];
-    const primaryType = (place as { primaryType?: string | null }).primaryType ?? null;
-    const reviewSnippets = Array.isArray((place as { reviews?: Array<{ text?: string | null }> }).reviews)
-      ? (((place as { reviews?: Array<{ text?: string | null }> }).reviews ?? [])
-          .map((review) => review.text ?? '')
-          .filter((text) => text.trim().length > 0)
-          .slice(0, 3))
-      : [];
-
-    const textSignals = [
-      placeTitle,
-      place.address ?? '',
-      place.website ?? '',
-      ...placeTypes,
-      primaryType ?? '',
-      ...reviewSnippets,
-      copy.hero.subheadline,
-      typeof copy.about === 'string' ? copy.about : copy.about.title,
-      typeof copy.about === 'string' ? '' : copy.about.body,
-    ].filter((v): v is string => typeof v === 'string');
-    const inferredStyle = inferLayoutAndCulturalStyle({ textSignals });
-    const culturalDebug = {
-      placeName: placeTitle,
-      placeTypes,
-      primaryType,
-      computedKeywords: textSignals.filter(Boolean).slice(0, 20),
-      reviewSnippets,
-      matchedCulturalStyleKey: inferredStyle.culturalStyleKey,
-      matchReason: inferredStyle.matchReason,
-      matchedKeyword: inferredStyle.matchedKeyword,
-    };
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[cultural-style][from-place]', culturalDebug);
-    }
+    const textSignals = [placeTitle, place.address ?? '', place.website ?? ''];
     const ownerTemplateSelection = selectTemplate({ textSignals });
 
     const brandPhotoClassifications = limitedPhotos.length
@@ -442,7 +409,14 @@ export async function POST(request: NextRequest) {
         photoCategories: previewClassifications.map((entry) => entry.category),
       });
 
-      const previewLayoutKey = inferredStyle.layoutKey;
+      const previewLayoutKey = resolveThemeLayoutKey(
+        JSON.stringify({
+          name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
+          templateKey: previewTemplateSelection.templateKey,
+          templateConfidence: previewTemplateSelection.confidence,
+          templateSignals: previewTemplateSelection.signals,
+        }),
+      );
 
       const previewSite: SiteForRender = {
         id: 0,
@@ -457,8 +431,6 @@ export async function POST(request: NextRequest) {
           templateConfidence: previewTemplateSelection.confidence,
           templateSignals: previewTemplateSelection.signals,
           layoutKey: previewLayoutKey,
-          culturalStyleKey: inferredStyle.culturalStyleKey,
-          styleDebug: culturalDebug,
         }),
         brandPackJson: JSON.stringify(previewBrandPack),
         formattedAddress: place.address,
@@ -534,7 +506,14 @@ export async function POST(request: NextRequest) {
         photoCategories: brandPhotoClassifications.map((entry) => entry.category),
       });
 
-      const ownerLayoutKey = inferredStyle.layoutKey;
+      const ownerLayoutKey = resolveThemeLayoutKey(
+        JSON.stringify({
+          name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
+          templateKey: ownerTemplateSelection.templateKey,
+          templateConfidence: ownerTemplateSelection.confidence,
+          templateSignals: ownerTemplateSelection.signals,
+        }),
+      );
 
       const site = await tx.site.create({
         data: {
@@ -554,8 +533,6 @@ export async function POST(request: NextRequest) {
             templateConfidence: ownerTemplateSelection.confidence,
             templateSignals: ownerTemplateSelection.signals,
             layoutKey: ownerLayoutKey,
-            culturalStyleKey: inferredStyle.culturalStyleKey,
-            styleDebug: culturalDebug,
           }),
           brandPackJson: JSON.stringify(ownerBrandPack),
           ownerId,

@@ -1,5 +1,4 @@
 import { extractTemplateMetadata, parseThemeJson } from '@/lib/theme';
-import { inferLayoutAndCulturalStyle } from '@/lib/cultural-style/styles';
 import type { ThemeLayoutConfig, ThemeLayoutKey } from '@/lib/themes/schema';
 
 export const themeLayoutRegistry: Record<ThemeLayoutKey, ThemeLayoutConfig> = {
@@ -94,15 +93,12 @@ export function resolveThemeLayoutKey(themeJson: string | null | undefined): The
   if (!themeJson) return 'minimal_contemporary';
 
   try {
-    const parsed = JSON.parse(themeJson) as { layoutKey?: string; templateKey?: string; culturalStyleKey?: string };
+    const parsed = JSON.parse(themeJson) as { layoutKey?: string };
     if (parsed.layoutKey && themeLayoutRegistry[parsed.layoutKey as ThemeLayoutKey]) {
       return parsed.layoutKey as ThemeLayoutKey;
     }
     const legacy = parsed.layoutKey ? legacyLayoutAlias(parsed.layoutKey) : null;
     if (legacy) return legacy;
-    if (parsed.templateKey || parsed.culturalStyleKey) {
-      return inferLayoutAndCulturalStyle({ textSignals: [parsed.templateKey ?? '', parsed.culturalStyleKey ?? ''] }).layoutKey as ThemeLayoutKey;
-    }
   } catch {
     // noop
   }
