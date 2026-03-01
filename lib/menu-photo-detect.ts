@@ -193,6 +193,12 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
   }
 
   const data = (await response.json()) as { output_text?: string };
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[menu-photo-classifier][response]', {
+      ref,
+      outputPreview: (data.output_text ?? '').slice(0, 240),
+    });
+  }
   const parsed = parseJsonLoose((data.output_text ?? '').trim());
   if (!parsed) {
     const h = heuristicScore({ ref });

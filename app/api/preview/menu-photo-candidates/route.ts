@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
       chunk.map(async (ref) => {
         const thumbUrl = toPhotoUrl(ref, 420);
         const mediumUrl = toPhotoUrl(ref, 1200);
-        const vision = await classifyMenuPhotoViaVision(thumbUrl, ref);
+        // Use medium resolution for classification so menu text/price patterns are readable.
+        const vision = await classifyMenuPhotoViaVision(mediumUrl, ref);
         return { ref, thumbUrl, mediumUrl, vision };
       }),
     );
