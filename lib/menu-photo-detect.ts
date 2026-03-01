@@ -1,3 +1,5 @@
+import { withRetry } from '@/lib/net-retry';
+
 export type MenuPhotoLabel =
   | 'menu_board'
   | 'printed_menu'
@@ -103,7 +105,7 @@ function toAbsoluteImageUrl(imageUrl: string): string {
 
 async function imageUrlToDataUrl(imageUrl: string): Promise<{ dataUrl: string; resolvedUrl: string }> {
   const resolvedUrl = toAbsoluteImageUrl(imageUrl);
-  const res = await fetch(resolvedUrl, { cache: 'no-store' });
+  const res = await withRetry(() => fetch(resolvedUrl, { cache: 'no-store' }), { retries: 2, baseDelayMs: 250 });
   if (!res.ok) {
     throw new Error(`IMAGE_FETCH_${res.status}`);
   }
@@ -216,14 +218,18 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     });
   }
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  const response = await withRetry(
+    async () =>
+      fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }),
+    { retries: 2, baseDelayMs: 350 },
+  );
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
