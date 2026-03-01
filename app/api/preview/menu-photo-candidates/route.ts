@@ -15,6 +15,14 @@ type ScanCacheEntry = {
   reason: string;
   textDensity: 'low' | 'med' | 'high';
   hasPrices: boolean;
+  categoryScores?: {
+    menu: number;
+    food: number;
+    interior: number;
+    exterior: number;
+    ambience: number;
+  };
+  primaryCategory?: 'menu' | 'food' | 'interior' | 'exterior' | 'ambience';
   status: 'classified' | 'unclassified';
   errorCode?: string;
 };
@@ -114,6 +122,8 @@ export async function POST(request: NextRequest) {
         reason: vision.notes,
         textDensity: vision.text_density,
         hasPrices: vision.has_prices,
+        categoryScores: vision.categoryScores,
+        primaryCategory: vision.primaryCategory,
         status: vision.status,
         errorCode: vision.errorCode,
       };
@@ -142,6 +152,8 @@ export async function POST(request: NextRequest) {
       reason: entry.reason,
       textDensity: entry.textDensity,
       hasPrices: entry.hasPrices,
+      categoryScores: entry.categoryScores,
+      primaryCategory: entry.primaryCategory,
       status: entry.status,
       errorCode: entry.errorCode,
       selected: entry.score >= 0.65,
@@ -173,6 +185,26 @@ export async function POST(request: NextRequest) {
     return acc;
   }, {});
 
+  const categories: Array<'menu' | 'food' | 'interior' | 'exterior' | 'ambience'> = [
+    'menu',
+    'food',
+    'interior',
+    'exterior',
+    'ambience',
+  ];
+  const groupedCandidates = categories.reduce<Record<string, Array<{ ref: string; score: number; label?: string }>>>((acc, category) => {
+    acc[category] = candidatesAll
+      .map((c) => ({
+        ref: c.ref,
+        score: Number(c.categoryScores?.[category] ?? 0),
+        label: c.label,
+      }))
+      .filter((c) => c.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+    return acc;
+  }, {});
+
   const payload = {
     scannedCount: state.scannedCount,
     returnedCount: filtered.length,
@@ -181,7 +213,14 @@ export async function POST(request: NextRequest) {
     cursor: state.cursor ?? null,
     hasMore,
     totalAvailableRefs: allRefs.length,
+    sourcePool: {
+      fromSessionPhotos: beforeRefs.length,
+      fromPlaceDetailsPhotos: detailRefs.length,
+      mergedCount: merged.length,
+      uniqueCount: allRefs.length,
+    },
     labelCounts,
+    groupedCandidates,
   };
 
   const debug = {

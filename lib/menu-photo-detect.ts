@@ -8,6 +8,14 @@ export type MenuPhotoLabel =
   | 'logo'
   | 'other';
 
+export type CategoryScores = {
+  menu: number;
+  food: number;
+  interior: number;
+  exterior: number;
+  ambience: number;
+};
+
 export type MenuPhotoClassification = {
   label: MenuPhotoLabel;
   is_menu: boolean;
@@ -16,6 +24,8 @@ export type MenuPhotoClassification = {
   has_prices: boolean;
   notes: string;
   score: number;
+  categoryScores: CategoryScores;
+  primaryCategory: keyof CategoryScores;
   status: 'classified' | 'unclassified';
   errorCode?: string;
 };
@@ -34,6 +44,40 @@ function menuScoreFromClassification(input: {
     return clamp(Math.max(input.confidence, 0.55) + (input.text_density === 'high' ? 0.15 : 0) + (input.has_prices ? 0.15 : 0));
   }
   return clamp(input.confidence * 0.35);
+}
+
+function computeCategoryScores(input: {
+  label: MenuPhotoLabel;
+  confidence: number;
+  text_density: 'low' | 'med' | 'high';
+  has_prices: boolean;
+  notes?: string;
+}): { categoryScores: CategoryScores; primaryCategory: keyof CategoryScores } {
+  const textBoost = input.text_density === 'high' ? 0.22 : input.text_density === 'med' ? 0.1 : 0;
+  const priceBoost = input.has_prices ? 0.2 : 0;
+  const noteText = (input.notes ?? '').toLowerCase();
+  const noteMenuBoost = /(menu|price|special|combo|lunch|dinner|starter|dessert|appetizer)/.test(noteText) ? 0.14 : 0;
+
+  const scores: CategoryScores = {
+    menu: clamp(input.confidence * 0.35 + textBoost + priceBoost + noteMenuBoost),
+    food: clamp(input.confidence * 0.2),
+    interior: clamp(input.confidence * 0.15),
+    exterior: clamp(input.confidence * 0.15),
+    ambience: clamp(input.confidence * 0.12),
+  };
+
+  if (input.label === 'food') scores.food = clamp(Math.max(scores.food, input.confidence * 0.85));
+  if (input.label === 'interior') {
+    scores.interior = clamp(Math.max(scores.interior, input.confidence * 0.82));
+    scores.ambience = clamp(Math.max(scores.ambience, input.confidence * 0.56));
+  }
+  if (input.label === 'exterior') scores.exterior = clamp(Math.max(scores.exterior, input.confidence * 0.84));
+  if (['menu_board', 'printed_menu', 'menu_screenshot'].includes(input.label)) {
+    scores.menu = clamp(Math.max(scores.menu, Math.max(0.62, input.confidence) + textBoost + priceBoost));
+  }
+
+  const primaryCategory = (Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'menu') as keyof CategoryScores;
+  return { categoryScores: scores, primaryCategory };
 }
 
 export function heuristicScore(input: { ref: string; width?: number | null; height?: number | null }): number {
@@ -96,6 +140,7 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     const h = heuristicScore({ ref });
+    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes: 'vision-unavailable; heuristic-only' });
     return {
       label: 'other',
       is_menu: false,
@@ -104,6 +149,8 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
       has_prices: false,
       notes: 'vision-unavailable; heuristic-only',
       score: h,
+      categoryScores: category.categoryScores,
+      primaryCategory: category.primaryCategory,
       status: 'unclassified',
       errorCode: 'MISSING_API_KEY',
     };
@@ -118,14 +165,18 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
   } catch (error) {
     const message = error instanceof Error ? error.message : 'IMAGE_FETCH_FAILED';
     const h = heuristicScore({ ref });
+    const notes = `image-fetch-failed:${message}`;
+    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes });
     return {
       label: 'other',
       is_menu: false,
       confidence: h,
       text_density: 'low',
       has_prices: false,
-      notes: `image-fetch-failed:${message}`,
+      notes,
       score: h,
+      categoryScores: category.categoryScores,
+      primaryCategory: category.primaryCategory,
       status: 'unclassified',
       errorCode: message,
     };
@@ -189,14 +240,18 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     }
 
     const h = heuristicScore({ ref });
+    const notes = `vision-request-failed:${errorBody.slice(0, 120) || 'no-body'}`;
+    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes });
     return {
       label: 'other',
       is_menu: false,
       confidence: h,
       text_density: 'low',
       has_prices: false,
-      notes: `vision-request-failed:${errorBody.slice(0, 120) || 'no-body'}`,
+      notes,
       score: h,
+      categoryScores: category.categoryScores,
+      primaryCategory: category.primaryCategory,
       status: 'unclassified',
       errorCode: `HTTP_${response.status}`,
     };
@@ -212,14 +267,18 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
   const parsed = parseJsonLoose((data.output_text ?? '').trim());
   if (!parsed) {
     const h = heuristicScore({ ref });
+    const notes = 'vision-parse-failed';
+    const category = computeCategoryScores({ label: 'other', confidence: h, text_density: 'low', has_prices: false, notes });
     return {
       label: 'other',
       is_menu: false,
       confidence: h,
       text_density: 'low',
       has_prices: false,
-      notes: 'vision-parse-failed',
+      notes,
       score: h,
+      categoryScores: category.categoryScores,
+      primaryCategory: category.primaryCategory,
       status: 'unclassified',
       errorCode: 'PARSE_FAILED',
     };
@@ -246,6 +305,7 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
   const is_menu = Boolean(parsed.is_menu ?? ['menu_board', 'printed_menu', 'menu_screenshot'].includes(label));
   const notes = typeof parsed.notes === 'string' ? parsed.notes : typeof parsed.reason === 'string' ? parsed.reason : '';
   const score = menuScoreFromClassification({ label, confidence, text_density, has_prices });
+  const category = computeCategoryScores({ label, confidence, text_density, has_prices, notes });
 
   return {
     label,
@@ -255,6 +315,8 @@ export async function classifyMenuPhotoViaVision(imageUrl: string, ref: string):
     has_prices,
     notes,
     score,
+    categoryScores: category.categoryScores,
+    primaryCategory: category.primaryCategory,
     status: 'classified',
   };
 }

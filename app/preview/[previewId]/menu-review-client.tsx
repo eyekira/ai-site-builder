@@ -36,6 +36,14 @@ type Candidate = {
   reason: string;
   textDensity?: 'low' | 'med' | 'high';
   hasPrices?: boolean;
+  categoryScores?: {
+    menu: number;
+    food: number;
+    interior: number;
+    exterior: number;
+    ambience: number;
+  };
+  primaryCategory?: 'menu' | 'food' | 'interior' | 'exterior' | 'ambience';
   errorCode?: string;
   extractedItemCount?: number;
 };
@@ -88,6 +96,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   const [returnedCount, setReturnedCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalAvailableRefs, setTotalAvailableRefs] = useState(0);
+  const [groupedCandidates, setGroupedCandidates] = useState<Record<string, Array<{ ref: string; score: number; label?: string }>>>({});
   const [imageFailures, setImageFailures] = useState<Record<string, boolean>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -146,6 +155,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
         setReturnedCount(retryData.returnedCount ?? (retryData.candidates?.length ?? 0));
         setHasMore(Boolean(retryData.hasMore));
         setTotalAvailableRefs(Number(retryData.totalAvailableRefs ?? 0));
+        setGroupedCandidates((retryData.groupedCandidates ?? {}) as Record<string, Array<{ ref: string; score: number; label?: string }>>);
 
         if (process.env.NODE_ENV !== 'production') {
           console.log('[menu-candidates][client][rescan][fallback-all]', {
@@ -162,6 +172,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
       setHasMore(Boolean(data.hasMore));
       setTotalAvailableRefs(Number(data.totalAvailableRefs ?? 0));
+      setGroupedCandidates((data.groupedCandidates ?? {}) as Record<string, Array<{ ref: string; score: number; label?: string }>>);
       if (process.env.NODE_ENV !== 'production') {
         console.log('[menu-candidates][client][rescan]', {
           received,
@@ -200,6 +211,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       setReturnedCount(data.returnedCount ?? (data.candidates?.length ?? 0));
       setHasMore(Boolean(data.hasMore));
       setTotalAvailableRefs(Number(data.totalAvailableRefs ?? 0));
+      setGroupedCandidates((data.groupedCandidates ?? {}) as Record<string, Array<{ ref: string; score: number; label?: string }>>);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load more');
     } finally {
@@ -353,6 +365,15 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
             </div>
             <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos (source max {totalAvailableRefs}) · showing {candidates.length} (api returned {returnedCount})</p>
             {!hasMore && <p className="mb-2 text-[11px] text-zinc-500">No more Google photos available for this place.</p>}
+            {Object.keys(groupedCandidates).length > 0 && (
+              <div className="mb-2 grid gap-1 text-[10px] text-zinc-600 md:grid-cols-2">
+                {(['menu', 'food', 'interior', 'exterior', 'ambience'] as const).map((k) => (
+                  <div key={k} className="truncate rounded border border-zinc-200 bg-zinc-50 px-2 py-1">
+                    <span className="font-semibold">{k}</span>: {(groupedCandidates[k] ?? []).slice(0, 3).map((x) => `${x.label ?? 'other'} ${x.score.toFixed(2)}`).join(', ') || 'none'}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               {candidates.map((candidate) => (
                 <label key={candidate.ref} className="rounded border border-zinc-200 p-1 text-xs">
