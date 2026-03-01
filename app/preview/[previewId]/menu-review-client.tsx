@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -24,6 +24,17 @@ type MenuOcrEvidence = {
   lastRunAt?: string;
 };
 
+type Candidate = {
+  ref: string;
+  url: string;
+  source: 'Google photo';
+  selected: boolean;
+  status: 'pending' | 'success' | 'empty' | 'error';
+  score: number;
+  reason: string;
+  extractedItemCount?: number;
+};
+
 type EvidenceTile = {
   ref: string;
   url: string;
@@ -31,6 +42,7 @@ type EvidenceTile = {
   selected: boolean;
   status?: 'pending' | 'success' | 'empty' | 'error';
   extractedItemCount?: number;
+  score?: number;
 };
 
 function parseMenuFromSite(site: SiteForRender): MenuContent | null {
@@ -55,31 +67,28 @@ function autoMenuFromSite(site: SiteForRender): MenuContent {
   };
 }
 
-function initialGoogleCandidates(site: SiteForRender): EvidenceTile[] {
-  return site.photos
-    .slice(0, 8)
-    .map((photo, idx) => ({
-      ref: photo.googlePhotoRef ?? `photo:${photo.id}`,
-      url: photo.url,
-      source: photo.googlePhotoRef ? 'Google photo' : 'Google photo',
-      selected: idx < 4,
-      status: 'pending' as const,
-    }));
-}
-
 export function MenuReviewClient({ previewId, initialSite, continueHref }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<'auto' | 'upload' | 'skip'>('auto');
   const [mergeMode, setMergeMode] = useState<'replace' | 'merge'>('replace');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuContent | null>(parseMenuFromSite(initialSite) ?? autoMenuFromSite(initialSite));
   const [evidenceMode, setEvidenceMode] = useState<EvidenceMode>('sample');
   const [evidenceTiles, setEvidenceTiles] = useState<EvidenceTile[]>([]);
-  const [googleCandidates, setGoogleCandidates] = useState<EvidenceTile[]>(initialGoogleCandidates(initialSite));
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [menuOnly, setMenuOnly] = useState(true);
+  const [scannedCount, setScannedCount] = useState(0);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  const selectedGoogle = useMemo(() => googleCandidates.filter((c) => c.selected), [googleCandidates]);
+  useEffect(() => {
+    void rescanCandidates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectedCandidates = useMemo(() => candidates.filter((c) => c.selected), [candidates]);
+  const hasGoodSelected = selectedCandidates.some((c) => c.score >= 0.5);
 
   const updateItem = (index: number, patch: Partial<MenuItem>) => {
     if (!menu) return;
@@ -98,6 +107,46 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
     const current = menu ?? { title: 'Menu', items: [] };
     setMenu({ ...current, items: [...current.items, { name: '', description: '', price: '' }] });
     setMode('upload');
+  };
+
+  const rescanCandidates = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/preview/menu-photo-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ previewId, action: 'rescan', menuOnly }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to scan candidates');
+      setCandidates(data.candidates);
+      setScannedCount(data.menuPhotoScan?.scannedCount ?? 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to scan candidates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMoreCandidates = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/preview/menu-photo-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ previewId, action: 'load_more', menuOnly }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load more');
+      setCandidates(data.candidates);
+      setScannedCount(data.menuPhotoScan?.scannedCount ?? 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load more');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const runUploadOcr = async (files: FileList | null) => {
@@ -139,18 +188,24 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   };
 
   const runGoogleCandidateOcr = async () => {
-    if (selectedGoogle.length === 0) {
+    if (selectedCandidates.length === 0) {
       setError('Select at least one candidate photo.');
       return;
     }
 
+    if (!hasGoodSelected) {
+      setWarning("These don't look like menu photos.");
+      return;
+    }
+
+    setWarning(null);
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/preview/menu-ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrls: selectedGoogle.map((x) => x.url), refs: selectedGoogle.map((x) => x.ref) }),
+        body: JSON.stringify({ imageUrls: selectedCandidates.map((x) => x.url), refs: selectedCandidates.map((x) => x.ref) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'OCR failed');
@@ -159,10 +214,15 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       setMode('upload');
       setEvidenceMode('google_photos');
       const per = (data.perImageResults ?? []) as Array<{ ref: string; status: 'success' | 'empty' | 'error'; extractedItemCount: number }>;
-      setEvidenceTiles(
-        selectedGoogle.map((item) => {
+      const tiles = selectedCandidates.map((item) => {
+        const p = per.find((x) => x.ref === item.ref);
+        return { ...item, status: p?.status ?? 'success', extractedItemCount: p?.extractedItemCount ?? data.menu.items.length };
+      });
+      setEvidenceTiles(tiles);
+      setCandidates((prev) =>
+        prev.map((item) => {
           const p = per.find((x) => x.ref === item.ref);
-          return { ...item, status: p?.status ?? 'success', extractedItemCount: p?.extractedItemCount ?? data.menu.items.length };
+          return p ? { ...item, status: p.status, extractedItemCount: p.extractedItemCount } : item;
         }),
       );
     } catch (e) {
@@ -179,7 +239,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
       const evidence: MenuOcrEvidence = {
         mode: mode === 'auto' ? 'sample' : evidenceMode,
         usedPhotoRefs: mode === 'auto' ? [] : evidenceTiles.filter((x) => x.selected).map((x) => x.ref),
-        candidatePhotoRefs: googleCandidates.map((x) => x.ref),
+        candidatePhotoRefs: candidates.map((x) => x.ref),
         lastRunAt: new Date().toISOString(),
       };
 
@@ -222,31 +282,40 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
             </button>
           </div>
 
-          {googleCandidates.length > 0 && (
-            <div className="mt-4 rounded-lg border border-zinc-200 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Google photo candidates</p>
-                <button type="button" onClick={runGoogleCandidateOcr} className="rounded border border-zinc-300 px-2 py-1 text-xs">Run OCR on selected</button>
-              </div>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                {googleCandidates.map((candidate) => (
-                  <label key={candidate.ref} className="rounded border border-zinc-200 p-1 text-xs">
-                    <img src={candidate.url} alt={candidate.ref} className="h-20 w-full rounded object-cover" />
-                    <div className="mt-1 flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={candidate.selected}
-                        onChange={(e) =>
-                          setGoogleCandidates((prev) => prev.map((x) => (x.ref === candidate.ref ? { ...x, selected: e.target.checked } : x)))
-                        }
-                      />
-                      <span className="truncate">{candidate.ref}</span>
-                    </div>
-                  </label>
-                ))}
+          <div className="mt-4 rounded-lg border border-zinc-200 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Google photo candidates</p>
+              <div className="flex items-center gap-2 text-xs">
+                <label className="inline-flex items-center gap-1">
+                  <input type="checkbox" checked={menuOnly} onChange={(e) => setMenuOnly(e.target.checked)} /> Menu only
+                </label>
+                <button type="button" onClick={loadMoreCandidates} className="rounded border border-zinc-300 px-2 py-1">Load more photos</button>
+                <button type="button" onClick={rescanCandidates} className="rounded border border-zinc-300 px-2 py-1">Rescan for menus</button>
               </div>
             </div>
-          )}
+            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos</p>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              {candidates.map((candidate) => (
+                <label key={candidate.ref} className="rounded border border-zinc-200 p-1 text-xs">
+                  <img src={candidate.url} alt={candidate.ref} className="h-20 w-full rounded object-cover" />
+                  <div className="mt-1 flex items-center justify-between gap-1">
+                    <span className="truncate text-[10px]">Menu {candidate.score.toFixed(2)}</span>
+                    <input
+                      type="checkbox"
+                      checked={candidate.selected}
+                      onChange={(e) =>
+                        setCandidates((prev) => prev.map((x) => (x.ref === candidate.ref ? { ...x, selected: e.target.checked } : x)))
+                      }
+                    />
+                  </div>
+                  <p className="truncate text-[10px] text-zinc-500">{candidate.reason}</p>
+                </label>
+              ))}
+            </div>
+            <div className="mt-2">
+              <button type="button" onClick={runGoogleCandidateOcr} disabled={!hasGoodSelected} className="rounded border border-zinc-300 px-2 py-1 text-xs disabled:opacity-50">Run OCR on selected</button>
+            </div>
+          </div>
 
           {mode !== 'skip' && (
             <div className="mt-4 rounded-lg border border-zinc-200 p-3">
@@ -275,6 +344,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
             </div>
           )}
 
+          {warning && <p className="mt-3 text-sm text-amber-600">{warning}</p>}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
           <div className="mt-5 flex items-center gap-3">
