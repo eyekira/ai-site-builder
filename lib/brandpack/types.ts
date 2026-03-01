@@ -7,7 +7,12 @@ export type FontKey =
   | 'lora'
   | 'poppins'
   | 'merriweather'
-  | 'space_grotesk';
+  | 'space_grotesk'
+  | 'source_sans_3'
+  | 'cormorant'
+  | 'montserrat'
+  | 'roboto_slab'
+  | 'dm_serif_display';
 
 export type BrandPack = {
   version: 1;

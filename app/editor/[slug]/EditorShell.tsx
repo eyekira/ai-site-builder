@@ -16,6 +16,7 @@ import {
 } from '@/lib/section-content';
 import { LAYOUT_KEYS } from '@/lib/themes/schema';
 import { parseBrandPack } from '@/lib/brandpack/parse';
+import { CulturalThumbnail } from '@/components/cultural/CulturalThumbnail';
 import { CULTURAL_STYLES } from '@/lib/cultural-style/styles';
 import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
@@ -769,18 +770,26 @@ export default function EditorShell({
 
           <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Cultural Style</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {CULTURAL_STYLES.map((style) => (
-              <button
-                key={style.key}
-                type="button"
-                onClick={() => onCulturalStyleChange(style.key)}
-                className={`rounded-md border px-2 py-2 text-left text-[11px] transition ${
-                  currentCulturalStyle === style.key ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700'
-                }`}
-              >
-                {style.label}
-              </button>
-            ))}
+            {CULTURAL_STYLES.map((style) => {
+              const selected = currentCulturalStyle === style.key;
+              return (
+                <button
+                  key={style.key}
+                  type="button"
+                  onClick={() => onCulturalStyleChange(style.key)}
+                  className={`group rounded-md border p-2 text-left text-[11px] transition hover:-translate-y-0.5 hover:shadow-sm ${
+                    selected
+                      ? 'ring-2 ring-[var(--bp-accent)] border-zinc-900 bg-zinc-50 text-zinc-900'
+                      : 'border-zinc-200 bg-white text-zinc-700'
+                  }`}
+                >
+                  <div className="mb-1 flex justify-center">
+                    <CulturalThumbnail styleKey={style.key} isSelected={selected} />
+                  </div>
+                  <p className="text-center text-[11px] font-medium">{style.label}</p>
+                </button>
+              );
+            })}
           </div>
 
           {layoutState === 'saving' && <p className="mt-2 text-[11px] text-zinc-500">Saving layout…</p>}

@@ -37,54 +37,17 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  .site-renderer[data-pattern='grid'] {
-    background-image: linear-gradient(to right, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 1px, transparent 1px);
-    background-size: var(--cultural-pattern-scale, 20px) var(--cultural-pattern-scale, 20px);
-  }
+  .cs-root h1, .cs-root h2, .cs-root h3 { text-transform: var(--cs-heading-case, none); letter-spacing: var(--cs-heading-tracking, normal); }
+  .cs-root .cs-section, .cs-root .cs-card { border-radius: var(--cs-radius-mult, 16px); box-shadow: var(--cs-shadow-level, none) color-mix(in oklab, var(--bp-border) 12%, transparent); }
+  .cs-root .cs-divider { height: var(--cs-divider-thickness, 1px); background: color-mix(in oklab, var(--bp-border) calc(var(--cs-divider-opacity, .35) * 100%), transparent); }
+  .cs-root .cs-btn-outline { background: transparent; border: 1px solid var(--bp-border); color: var(--bp-text); }
+  .cs-root .cs-photo { transition: transform .2s ease, box-shadow .2s ease; }
+  .cs-root.cs-korean_modern .cs-photo:hover, .cs-root.cs-latin_street .cs-photo:hover, .cs-root.cs-italian_warm_modern .cs-photo:hover { transform: translateY(-2px); }
+  .cs-root.cs-chinese_contemporary .cs-photo:hover, .cs-root.cs-indian_spice_house .cs-photo:hover { transform: scale(1.02); }
 
-  .site-renderer[data-pattern='wave'] {
-    background-image: radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 0, transparent 36%);
-  }
-
-  .site-renderer[data-pattern='tiles'] {
-    background-image: linear-gradient(45deg, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 25%, transparent 25%),
-      linear-gradient(-45deg, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 25%, transparent 25%);
-    background-size: var(--cultural-pattern-scale, 20px) var(--cultural-pattern-scale, 20px);
-  }
-
-  .site-renderer[data-pattern='linen'] {
-    background-image: repeating-linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 0,
-      color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 1px,
-      transparent 1px,
-      transparent 4px
-    );
-  }
-
-  .site-renderer[data-pattern='stamp'] {
-    background-image: radial-gradient(circle at 85% 12%, color-mix(in srgb, var(--brand-text) calc(var(--cultural-pattern-opacity, 0) * 100%), transparent) 0, transparent 30%);
-  }
-
-  .site-renderer[data-divider-style='hairline'] section,
-  .site-renderer[data-divider-style='hairline'] article {
-    border-top: 1px solid color-mix(in srgb, var(--brand-border) calc(var(--cultural-divider-opacity, 0.24) * 100%), transparent);
-  }
-
-  .site-renderer[data-divider-style='stamp'] section,
-  .site-renderer[data-divider-style='stamp'] article {
-    border-top: 1px dashed color-mix(in srgb, var(--brand-border) calc(var(--cultural-divider-opacity, 0.24) * 100%), transparent);
-  }
-
-  .site-renderer[data-divider-style='pattern'] section,
-  .site-renderer[data-divider-style='pattern'] article {
-    border-top: 2px solid color-mix(in srgb, var(--brand-border) calc(var(--cultural-divider-opacity, 0.24) * 100%), transparent);
-  }
-
-  .site-renderer[data-divider-style='none'] section,
-  .site-renderer[data-divider-style='none'] article {
-    border-top: none;
-  }
-
+  .cs-root.cs-korean_modern { background-image: repeating-linear-gradient(0deg, color-mix(in oklab, var(--bp-border) 3%, transparent) 0 1px, transparent 1px 18px), repeating-linear-gradient(90deg, color-mix(in oklab, var(--bp-border) 3%, transparent) 0 1px, transparent 1px 18px); }
+  .cs-root.cs-mediterranean_coastal { background-image: radial-gradient(100% 22px at 50% -8px, color-mix(in oklab, var(--bp-border) 8%, transparent) 4%, transparent 5%); background-size: 120px 28px; }
+  .cs-root.cs-chinese_contemporary, .cs-root.cs-middle_eastern_modern, .cs-root.cs-indian_spice_house { background-image: repeating-linear-gradient(45deg, color-mix(in oklab, var(--bp-border) 5%, transparent) 0 1px, transparent 1px 14px); }
+  .cs-root.cs-american_classic, .cs-root.cs-french_atelier, .cs-root.cs-italian_warm_modern { background-image: repeating-linear-gradient(0deg, color-mix(in oklab, var(--bp-border) 4%, transparent) 0 1px, transparent 1px 8px); }
+  .cs-root.cs-latin_street { background-image: repeating-linear-gradient(135deg, color-mix(in oklab, var(--bp-border) 6%, transparent) 0 2px, transparent 2px 12px); }
 }
