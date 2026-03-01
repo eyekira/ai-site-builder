@@ -97,6 +97,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   const [hasMore, setHasMore] = useState(true);
   const [totalAvailableRefs, setTotalAvailableRefs] = useState(0);
   const [groupedCandidates, setGroupedCandidates] = useState<Record<string, Array<{ ref: string; score: number; label?: string }>>>({});
+  const [activeCategoryTab, setActiveCategoryTab] = useState<'menu' | 'interior' | 'exterior' | 'food' | 'all'>('menu');
   const [imageFailures, setImageFailures] = useState<Record<string, boolean>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -107,6 +108,28 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
 
   const selectedCandidates = useMemo(() => candidates.filter((c) => c.selected), [candidates]);
   const hasGoodSelected = selectedCandidates.some((c) => c.score >= 0.5 || ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label ?? ''));
+
+  const displayedCandidates = useMemo(() => {
+    const withCategory = candidates.map((c) => ({
+      ...c,
+      _category: (c.primaryCategory ?? 'menu') as 'menu' | 'food' | 'interior' | 'exterior' | 'ambience',
+    }));
+
+    const filtered =
+      activeCategoryTab === 'all'
+        ? withCategory
+        : withCategory.filter((c) => {
+            if (activeCategoryTab === 'menu') return c._category === 'menu' || ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label ?? '');
+            return c._category === activeCategoryTab;
+          });
+
+    return filtered.sort((a, b) => {
+      const priority = (cat: string) => (cat === 'menu' ? 0 : cat === 'interior' ? 1 : cat === 'exterior' ? 2 : cat === 'food' ? 3 : 4);
+      const p = priority(a._category) - priority(b._category);
+      if (p !== 0) return p;
+      return b.score - a.score;
+    });
+  }, [activeCategoryTab, candidates]);
 
   const updateItem = (index: number, patch: Partial<MenuItem>) => {
     if (!menu) return;
@@ -363,8 +386,26 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                 <button type="button" onClick={rescanCandidates} className="rounded border border-zinc-300 px-2 py-1">Rescan for menus</button>
               </div>
             </div>
-            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos (source max {totalAvailableRefs}) · showing {candidates.length} (api returned {returnedCount})</p>
+            <p className="mb-2 text-[11px] text-zinc-500">scanned {scannedCount} photos (source max {totalAvailableRefs}) · showing {displayedCandidates.length} (api returned {returnedCount})</p>
             {!hasMore && <p className="mb-2 text-[11px] text-zinc-500">No more Google photos available for this place.</p>}
+            <div className="mb-2 flex flex-wrap gap-1 text-[11px]">
+              {([
+                ['menu', 'Menu'],
+                ['interior', 'Interior'],
+                ['exterior', 'Exterior'],
+                ['food', 'Food'],
+                ['all', 'All'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveCategoryTab(key)}
+                  className={`rounded border px-2 py-1 ${activeCategoryTab === key ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-300 bg-white text-zinc-700'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {Object.keys(groupedCandidates).length > 0 && (
               <div className="mb-2 grid gap-1 text-[10px] text-zinc-600 md:grid-cols-2">
                 {(['menu', 'food', 'interior', 'exterior', 'ambience'] as const).map((k) => (
@@ -375,7 +416,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
               </div>
             )}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              {candidates.map((candidate) => (
+              {displayedCandidates.map((candidate) => (
                 <label key={candidate.ref} className="rounded border border-zinc-200 p-1 text-xs">
                   {imageFailures[candidate.ref] ? (
                     <div className="flex h-20 w-full items-center justify-center rounded border border-zinc-200 bg-zinc-50 text-[10px] text-zinc-500">image failed to load</div>
@@ -421,10 +462,10 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                 )}
               </div>
             )}
-            {scannedCount >= 120 && candidates.filter((c) => ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label ?? '')).length === 0 && (
+            {totalAvailableRefs > 0 && scannedCount >= totalAvailableRefs && candidates.filter((c) => ['menu_board', 'printed_menu', 'menu_screenshot'].includes(c.label ?? '')).length === 0 && (
               <div className="mt-2 rounded border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-700">
-                No menu images found on Google photos for this place. Please upload menu photos.
-                <div className="mt-1 text-[10px] text-zinc-500">TODO: website menu extraction fallback (from place website).</div>
+                No menu images detected in Google photos for this place. Please upload menu photos.
+                <div className="mt-1 text-[10px] text-zinc-500">Website-menu extraction fallback can be used next when available.</div>
               </div>
             )}
             <div className="mt-2">

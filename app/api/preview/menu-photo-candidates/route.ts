@@ -138,9 +138,22 @@ export async function POST(request: NextRequest) {
   state.cursor = lastProcessed ?? state.cursor;
   state.lastScanAt = new Date().toISOString();
 
+  const categoryPriority = (category?: string) => {
+    if (category === 'menu') return 0;
+    if (category === 'interior') return 1;
+    if (category === 'exterior') return 2;
+    if (category === 'food') return 3;
+    return 4;
+  };
+
   const candidatesAll = Object.values(state.cache)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => {
+      const p = categoryPriority(a.primaryCategory) - categoryPriority(b.primaryCategory);
+      if (p !== 0) return p;
+      return b.score - a.score;
+    })
     .map((entry) => ({
+
       key: entry.ref,
 
       ref: entry.ref,

@@ -121,11 +121,13 @@ function generatePreviewSlug(baseTitle: string, city: string | null): string {
   return `${baseSlug}-${Date.now().toString(36)}`;
 }
 
+const MAX_PLACE_PHOTOS = 60;
+
 function pickPhotos(photos: PlacePhoto[]): PlacePhoto[] {
-  if (photos.length <= 10) {
+  if (photos.length <= MAX_PLACE_PHOTOS) {
     return photos;
   }
-  return photos.slice(0, 10);
+  return photos.slice(0, MAX_PLACE_PHOTOS);
 }
 
 
