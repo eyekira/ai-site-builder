@@ -5,7 +5,7 @@ import { fetchPlaceDetails } from '@/lib/places';
 import { createPreviewSession } from '@/lib/preview-session';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
-import type { SiteForRender } from '@/lib/site';
+import { getSiteForOwnerRender, type SiteForRender } from '@/lib/site';
 import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { adaptCopyForTemplate } from '@/lib/templates/content';
@@ -339,7 +339,28 @@ export async function POST(request: NextRequest) {
       });
       if (existingSite) {
         if (existingSite.ownerId === ownerId) {
-          return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+          const existingRenderSite = await getSiteForOwnerRender(existingSite.slug, ownerId!);
+          if (!existingRenderSite) {
+            return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+          }
+          const previewSession = await createPreviewSession(existingRenderSite);
+          const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+          if (process.env.NODE_ENV !== 'production') {
+            console.info('[create-site][from-place] existing-site-preview', {
+              siteId: existingSite.id,
+              previewId: previewSession.id,
+              nextPath,
+            });
+          }
+          return NextResponse.json({
+            siteId: existingSite.id,
+            slug: existingSite.slug,
+            existed: true,
+            previewId: previewSession.id,
+            nextPath,
+            forceMenuReview: true,
+            expiresAt: previewSession.expiresAt.toISOString(),
+          });
         }
         return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
       }
@@ -674,7 +695,31 @@ export async function POST(request: NextRequest) {
       return site;
     });
 
-    return NextResponse.json({ siteId: created.id, slug: created.slug });
+    const createdRenderSite = await getSiteForOwnerRender(created.slug, ownerId!);
+    if (!createdRenderSite) {
+      return NextResponse.json({ siteId: created.id, slug: created.slug });
+    }
+
+    const previewSession = await createPreviewSession(createdRenderSite);
+    const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[create-site][from-place] owner-site-preview', {
+        siteId: created.id,
+        previewId: previewSession.id,
+        createdAt: new Date().toISOString(),
+        responseShape: { siteId: true, slug: true, previewId: true, nextPath: true, forceMenuReview: true, expiresAt: true },
+        nextPath,
+      });
+    }
+
+    return NextResponse.json({
+      siteId: created.id,
+      slug: created.slug,
+      previewId: previewSession.id,
+      nextPath,
+      forceMenuReview: true,
+      expiresAt: previewSession.expiresAt.toISOString(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     const missingDbUrl = message.includes('Environment variable not found: DATABASE_URL');
