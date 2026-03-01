@@ -78,7 +78,7 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
   const [evidenceMode, setEvidenceMode] = useState<EvidenceMode>('sample');
   const [evidenceTiles, setEvidenceTiles] = useState<EvidenceTile[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [menuOnly, setMenuOnly] = useState(true);
+  const [menuOnly, setMenuOnly] = useState(false);
   const [scannedCount, setScannedCount] = useState(0);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -312,6 +312,23 @@ export function MenuReviewClient({ previewId, initialSite, continueHref }: Props
                 </label>
               ))}
             </div>
+            {candidates.length === 0 && (
+              <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                No strong menu-photo candidates found in current filter.
+                {menuOnly && (
+                  <button
+                    type="button"
+                    className="ml-2 underline"
+                    onClick={() => {
+                      setMenuOnly(false);
+                      void rescanCandidates();
+                    }}
+                  >
+                    Show all photos
+                  </button>
+                )}
+              </div>
+            )}
             <div className="mt-2">
               <button type="button" onClick={runGoogleCandidateOcr} disabled={!hasGoodSelected} className="rounded border border-zinc-300 px-2 py-1 text-xs disabled:opacity-50">Run OCR on selected</button>
             </div>
