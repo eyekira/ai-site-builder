@@ -7,6 +7,15 @@ export default async function PreviewMenuReviewPage({ params }: { params: Promis
   const { previewId } = await params;
   const record = await getPreviewSessionRecord(previewId);
 
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[menu-review-page]', {
+      previewId,
+      hasSession: Boolean(record),
+      menuReviewCompleted: record?.menuReviewCompleted ?? null,
+      decision: !record ? 'notFound' : record.menuReviewCompleted ? 'redirectPreview' : 'renderMenuReview',
+    });
+  }
+
   if (!record) {
     notFound();
   }

@@ -90,6 +90,10 @@ export function PlaceSearch() {
       }
 
       const data = (await response.json()) as { slug?: string; previewId?: string; nextPath?: string; forceMenuReview?: boolean };
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[create-site][client] response', data);
+      }
+
       if (data.previewId) {
         let destination = data.nextPath && data.nextPath.startsWith('/preview/')
           ? data.nextPath
@@ -103,11 +107,13 @@ export function PlaceSearch() {
           throw new Error(`Invalid preview destination: ${destination}`);
         }
 
-        console.info('[create-site] client redirect destination', {
-          previewId: data.previewId,
-          destination,
-          containsMenuReview: destination.includes('/menu-review'),
-        });
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][client] navigate', {
+            previewId: data.previewId,
+            destination,
+            containsMenuReview: destination.includes('/menu-review'),
+          });
+        }
 
         // Hard navigation avoids stale client-router cache paths and guarantees landing route.
         window.location.assign(destination);

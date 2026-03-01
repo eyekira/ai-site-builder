@@ -468,7 +468,14 @@ export async function POST(request: NextRequest) {
 
       const previewSession = await createPreviewSession(previewSite);
       const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
-      console.info('[create-site] preview flow destination', { previewId: previewSession.id, nextPath });
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[create-site][from-place] preview-created', {
+          previewId: previewSession.id,
+          createdAt: new Date().toISOString(),
+          responseShape: { previewId: true, nextPath: true, forceMenuReview: true, expiresAt: true },
+          nextPath,
+        });
+      }
       return NextResponse.json({
         previewId: previewSession.id,
         nextPath,
