@@ -9,6 +9,19 @@ class OcrError extends Error {
   }
 }
 
+export type OcrPerImageResult = {
+  ref: string;
+  status: 'success' | 'empty' | 'error';
+  errorCode?: string;
+  extractedItemCount: number;
+};
+
+export type OcrResult = {
+  menu: MenuContent;
+  usedPhotoRefs: string[];
+  perImageResults: OcrPerImageResult[];
+};
+
 function normalizePrice(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';
@@ -121,7 +134,7 @@ export async function extractMenuFromImages(imageUrls: string[]): Promise<MenuCo
   return runOcrWithDataUrls(images);
 }
 
-export async function extractMenuFromUploadedFiles(files: File[]): Promise<MenuContent> {
+export async function extractMenuFromUploadedFiles(files: File[]): Promise<OcrResult> {
   const accepted = files.filter((file) => file.type.startsWith('image/')).slice(0, 4);
   if (accepted.length === 0) {
     throw new OcrError('BAD_INPUT', 'Please upload at least one image file.');
@@ -135,7 +148,23 @@ export async function extractMenuFromUploadedFiles(files: File[]): Promise<MenuC
     }),
   );
 
-  return runOcrWithDataUrls(dataUrls);
+  const refs = accepted.map((file, i) => `upload:${i}:${file.name}`);
+  const menu = await runOcrWithDataUrls(dataUrls);
+  return {
+    menu,
+    usedPhotoRefs: refs,
+    perImageResults: refs.map((ref) => ({ ref, status: 'success', extractedItemCount: menu.items.length })),
+  };
+}
+
+export async function extractMenuFromImageUrls(imageUrls: string[], refs?: string[]): Promise<OcrResult> {
+  const refsResolved = (refs?.slice(0, 4) ?? imageUrls.slice(0, 4).map((_, i) => `google:${i}`));
+  const menu = await extractMenuFromImages(imageUrls);
+  return {
+    menu,
+    usedPhotoRefs: refsResolved,
+    perImageResults: refsResolved.map((ref) => ({ ref, status: 'success', extractedItemCount: menu.items.length })),
+  };
 }
 
 export function mapOcrError(error: unknown): { code: string; message: string } {

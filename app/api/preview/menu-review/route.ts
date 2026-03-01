@@ -8,6 +8,12 @@ import { placeholderMenu, withMenuContent } from '@/lib/menu-section';
 
 type MenuMode = 'auto' | 'upload' | 'skip';
 type MergeMode = 'replace' | 'merge';
+type MenuOcrEvidence = {
+  mode: 'uploaded' | 'google_photos' | 'sample';
+  usedPhotoRefs: string[];
+  candidatePhotoRefs?: string[];
+  lastRunAt?: string;
+};
 
 function normalizePrice(raw: string): string {
   const cleaned = (raw ?? '').trim();
@@ -92,6 +98,7 @@ export async function POST(request: NextRequest) {
         mode?: MenuMode;
         mergeMode?: MergeMode;
         menu?: MenuContent;
+        evidence?: MenuOcrEvidence;
       }
     | null;
 
@@ -126,7 +133,17 @@ export async function POST(request: NextRequest) {
     nextMenu = mergeMenus(currentMenu, autoMenu(site), mergeMode);
   }
 
-  const updated = withMenuContent(site, nextMenu);
+  const evidence: MenuOcrEvidence = body.evidence ?? {
+    mode: body.mode === 'upload' ? 'uploaded' : body.mode === 'auto' ? 'sample' : 'sample',
+    usedPhotoRefs: [],
+    lastRunAt: new Date().toISOString(),
+  };
+
+  const updated = {
+    ...withMenuContent(site, nextMenu),
+    __menuOcrEvidence: evidence,
+  } as SiteForRender;
+
   await completeMenuReview(body.previewId, updated);
 
   if (updated.id > 0) {
