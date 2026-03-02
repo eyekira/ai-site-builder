@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
 import { getSiteForOwnerRender, type SiteForRender } from '@/lib/site';
 import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
+import { normalizeCategory, selectPhotosBalanced } from '@/lib/photos/select-balanced';
 import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
 import { adaptCopyForTemplate } from '@/lib/templates/content';
 import { selectTemplate } from '@/lib/templates/select';
@@ -122,6 +123,7 @@ function generatePreviewSlug(baseTitle: string, city: string | null): string {
 }
 
 const MAX_PLACE_PHOTOS = 60;
+const GALLERY_LIMIT = 12;
 
 function pickPhotos(photos: PlacePhoto[]): PlacePhoto[] {
   if (photos.length <= MAX_PLACE_PHOTOS) {
@@ -480,19 +482,35 @@ export async function POST(request: NextRequest) {
           contentJson: section.contentJson,
         })),
         assets,
-        photos: limitedPhotos.map((photo, index) => {
-          const cls = previewClassifications[index];
-          return {
-            id: index + 1,
+        photos: (() => {
+          const candidatePhotos = limitedPhotos.map((photo, index) => {
+            const cls = previewClassifications[index];
+            return {
+              id: index + 1,
+              ref: photo.ref,
+              widthPx: photo.width,
+              heightPx: photo.height,
+              category: cls?.category ?? 'other',
+              confidence: cls?.confidence ?? 0.2,
+            };
+          });
+          const selection = selectPhotosBalanced(candidatePhotos, { galleryLimit: GALLERY_LIMIT });
+          if (process.env.PHOTO_PICK_DEBUG === '1') {
+            console.info('[photo-selection][preview]', selection.debug);
+          }
+
+          const ordered = selection.hero ? [selection.hero, ...selection.gallery] : selection.gallery;
+          return ordered.map((photo, index) => ({
+            id: Number(photo.id),
             url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
-            category: cls?.category ?? 'other',
+            category: photo.category,
             isHero: index === 0,
             sortOrder: index,
             isDeleted: false,
-            categoryConfidence: cls?.confidence ?? 0.2,
+            categoryConfidence: photo.confidence ?? 0.2,
             googlePhotoRef: photo.ref,
-          };
-        }),
+          }));
+        })(),
         place: {
           address: place.address,
           phone: place.phone,
@@ -612,8 +630,7 @@ export async function POST(request: NextRequest) {
           .map((photo) => [photo.googlePhotoRef as string, photo]),
       );
 
-      let photoSortOrder = 0;
-      try {
+        try {
         const classificationInputs = limitedPhotos.map((photo, index) => {
           const existing = existingByRef.get(photo.ref);
           const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
@@ -630,7 +647,17 @@ export async function POST(request: NextRequest) {
         const classifications = await classifyPlacePhotosBatch(toClassify);
         let classificationCursor = 0;
 
-        for (const [, photo] of limitedPhotos.entries()) {
+        const classifiedPhotos: Array<{
+          id: string;
+          ref: string;
+          widthPx: number | null;
+          heightPx: number | null;
+          category: 'exterior' | 'interior' | 'food' | 'drink' | 'menu' | 'people' | 'other';
+          confidence: number;
+          tags: string[];
+        }> = [];
+
+        for (const photo of limitedPhotos) {
           const existing = existingByRef.get(photo.ref);
           const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
           const result = highConfidence
@@ -640,6 +667,27 @@ export async function POST(request: NextRequest) {
                 tags: ['preserved-high-confidence'],
               }
             : classifications[classificationCursor++];
+
+          classifiedPhotos.push({
+            id: photo.ref,
+            ref: photo.ref,
+            widthPx: photo.width,
+            heightPx: photo.height,
+            category: normalizeCategory(result?.category),
+            confidence: result?.confidence ?? 0.2,
+            tags: result?.tags ?? [],
+          });
+        }
+
+        const selected = selectPhotosBalanced(classifiedPhotos, { galleryLimit: GALLERY_LIMIT });
+        if (process.env.PHOTO_PICK_DEBUG === '1') {
+          console.info('[photo-selection][owner]', selected.debug);
+        }
+        const orderedPhotos = selected.hero ? [selected.hero, ...selected.gallery] : selected.gallery;
+
+        for (const [photoSortOrder, photo] of orderedPhotos.entries()) {
+          const existing = existingByRef.get(photo.ref);
+          const highConfidence = typeof existing?.categoryConfidence === 'number' && existing.categoryConfidence >= 0.7;
 
           await tx.photo.upsert({
             where: {
@@ -653,10 +701,10 @@ export async function POST(request: NextRequest) {
               source: 'google',
               url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
               googlePhotoRef: photo.ref,
-              category: result?.category ?? 'other',
-              confidence: result?.confidence ?? 0.2,
-              categoryConfidence: result?.confidence ?? 0.2,
-              tagsJson: JSON.stringify(result?.tags ?? []),
+              category: photo.category,
+              confidence: photo.confidence,
+              categoryConfidence: photo.confidence,
+              tagsJson: JSON.stringify(photo.tags),
               sortOrder: photoSortOrder,
               isHero: photoSortOrder === 0,
               isDeleted: false,
@@ -664,16 +712,16 @@ export async function POST(request: NextRequest) {
             },
             update: {
               url: `/api/places/photo?ref=${encodeURIComponent(photo.ref)}&maxwidth=1200`,
-              category: highConfidence ? existing?.category : result?.category ?? 'other',
-              confidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : result?.confidence ?? 0.2,
-              categoryConfidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : result?.confidence ?? 0.2,
-              tagsJson: highConfidence ? JSON.stringify(['preserved-high-confidence']) : JSON.stringify(result?.tags ?? []),
+              category: highConfidence ? normalizeCategory(existing?.category) : photo.category,
+              confidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : photo.confidence,
+              categoryConfidence: highConfidence ? existing?.categoryConfidence ?? 0.8 : photo.confidence,
+              tagsJson: highConfidence ? JSON.stringify(['preserved-high-confidence']) : JSON.stringify(photo.tags),
               sortOrder: photoSortOrder,
+              isHero: photoSortOrder === 0,
               deletedAt: null,
               isDeleted: false,
             },
           });
-          photoSortOrder += 1;
         }
       } catch (photoError) {
         console.warn('Skipping photo table writes during site creation.', photoError);
