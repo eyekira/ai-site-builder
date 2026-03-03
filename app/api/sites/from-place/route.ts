@@ -496,7 +496,13 @@ export async function POST(request: NextRequest) {
           });
           const selection = selectPhotosBalanced(candidatePhotos, { galleryLimit: GALLERY_LIMIT });
           if (process.env.PHOTO_PICK_DEBUG === '1') {
-            console.info('[photo-selection][preview]', selection.debug);
+            console.info('[photo-selection][preview]', {
+              totalInput: selection.debug.totalInput,
+              uniqueInputRefs: selection.debug.uniqueInputRefs,
+              pickedTotal: selection.debug.pickedTotal,
+              pickedUniqueRefs: selection.debug.pickedUniqueRefs,
+              first20PickedRefs: selection.debug.first20PickedRefs,
+            });
           }
 
           const ordered = selection.hero ? [selection.hero, ...selection.gallery] : selection.gallery;
@@ -681,7 +687,13 @@ export async function POST(request: NextRequest) {
 
         const selected = selectPhotosBalanced(classifiedPhotos, { galleryLimit: GALLERY_LIMIT });
         if (process.env.PHOTO_PICK_DEBUG === '1') {
-          console.info('[photo-selection][owner]', selected.debug);
+          console.info('[photo-selection][owner]', {
+            totalInput: selected.debug.totalInput,
+            uniqueInputRefs: selected.debug.uniqueInputRefs,
+            pickedTotal: selected.debug.pickedTotal,
+            pickedUniqueRefs: selected.debug.pickedUniqueRefs,
+            first20PickedRefs: selected.debug.first20PickedRefs,
+          });
         }
         const orderedPhotos = selected.hero ? [selected.hero, ...selected.gallery] : selected.gallery;
 
