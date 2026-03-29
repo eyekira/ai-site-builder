@@ -2,7 +2,7 @@
 
 import { Loader2, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,6 @@ type PlaceSuggestion = {
 };
 
 export function PlaceSearch() {
-  const router = useRouter();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -89,16 +88,37 @@ export function PlaceSearch() {
         throw new Error('Failed to create site.');
       }
 
-      const data = (await response.json()) as { slug?: string; previewId?: string };
-      if (data.previewId) {
-        router.push(`/preview/${data.previewId}`);
-        return;
-      }
-      if (!data.slug) {
-        throw new Error('Missing slug in response.');
+      const data = (await response.json()) as { slug?: string; previewId?: string; nextPath?: string; forceMenuReview?: boolean };
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[create-site][client] response', data);
       }
 
-      router.push(`/editor/${data.slug}`);
+      if (data.previewId) {
+        let destination = data.nextPath && data.nextPath.startsWith('/preview/')
+          ? data.nextPath
+          : `/preview/${data.previewId}/menu-review`;
+
+        if (data.forceMenuReview && !destination.includes('/menu-review')) {
+          destination = `/preview/${data.previewId}/menu-review`;
+        }
+
+        if (!destination.includes('/menu-review')) {
+          throw new Error(`Invalid preview destination: ${destination}`);
+        }
+
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][client] navigate', {
+            previewId: data.previewId,
+            destination,
+            containsMenuReview: destination.includes('/menu-review'),
+          });
+        }
+
+        // Hard navigation avoids stale client-router cache paths and guarantees landing route.
+        window.location.assign(destination);
+        return;
+      }
+      throw new Error('Missing previewId in response. Expected preview flow.');
     } catch {
       setError('Failed to create the site. Please try again.');
     } finally {

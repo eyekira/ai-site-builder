@@ -29,6 +29,7 @@ export type MenuItem = {
   name: string;
   description: string;
   price: string;
+  category?: string;
 };
 
 export type MenuContent = {
@@ -242,6 +243,7 @@ function parseMenuItems(value: unknown): MenuItem[] {
         name: cleanString(item.name, 'Menu item'),
         description: cleanString(item.description, ''),
         price: cleanString(item.price, ''),
+        category: cleanString(item.category, ''),
       };
     })
     .filter((item) => item.name.trim().length > 0);

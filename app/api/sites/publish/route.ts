@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from '@/lib/rbac';
 type PublishPayload = {
   siteId?: unknown;
   slug?: unknown;
+  action?: unknown;
 };
 
 function parseSiteId(value: unknown): number | null {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
 
   const siteId = parseSiteId(body.siteId);
   const slug = typeof body.slug === 'string' ? body.slug.trim() : '';
+  const action = body.action === 'unpublish' ? 'unpublish' : 'publish';
   if (!siteId && !slug) {
     return NextResponse.json({ error: 'SITE_ID_REQUIRED' }, { status: 400 });
   }
@@ -63,7 +65,9 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.site.update({
     where: { id: site.id },
-    data: { status: 'PUBLISHED', publishedAt: new Date() },
+    data: action === 'publish'
+      ? { status: 'PUBLISHED', publishedAt: new Date() }
+      : { status: 'DRAFT', publishedAt: null },
     select: { id: true, slug: true, status: true },
   });
 
@@ -72,5 +76,5 @@ export async function POST(request: NextRequest) {
   revalidatePath(`/editor/${updated.slug}`);
   revalidatePath(`/editor/${updated.slug}/preview`);
 
-  return NextResponse.json({ ok: true, slug: updated.slug });
+  return NextResponse.json({ ok: true, slug: updated.slug, status: updated.status, action });
 }

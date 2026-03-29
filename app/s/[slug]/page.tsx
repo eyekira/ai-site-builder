@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation';
 
-import { SiteStatus } from '@prisma/client';
-
-import { SiteRenderer } from '@/components/site/site-renderer';
-import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import { SiteRenderer } from '@/components/site/SiteRenderer';
+import { getPublishedSiteForRender } from '@/lib/site';
 
 type SitePageProps = {
   params: Promise<{ slug: string }>;
@@ -12,7 +11,6 @@ type SitePageProps = {
 
 function isEmbedMode(embedParam: string | string[] | undefined): boolean {
   const embedValue = Array.isArray(embedParam) ? embedParam[0] : embedParam;
-
   return embedValue === '1' || embedValue === 'true';
 }
 
@@ -21,18 +19,22 @@ export default async function SitePage({ params, searchParams }: SitePageProps) 
   const query = await searchParams;
   const embedMode = isEmbedMode(query.embed);
 
-  const site = await prisma.site.findFirst({
-    where: { slug, status: SiteStatus.PUBLISHED },
-    include: {
-      sections: {
-        orderBy: { order: 'asc' },
-      },
-    },
-  });
+  const site = await getPublishedSiteForRender(slug);
 
   if (!site) {
     notFound();
   }
 
-  return <SiteRenderer title={site.title} sections={site.sections} themeJson={site.themeJson} embedMode={embedMode} />;
+  const session = await auth();
+  const canEdit = Number(session?.user?.id) === site.ownerId;
+
+  return (
+    <SiteRenderer
+      site={site}
+      embedMode={embedMode}
+      fullPage={!embedMode}
+      canEdit={canEdit}
+      editorHref={`/editor/${site.slug}`}
+    />
+  );
 }

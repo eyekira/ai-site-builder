@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from '@/lib/rbac';
 import { formatHoursFromJson } from '@/lib/hours';
 import { fetchPlaceDetails } from '@/lib/places';
 import { prisma } from '@/lib/prisma';
-import { serializeTheme } from '@/lib/theme';
+import { generateBrandPack } from '@/lib/brandpack/generate';
 
 function slugify(value: string) {
   return value
@@ -131,15 +131,12 @@ export async function POST(request: NextRequest) {
     const place = await resolvePlaceForCreation(placeId);
     const ownerId = user.id;
 
-    const existingSite = await prisma.site.findUnique({
-      where: { placeId },
+    const existingSite = await prisma.site.findFirst({
+      where: { placeId, ownerId },
       select: { id: true, slug: true, ownerId: true },
     });
     if (existingSite) {
-      if (existingSite.ownerId === ownerId) {
-        return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
-      }
-      return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
+      return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
     }
 
     await prisma.place.upsert({
@@ -174,12 +171,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const textSignals = [place.name, place.address ?? '', place.website ?? ''];
+    const brandPack = generateBrandPack({ textSignals });
+
     const site = await prisma.site.create({
       data: {
         slug,
         title: place.name,
         status: SiteStatus.DRAFT,
-        themeJson: serializeTheme('classic'),
+        themeJson: JSON.stringify({ name: 'bistro_core' }),
+        brandPackJson: JSON.stringify(brandPack),
         ownerId,
         placeId: place.id,
         sections: {

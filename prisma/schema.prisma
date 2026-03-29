@@ -73,9 +73,11 @@ model Site {
   updatedAt      DateTime   @updatedAt
   publishedAt    DateTime?
   themeJson      String?
+  layoutKey      String?
+  brandPackJson  String?
   ownerId        Int?
   anonSessionId  String?
-  placeId        String?    @unique
+  placeId        String?
   customDomain   String?    @unique
 
   owner    User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -85,6 +87,7 @@ model Site {
   photos   Photo[]
 
   @@index([anonSessionId])
+  @@index([placeId])
 }
 
 model Photo {
@@ -155,10 +158,11 @@ model Asset {
 }
 
 model PreviewSession {
-  id        String   @id @default(cuid())
-  dataJson  String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id                  String   @id @default(cuid())
+  dataJson            String
+  menuReviewCompleted Boolean  @default(false)
+  expiresAt           DateTime
+  createdAt           DateTime @default(now())
 
   @@index([expiresAt])
 }

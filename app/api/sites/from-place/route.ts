@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SectionType, SiteStatus } from '@prisma/client';
+import { SiteStatus } from '@prisma/client';
 
 import { fetchPlaceDetails } from '@/lib/places';
 import { createPreviewSession } from '@/lib/preview-session';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/rbac';
-import type { SiteForRender } from '@/lib/site';
-import { serializeTheme } from '@/lib/theme';
+import { getSiteForOwnerRender, type SiteForRender } from '@/lib/site';
 import { classifyPlacePhotosBatch } from '@/lib/photo-classifier';
+import { TEMPLATE_THEME_MAP } from '@/lib/templates/catalog';
+import { adaptCopyForTemplate } from '@/lib/templates/content';
+import { selectTemplate } from '@/lib/templates/select';
+import { buildTemplateSections } from '@/lib/templates/sections';
+import { generateBrandPack } from '@/lib/brandpack/generate';
+import { resolveThemeLayoutKey } from '@/lib/themes/registry';
 
 type PlacePhoto = {
   ref: string;
@@ -116,11 +121,13 @@ function generatePreviewSlug(baseTitle: string, city: string | null): string {
   return `${baseSlug}-${Date.now().toString(36)}`;
 }
 
+const MAX_PLACE_PHOTOS = 60;
+
 function pickPhotos(photos: PlacePhoto[]): PlacePhoto[] {
-  if (photos.length <= 10) {
+  if (photos.length <= MAX_PLACE_PHOTOS) {
     return photos;
   }
-  return photos.slice(0, 10);
+  return photos.slice(0, MAX_PLACE_PHOTOS);
 }
 
 
@@ -328,15 +335,49 @@ export async function POST(request: NextRequest) {
     const isLoggedIn = Boolean(ownerId);
 
     if (isLoggedIn) {
-      const existingSite = await prisma.site.findUnique({
-        where: { placeId },
+      const existingSite = await prisma.site.findFirst({
+        where: { placeId, ownerId: ownerId ?? undefined },
         select: { id: true, slug: true, ownerId: true },
       });
       if (existingSite) {
-        if (existingSite.ownerId === ownerId) {
-          return NextResponse.json({ siteId: existingSite.id, slug: existingSite.slug, existed: true });
+        const existingRenderSite = await getSiteForOwnerRender(existingSite.slug, ownerId!);
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][diag] existing-site render fetch', {
+            slug: existingSite.slug,
+            ownerId,
+            found: Boolean(existingRenderSite),
+          });
         }
-        return NextResponse.json({ error: 'PLACE_ALREADY_CLAIMED' }, { status: 409 });
+        if (!existingRenderSite) {
+          return NextResponse.json(
+            { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for existing site.' },
+            { status: 500 },
+          );
+        }
+        const previewSession = await createPreviewSession(existingRenderSite);
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][diag] existing-site preview session created', {
+            previewId: previewSession.id,
+            expiresAt: previewSession.expiresAt?.toISOString?.() ?? null,
+          });
+        }
+        const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+        if (process.env.NODE_ENV !== 'production') {
+          console.info('[create-site][from-place] existing-site-preview', {
+            siteId: existingSite.id,
+            previewId: previewSession.id,
+            nextPath,
+          });
+        }
+        return NextResponse.json({
+          siteId: existingSite.id,
+          slug: existingSite.slug,
+          existed: true,
+          previewId: previewSession.id,
+          nextPath,
+          forceMenuReview: true,
+          expiresAt: previewSession.expiresAt.toISOString(),
+        });
       }
     }
 
@@ -356,6 +397,18 @@ export async function POST(request: NextRequest) {
       hoursText,
     });
 
+    const textSignals = [placeTitle, place.address ?? '', place.website ?? ''];
+    const ownerTemplateSelection = selectTemplate({ textSignals });
+
+    const brandPhotoClassifications = limitedPhotos.length
+      ? await classifyPlacePhotosBatch(
+          limitedPhotos.map((photo, index) => ({
+            googlePhotoRef: photo.ref,
+            metadata: { index },
+          })),
+        )
+      : [];
+
     const heroCtaHref = buildCtaHref(place.phone, place.website);
 
     if (!isLoggedIn) {
@@ -364,53 +417,42 @@ export async function POST(request: NextRequest) {
         ref: photo.ref,
       }));
       const assetIds = assets.map((asset) => asset.id);
-      const previewClassifications = await classifyPlacePhotosBatch(
-        limitedPhotos.map((photo, index) => ({
-          googlePhotoRef: photo.ref,
-          metadata: { index },
-        })),
+      const previewClassifications = brandPhotoClassifications;
+      const previewTemplateSelection = selectTemplate({
+        textSignals,
+        photoCategories: previewClassifications.map((entry) => entry.category),
+      });
+      const previewCopy = adaptCopyForTemplate(copy, previewTemplateSelection.templateKey);
+      const sectionsPayload = buildTemplateSections({
+        templateKey: previewTemplateSelection.templateKey,
+        copy: previewCopy,
+        heroCtaHref,
+        assetIds,
+        place: {
+          address: place.address,
+          phone: place.phone,
+          website: place.website,
+        },
+        hoursText,
+      }).map((section, index) => ({
+        id: index + 1,
+        type: section.type,
+        contentJson: section.contentJson,
+      }));
+
+      const previewBrandPack = generateBrandPack({
+        textSignals,
+        photoCategories: previewClassifications.map((entry) => entry.category),
+      });
+
+      const previewLayoutKey = resolveThemeLayoutKey(
+        JSON.stringify({
+          name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
+          templateKey: previewTemplateSelection.templateKey,
+          templateConfidence: previewTemplateSelection.confidence,
+          templateSignals: previewTemplateSelection.signals,
+        }),
       );
-      const sectionsPayload = [
-        {
-          id: 1,
-          type: SectionType.HERO,
-          contentJson: JSON.stringify({
-            headline: copy.hero.headline,
-            subheadline: copy.hero.subheadline,
-            ctas: [{ label: copy.hero.primaryCtaLabel, href: heroCtaHref }],
-          }),
-        },
-        {
-          id: 2,
-          type: SectionType.ABOUT,
-          contentJson: JSON.stringify({
-            title: copy.about.title,
-            body: copy.about.body,
-            bullets: copy.about.bullets,
-            text: copy.about.body,
-          }),
-        },
-        {
-          id: 3,
-          type: SectionType.PHOTOS,
-          contentJson: JSON.stringify({
-            assetIds,
-          }),
-        },
-        {
-          id: 4,
-          type: SectionType.CONTACT,
-          contentJson: JSON.stringify({
-            title: copy.cta.title,
-            body: copy.cta.body,
-            ctaLabel: copy.cta.ctaLabel,
-            address: place.address,
-            phone: place.phone,
-            website: place.website,
-            hours: hoursText,
-          }),
-        },
-      ];
 
       const previewSite: SiteForRender = {
         id: 0,
@@ -418,6 +460,15 @@ export async function POST(request: NextRequest) {
         title: placeTitle,
         businessTitle: placeTitle,
         status: SiteStatus.DRAFT,
+        ownerId: null,
+        themeJson: JSON.stringify({
+          name: TEMPLATE_THEME_MAP[previewTemplateSelection.templateKey],
+          templateKey: previewTemplateSelection.templateKey,
+          templateConfidence: previewTemplateSelection.confidence,
+          templateSignals: previewTemplateSelection.signals,
+          layoutKey: previewLayoutKey,
+        }),
+        brandPackJson: JSON.stringify(previewBrandPack),
         formattedAddress: place.address,
         phone: place.phone,
         hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
@@ -452,8 +503,19 @@ export async function POST(request: NextRequest) {
       };
 
       const previewSession = await createPreviewSession(previewSite);
+      const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[create-site][from-place] preview-created', {
+          previewId: previewSession.id,
+          createdAt: new Date().toISOString(),
+          responseShape: { previewId: true, nextPath: true, forceMenuReview: true, expiresAt: true },
+          nextPath,
+        });
+      }
       return NextResponse.json({
         previewId: previewSession.id,
+        nextPath,
+        forceMenuReview: true,
         expiresAt: previewSession.expiresAt.toISOString(),
       });
     }
@@ -482,6 +544,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const ownerBrandPack = generateBrandPack({
+        textSignals,
+        photoCategories: brandPhotoClassifications.map((entry) => entry.category),
+      });
+
+      const ownerLayoutKey = resolveThemeLayoutKey(
+        JSON.stringify({
+          name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
+          templateKey: ownerTemplateSelection.templateKey,
+          templateConfidence: ownerTemplateSelection.confidence,
+          templateSignals: ownerTemplateSelection.signals,
+        }),
+      );
+
       const site = await tx.site.create({
         data: {
           slug,
@@ -494,7 +570,14 @@ export async function POST(request: NextRequest) {
           lng: place.lng,
           hoursJson: place.hoursJson ? JSON.stringify(place.hoursJson) : null,
           status: SiteStatus.DRAFT,
-          themeJson: serializeTheme('classic'),
+          themeJson: JSON.stringify({
+            name: TEMPLATE_THEME_MAP[ownerTemplateSelection.templateKey],
+            templateKey: ownerTemplateSelection.templateKey,
+            templateConfidence: ownerTemplateSelection.confidence,
+            templateSignals: ownerTemplateSelection.signals,
+            layoutKey: ownerLayoutKey,
+          }),
+          brandPackJson: JSON.stringify(ownerBrandPack),
           ownerId,
           placeId: place.id,
         },
@@ -596,47 +679,24 @@ export async function POST(request: NextRequest) {
         console.warn('Skipping photo table writes during site creation.', photoError);
       }
 
-      const sectionsPayload = [
-        {
-          type: SectionType.HERO,
-          order: 1,
-          contentJson: JSON.stringify({
-            headline: copy.hero.headline,
-            subheadline: copy.hero.subheadline,
-            ctas: [{ label: copy.hero.primaryCtaLabel, href: heroCtaHref }],
-          }),
+      const ownerCopy = adaptCopyForTemplate(copy, ownerTemplateSelection.templateKey);
+
+      const sectionsPayload = buildTemplateSections({
+        templateKey: ownerTemplateSelection.templateKey,
+        copy: ownerCopy,
+        heroCtaHref,
+        assetIds,
+        place: {
+          address: place.address,
+          phone: place.phone,
+          website: place.website,
         },
-        {
-          type: SectionType.ABOUT,
-          order: 2,
-          contentJson: JSON.stringify({
-            title: copy.about.title,
-            body: copy.about.body,
-            bullets: copy.about.bullets,
-            text: copy.about.body,
-          }),
-        },
-        {
-          type: SectionType.PHOTOS,
-          order: 3,
-          contentJson: JSON.stringify({
-            assetIds,
-          }),
-        },
-        {
-          type: SectionType.CONTACT,
-          order: 4,
-          contentJson: JSON.stringify({
-            title: copy.cta.title,
-            body: copy.cta.body,
-            ctaLabel: copy.cta.ctaLabel,
-            address: place.address,
-            phone: place.phone,
-            website: place.website,
-            hours: hoursText,
-          }),
-        },
-      ];
+        hoursText,
+      }).map((section, index) => ({
+        type: section.type,
+        order: index + 1,
+        contentJson: section.contentJson,
+      }));
 
       await tx.section.createMany({
         data: sectionsPayload.map((section) => ({
@@ -650,16 +710,69 @@ export async function POST(request: NextRequest) {
       return site;
     });
 
-    return NextResponse.json({ siteId: created.id, slug: created.slug });
+    const createdRenderSite = await getSiteForOwnerRender(created.slug, ownerId!);
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[create-site][diag] created-site render fetch', {
+        siteId: created.id,
+        slug: created.slug,
+        ownerId,
+        found: Boolean(createdRenderSite),
+      });
+    }
+    if (!createdRenderSite) {
+      return NextResponse.json(
+        { error: 'PREVIEW_BOOTSTRAP_FAILED', detail: 'Could not build preview session for created site.' },
+        { status: 500 },
+      );
+    }
+
+    const previewSession = await createPreviewSession(createdRenderSite);
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[create-site][diag] created-site preview session created', {
+        previewId: previewSession.id,
+        expiresAt: previewSession.expiresAt?.toISOString?.() ?? null,
+      });
+    }
+    const nextPath = `/preview/${encodeURIComponent(previewSession.id)}/menu-review`;
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[create-site][from-place] owner-site-preview', {
+        siteId: created.id,
+        previewId: previewSession.id,
+        createdAt: new Date().toISOString(),
+        responseShape: { siteId: true, slug: true, previewId: true, nextPath: true, forceMenuReview: true, expiresAt: true },
+        nextPath,
+      });
+    }
+
+    return NextResponse.json({
+      siteId: created.id,
+      slug: created.slug,
+      previewId: previewSession.id,
+      nextPath,
+      forceMenuReview: true,
+      expiresAt: previewSession.expiresAt.toISOString(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
     const missingDbUrl = message.includes('Environment variable not found: DATABASE_URL');
+    const migrationLikely = /P30\d+|no such column|no such table|migrate|schema/i.test(message);
 
     console.error('Failed to create site from place', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[create-site][diag] failure classification', {
+        missingDbUrl,
+        migrationLikely,
+        message,
+        stackTop: stack?.split('\n').slice(0, 4).join('\n') ?? null,
+      });
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to create site from place.',
         detail: missingDbUrl ? 'Server is missing DATABASE_URL configuration.' : message,
+        debug: process.env.NODE_ENV !== 'production' ? { migrationLikely } : undefined,
       },
       { status: 500 },
     );

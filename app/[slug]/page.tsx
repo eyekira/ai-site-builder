@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 
+import { auth } from '@/auth';
 import { SiteRenderer } from '@/components/site/SiteRenderer';
 import { getPublishedSiteForRender } from '@/lib/site';
 
@@ -12,5 +13,8 @@ export default async function PublicSitePage({ params }: { params: Promise<{ slu
     notFound();
   }
 
-  return <SiteRenderer site={site} />;
+  const session = await auth();
+  const canEdit = Number(session?.user?.id) === site.ownerId;
+
+  return <SiteRenderer site={site} fullPage canEdit={canEdit} editorHref={`/editor/${site.slug}`} />;
 }

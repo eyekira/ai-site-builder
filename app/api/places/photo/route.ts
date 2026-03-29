@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { withRetry } from '@/lib/net-retry';
+
 function getGoogleMapsKey(): string | null {
   return process.env.GOOGLE_MAPS_API_KEY ?? process.env.GOOGLE_PLACES_SERVER_KEY ?? null;
 }
@@ -44,13 +46,17 @@ export async function GET(request: NextRequest) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(upstreamUrl.toString(), {
-      cache: 'no-store',
-      redirect: 'follow',
-      headers: {
-        'X-Goog-Api-Key': apiKey,
-      },
-    });
+    upstream = await withRetry(
+      async () =>
+        fetch(upstreamUrl.toString(), {
+          cache: 'no-store',
+          redirect: 'follow',
+          headers: {
+            'X-Goog-Api-Key': apiKey,
+          },
+        }),
+      { retries: 2, baseDelayMs: 250 },
+    );
   } catch (error) {
     console.error('Places v1 photo fetch network error:', error);
     return NextResponse.json({ error: 'Failed to fetch photo (network error).' }, { status: 502 });

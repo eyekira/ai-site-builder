@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { addSection, reorderSections, updateSection, updateTheme } from './actions';
+import { addSection, reorderSections, updateSection, updateLayout, updateBrandCustomization, importMenuFromMenuPhotos } from './actions';
 import {
   parseAboutContent,
   parseContactContent,
@@ -14,7 +14,10 @@ import {
   parseReviewsContent,
   type SectionType,
 } from '@/lib/section-content';
-import { THEME_OPTIONS, type ThemeName } from '@/lib/theme';
+import { LAYOUT_KEYS } from '@/lib/themes/schema';
+import { parseBrandPack } from '@/lib/brandpack/parse';
+import { LayoutThumbnail } from '@/components/layouts/LayoutThumbnail';
+import type { BrandPack, FontKey } from '@/lib/brandpack/types';
 
 type EditorSection = {
   id: number;
@@ -48,7 +51,8 @@ type EditorShellProps = {
   siteId: number;
   slug: string;
   siteStatus: 'DRAFT' | 'PUBLISHED';
-  themeName: ThemeName;
+  layoutKey: string | null;
+  brandPackJson: string | null;
   isLoggedIn: boolean;
   isSubscribed: boolean;
   customDomain: string | null;
@@ -59,6 +63,94 @@ type EditorShellProps = {
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 type PublishState = 'idle' | 'publishing' | 'success' | 'error';
+
+const FONT_OPTIONS: FontKey[] = [
+  'inter',
+  'playfair_display',
+  'manrope',
+  'nunito',
+  'dm_sans',
+  'lora',
+  'poppins',
+  'merriweather',
+  'space_grotesk',
+];
+const RADIUS_OPTIONS: BrandPack['style']['radius'][] = ['soft', 'rounded', 'sharp'];
+const SHADOW_OPTIONS: BrandPack['style']['shadow'][] = ['none', 'soft', 'elevated'];
+const DENSITY_OPTIONS: BrandPack['style']['density'][] = ['airy', 'balanced', 'dense'];
+const BUTTON_OPTIONS: BrandPack['style']['button'][] = ['pill', 'rounded', 'square'];
+const IMAGE_OPTIONS: BrandPack['style']['image'][] = ['natural', 'vibrant', 'editorial'];
+
+const LAYOUT_LABELS: Record<string, string> = {
+  luxury: 'Luxury Layout',
+  modern_casual: 'Modern Casual Layout',
+  cozy_local: 'Cozy Local Layout',
+  minimal_contemporary: 'Minimal Contemporary Layout',
+  menu_first: 'Menu First Layout',
+};
+
+const LAYOUT_DESCRIPTORS: Record<string, string> = {
+  luxury: 'Reservation-led, photo hero',
+  modern_casual: 'Order CTA, fast scanning',
+  cozy_local: 'Warm story + specials',
+  minimal_contemporary: 'Typography + whitespace',
+  menu_first: 'Best for large menus',
+};
+
+type PaletteOption = {
+  key: string;
+  label: string;
+  primary: string;
+  accent: string;
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  border: string;
+};
+
+const PALETTE_OPTIONS: PaletteOption[] = [
+  { key: 'ivory-noir', label: 'Ivory Noir', primary: '#1F2937', accent: '#D4AF37', background: '#FFFDF7', surface: '#FFFFFF', text: '#111827', muted: '#6B7280', border: '#E5E7EB' },
+  { key: 'mint-fresh', label: 'Mint Fresh', primary: '#0EA5E9', accent: '#22C55E', background: '#F5FBFF', surface: '#FFFFFF', text: '#0F172A', muted: '#475569', border: '#CBD5E1' },
+  { key: 'warm-bakery', label: 'Warm Bakery', primary: '#B45309', accent: '#EC4899', background: '#FFFBF5', surface: '#FFFFFF', text: '#3F3F46', muted: '#71717A', border: '#FDE68A' },
+  { key: 'tokyo-night', label: 'Tokyo Night', primary: '#7C2D12', accent: '#F97316', background: '#111827', surface: '#1F2937', text: '#F9FAFB', muted: '#D1D5DB', border: '#374151' },
+];
+
+const BRAND_PRESETS: Record<
+  'luxury' | 'casual' | 'bakery' | 'asian' | 'bar',
+  {
+    primary: string;
+    accent: string;
+    background?: string;
+    surface?: string;
+    text?: string;
+    muted?: string;
+    border?: string;
+    headingFontKey: FontKey;
+    bodyFontKey: FontKey;
+    radius: BrandPack['style']['radius'];
+    shadow: BrandPack['style']['shadow'];
+    density: BrandPack['style']['density'];
+    button: BrandPack['style']['button'];
+    image: BrandPack['style']['image'];
+  }
+> = {
+  luxury: {
+    primary: '#1F2937', accent: '#D4AF37', headingFontKey: 'playfair_display', bodyFontKey: 'inter', radius: 'sharp', shadow: 'elevated', density: 'airy', button: 'rounded', image: 'editorial',
+  },
+  casual: {
+    primary: '#0EA5E9', accent: '#22C55E', headingFontKey: 'manrope', bodyFontKey: 'dm_sans', radius: 'rounded', shadow: 'soft', density: 'dense', button: 'square', image: 'vibrant',
+  },
+  bakery: {
+    primary: '#B45309', accent: '#EC4899', headingFontKey: 'lora', bodyFontKey: 'nunito', radius: 'soft', shadow: 'soft', density: 'balanced', button: 'pill', image: 'natural',
+  },
+  asian: {
+    primary: '#7C2D12', accent: '#F97316', headingFontKey: 'playfair_display', bodyFontKey: 'inter', radius: 'rounded', shadow: 'elevated', density: 'balanced', button: 'rounded', image: 'editorial',
+  },
+  bar: {
+    primary: '#111827', accent: '#8B5CF6', headingFontKey: 'manrope', bodyFontKey: 'dm_sans', radius: 'sharp', shadow: 'elevated', density: 'dense', button: 'square', image: 'vibrant',
+  },
+};
 
 function sectionTitle(section: EditorSection): string {
   if (section.type === 'HERO') {
@@ -130,7 +222,8 @@ export default function EditorShell({
   siteId,
   slug,
   siteStatus,
-  themeName,
+  layoutKey,
+  brandPackJson,
   isLoggedIn,
   isSubscribed,
   customDomain,
@@ -154,13 +247,38 @@ export default function EditorShell({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeState, setUpgradeState] = useState<'idle' | 'subscribing' | 'error'>('idle');
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
-  const [currentTheme, setCurrentTheme] = useState<ThemeName>(themeName);
-  const [themeState, setThemeState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [themeMessage, setThemeMessage] = useState<string | null>(null);
+  const [currentLayout, setCurrentLayout] = useState<string | null>(layoutKey ?? 'minimal_contemporary');
+  const [layoutState, setLayoutState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [layoutMessage, setLayoutMessage] = useState<string | null>(null);
+
+  const initialBrandPack = parseBrandPack(brandPackJson);
+  const [primaryColor, setPrimaryColor] = useState(initialBrandPack.palette.primary);
+  const [accentColor, setAccentColor] = useState(initialBrandPack.palette.accent);
+  const [backgroundColor, setBackgroundColor] = useState(initialBrandPack.palette.background);
+  const [surfaceColor, setSurfaceColor] = useState(initialBrandPack.palette.surface);
+  const [textColor, setTextColor] = useState(initialBrandPack.palette.text);
+  const [mutedColor, setMutedColor] = useState(initialBrandPack.palette.muted);
+  const [borderColor, setBorderColor] = useState(initialBrandPack.palette.border);
+  const [paletteKey, setPaletteKey] = useState<string>('custom');
+  const [headingFontKey, setHeadingFontKey] = useState<FontKey>(initialBrandPack.typography.headingFontKey);
+  const [bodyFontKey, setBodyFontKey] = useState<FontKey>(initialBrandPack.typography.bodyFontKey);
+  const [radiusStyle, setRadiusStyle] = useState<BrandPack['style']['radius']>(initialBrandPack.style.radius);
+  const [shadowStyle, setShadowStyle] = useState<BrandPack['style']['shadow']>(initialBrandPack.style.shadow);
+  const [densityStyle, setDensityStyle] = useState<BrandPack['style']['density']>(initialBrandPack.style.density);
+  const [buttonStyle, setButtonStyle] = useState<BrandPack['style']['button']>(initialBrandPack.style.button);
+  const [imageStyle, setImageStyle] = useState<BrandPack['style']['image']>(initialBrandPack.style.image);
+  const [brandState, setBrandState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [brandMessage, setBrandMessage] = useState<string | null>(null);
+
   const [domainInput, setDomainInput] = useState(customDomain ?? '');
   const [domainState, setDomainState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [domainMessage, setDomainMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [previewViewport, setPreviewViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [groupOpen, setGroupOpen] = useState<{ layout: boolean; brand: boolean }>({
+    layout: true,
+    brand: false,
+  });
 
   const orderedSections = useMemo(
     () => [...sections].sort((a, b) => (a.order === b.order ? a.id - b.id : a.order - b.order)),
@@ -197,17 +315,6 @@ export default function EditorShell({
     setPreviewKey(Date.now());
   }, []);
 
-  useEffect(() => {
-    if (themeState !== 'saved') {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setThemeState('idle');
-    }, 2000);
-
-    return () => window.clearTimeout(timer);
-  }, [themeState]);
 
   const currentDraft = selectedSection
     ? draftsBySection[selectedSection.id] ?? normalizeSectionContent(selectedSection, selectedSection.contentJson)
@@ -432,30 +539,98 @@ export default function EditorShell({
     });
   };
 
-  const onThemeChange = (nextTheme: ThemeName) => {
-    if (nextTheme === currentTheme) {
+  const onLayoutChange = (nextLayout: string) => {
+    if (nextLayout === currentLayout) {
       return;
     }
 
-    setCurrentTheme(nextTheme);
-    setThemeState('saving');
-    setThemeMessage(null);
+    setCurrentLayout(nextLayout);
+    setLayoutState('saving');
+    setLayoutMessage(null);
 
     startTransition(async () => {
       try {
-        await updateTheme(siteId, nextTheme);
-        setThemeState('saved');
+        await updateLayout(siteId, nextLayout);
+        setLayoutState('saved');
         setPreviewKey(Date.now());
         router.refresh();
       } catch {
-        setThemeState('error');
-        setThemeMessage('Unable to update theme. Please try again.');
+        setLayoutState('error');
+        setLayoutMessage('Unable to update layout. Please try again.');
       }
     });
   };
 
+  const onSaveBrand = () => {
+    setBrandState('saving');
+    setBrandMessage(null);
+
+    startTransition(async () => {
+      try {
+        await updateBrandCustomization(siteId, {
+          primary: primaryColor,
+          accent: accentColor,
+          background: backgroundColor,
+          surface: surfaceColor,
+          text: textColor,
+          muted: mutedColor,
+          border: borderColor,
+          headingFontKey,
+          bodyFontKey,
+          radius: radiusStyle,
+          shadow: shadowStyle,
+          density: densityStyle,
+          button: buttonStyle,
+          image: imageStyle,
+        });
+        setBrandState('saved');
+        setPreviewKey(Date.now());
+        router.refresh();
+      } catch {
+        setBrandState('error');
+        setBrandMessage('Unable to save brand customization.');
+      }
+    });
+  };
+
+  const onAutoImportMenu = async (): Promise<string> => {
+    const json = await importMenuFromMenuPhotos(siteId);
+    return json;
+  };
+
+  const onApplyBrandPreset = (presetKey: keyof typeof BRAND_PRESETS) => {
+    const preset = BRAND_PRESETS[presetKey];
+    setPrimaryColor(preset.primary);
+    setAccentColor(preset.accent);
+    if (preset.background) setBackgroundColor(preset.background);
+    if (preset.surface) setSurfaceColor(preset.surface);
+    if (preset.text) setTextColor(preset.text);
+    if (preset.muted) setMutedColor(preset.muted);
+    if (preset.border) setBorderColor(preset.border);
+    setHeadingFontKey(preset.headingFontKey);
+    setBodyFontKey(preset.bodyFontKey);
+    setRadiusStyle(preset.radius);
+    setShadowStyle(preset.shadow);
+    setDensityStyle(preset.density);
+    setButtonStyle(preset.button);
+    setImageStyle(preset.image);
+  };
+
+  const onSelectPalette = (nextKey: string) => {
+    setPaletteKey(nextKey);
+    const selected = PALETTE_OPTIONS.find((p) => p.key === nextKey);
+    if (!selected) return;
+    setPrimaryColor(selected.primary);
+    setAccentColor(selected.accent);
+    setBackgroundColor(selected.background);
+    setSurfaceColor(selected.surface);
+    setTextColor(selected.text);
+    setMutedColor(selected.muted);
+    setBorderColor(selected.border);
+  };
+
   return (
-    <div className="grid h-screen grid-cols-[280px_1fr_340px] overflow-hidden bg-zinc-100">
+    <div className="relative left-1/2 grid h-screen w-screen -translate-x-1/2 grid-cols-[280px_1fr_340px] bg-zinc-100">
       <aside className="border-r border-zinc-200 bg-white p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">Sections</h2>
@@ -517,39 +692,180 @@ export default function EditorShell({
       </aside>
 
       <main className="border-r border-zinc-200 bg-zinc-50 p-4">
-        <div className="h-full rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <iframe
-            key={previewKey}
-            src={`/editor/${slug}/preview?embed=1&v=${previewKey}`}
-            title="Live preview"
-            className="h-full w-full rounded-xl"
-          />
-        </div>
-      </main>
-
-      <aside className="bg-white p-4">
-        <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
-          <p className="font-semibold uppercase tracking-wide text-zinc-500">Theme</p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {THEME_OPTIONS.map((theme) => (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Preview viewport</p>
+          <div className="flex items-center gap-2">
+            {(['desktop', 'tablet', 'mobile'] as const).map((mode) => (
               <button
-                key={theme.name}
+                key={mode}
                 type="button"
-                onClick={() => onThemeChange(theme.name)}
-                className={`rounded-md border px-2 py-2 text-xs font-medium transition ${
-                  currentTheme === theme.name
-                    ? 'border-zinc-900 bg-white text-zinc-900'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
+                onClick={() => setPreviewViewport(mode)}
+                className={`rounded-md px-2 py-1 text-xs font-medium ${
+                  previewViewport === mode ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'
                 }`}
               >
-                <div className={`mb-2 h-6 w-full rounded ${theme.previewClass}`} />
-                {theme.label}
+                {mode}
               </button>
             ))}
           </div>
-          {themeState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving theme…</p>}
-          {themeState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Theme saved.</p>}
-          {themeState === 'error' && <p className="mt-2 text-xs text-red-600">{themeMessage}</p>}
+        </div>
+        <div className="flex min-h-[75vh] flex-1 items-start justify-center overflow-auto rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+          <div
+            className={`h-full transition-all ${
+              previewViewport === 'desktop'
+                ? 'w-full max-w-[1200px]'
+                : previewViewport === 'tablet'
+                  ? 'w-full max-w-[820px]'
+                  : 'w-full max-w-[430px]'
+            }`}
+          >
+            <iframe
+              key={previewKey}
+              src={`/editor/${slug}/preview?embed=1&v=${previewKey}`}
+              title="Live preview"
+              className="h-[85vh] w-full rounded-xl"
+            />
+          </div>
+        </div>
+      </main>
+
+      <aside className="h-screen overflow-y-auto overflow-x-hidden bg-white p-4">
+        <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
+          <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, layout: !s.layout }))} className="flex w-full items-center justify-between text-left font-semibold uppercase tracking-wide text-zinc-500">
+            <span>Layout (Structure)</span>
+            <span>{groupOpen.layout ? '−' : '+'}</span>
+          </button>
+          <div className="mt-2 min-h-[18px] text-[11px]">
+            {layoutState === 'saving' && <p className="text-zinc-500">Saving layout…</p>}
+            {layoutState === 'saved' && <p className="text-emerald-600">Layout saved.</p>}
+            {layoutState === 'error' && <p className="text-red-600">{layoutMessage}</p>}
+          </div>
+
+          {groupOpen.layout && <div className="mt-3 grid grid-cols-2 gap-3 overflow-x-hidden">
+            {LAYOUT_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onLayoutChange(key)}
+                className={`w-full min-h-[116px] rounded-xl border p-3 text-left text-[11px] transition ${
+                  currentLayout === key
+                    ? 'ring-2 ring-zinc-400 ring-offset-1 border-zinc-900 bg-zinc-50 text-zinc-900'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:shadow-sm'
+                }`}
+              >
+                <div className="flex h-full flex-col gap-2">
+                  <div className="h-20 w-full"><LayoutThumbnail layoutKey={key} /></div>
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 text-[11px] font-semibold leading-snug">{LAYOUT_LABELS[key] ?? key}</p>
+                    <p className="mt-0.5 truncate text-[10px] text-zinc-500">{LAYOUT_DESCRIPTORS[key] ?? 'Structure preset'}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>}
+
+          <button type="button" onClick={() => setGroupOpen((s) => ({ ...s, brand: !s.brand }))} className="mt-4 flex w-full items-center justify-between border-t border-zinc-200 pt-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <span>Brand (Colors + Typography)</span>
+            <span>{groupOpen.brand ? '−' : '+'}</span>
+          </button>
+          {groupOpen.brand && <div className="mt-2">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Brand Customization</p>
+            <div className="mb-2 grid grid-cols-3 gap-1">
+              {(Object.keys(BRAND_PRESETS) as Array<keyof typeof BRAND_PRESETS>).map((presetKey) => (
+                <button
+                  key={presetKey}
+                  type="button"
+                  onClick={() => onApplyBrandPreset(presetKey)}
+                  className="rounded border border-zinc-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-700 hover:border-zinc-400"
+                >
+                  {presetKey}
+                </button>
+              ))}
+            </div>
+            <label className="text-[11px] text-zinc-600">
+              Palette
+              <select value={paletteKey} onChange={(e) => onSelectPalette(e.target.value)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                <option value="custom">Custom</option>
+                {PALETTE_OPTIONS.map((palette) => (
+                  <option key={palette.key} value={palette.key}>{palette.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {[primaryColor, accentColor, backgroundColor].map((color, idx) => (
+                <div key={`${color}-${idx}`} className="rounded border border-zinc-200 p-1 text-[10px]">
+                  <div className="h-5 rounded" style={{ backgroundColor: color }} />
+                  <p className="mt-1 text-center text-zinc-500">{idx === 0 ? 'Primary' : idx === 1 ? 'Accent' : 'Background'}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              <label className="text-[11px] text-zinc-600">
+                Heading font
+                <select value={headingFontKey} onChange={(e) => setHeadingFontKey(e.target.value as FontKey)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                  {FONT_OPTIONS.map((font) => (
+                    <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] text-zinc-600">
+                Body font
+                <select value={bodyFontKey} onChange={(e) => setBodyFontKey(e.target.value as FontKey)} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                  {FONT_OPTIONS.map((font) => (
+                    <option key={font} value={font}>{font}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[11px] text-zinc-600">
+                  Radius
+                  <select value={radiusStyle} onChange={(e) => setRadiusStyle(e.target.value as BrandPack['style']['radius'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {RADIUS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-600">
+                  Shadow
+                  <select value={shadowStyle} onChange={(e) => setShadowStyle(e.target.value as BrandPack['style']['shadow'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {SHADOW_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-600">
+                  Density
+                  <select value={densityStyle} onChange={(e) => setDensityStyle(e.target.value as BrandPack['style']['density'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {DENSITY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-600">
+                  Button
+                  <select value={buttonStyle} onChange={(e) => setButtonStyle(e.target.value as BrandPack['style']['button'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                    {BUTTON_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="text-[11px] text-zinc-600">
+                Image tone
+                <select value={imageStyle} onChange={(e) => setImageStyle(e.target.value as BrandPack['style']['image'])} className="mt-1 w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs">
+                  {IMAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button type="button" onClick={onSaveBrand} className="mt-3 w-full rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+              Save brand
+            </button>
+            {brandState === 'saving' && <p className="mt-2 text-xs text-zinc-500">Saving brand…</p>}
+            {brandState === 'saved' && <p className="mt-2 text-xs text-emerald-600">Brand saved.</p>}
+            {brandState === 'error' && <p className="mt-2 text-xs text-red-600">{brandMessage}</p>}
+          </div>}
         </div>
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <p className="font-semibold uppercase tracking-wide text-amber-700">Publishing</p>
@@ -702,7 +1018,11 @@ export default function EditorShell({
         )}
 
         {selectedSection?.type === 'MENU' && (
-          <MenuInspector json={currentDraft} onChange={(next) => updateDraft(selectedSection.id, next)} />
+          <MenuInspector
+            json={currentDraft}
+            onChange={(next) => updateDraft(selectedSection.id, next)}
+            onAutoImport={onAutoImportMenu}
+          />
         )}
 
         {selectedSection?.type === 'GALLERY' && (
@@ -1232,8 +1552,32 @@ function PhotosInspector({
   );
 }
 
-function MenuInspector({ json, onChange }: { json: string; onChange: (json: string) => void }) {
+function MenuInspector({
+  json,
+  onChange,
+  onAutoImport,
+}: {
+  json: string;
+  onChange: (json: string) => void;
+  onAutoImport: () => Promise<string>;
+}) {
   const value = parseMenuContent(json);
+  const [importState, setImportState] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+
+  const handleImport = async () => {
+    setImportState('loading');
+    setImportMessage(null);
+    try {
+      const importedJson = await onAutoImport();
+      onChange(importedJson);
+      setImportState('success');
+      setImportMessage('Menu imported from menu photos.');
+    } catch (error) {
+      setImportState('error');
+      setImportMessage(error instanceof Error ? error.message : 'Menu import failed.');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1245,6 +1589,24 @@ function MenuInspector({ json, onChange }: { json: string; onChange: (json: stri
           className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
         />
       </label>
+
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <p className="text-[11px] text-zinc-600">Auto menu import</p>
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={importState === 'loading'}
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-700 disabled:opacity-50"
+          >
+            {importState === 'loading' ? 'Importing…' : 'Import from menu photos'}
+          </button>
+          <span className="text-[11px] text-zinc-500">Upload/tag photos as category &quot;menu&quot; in Photos section first.</span>
+        </div>
+        {importMessage && (
+          <p className={`mt-2 text-xs ${importState === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>{importMessage}</p>
+        )}
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">

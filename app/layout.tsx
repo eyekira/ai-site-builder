@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         <div className="flex min-h-screen flex-col">
-          <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          <header data-app-chrome="true" className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
             <div className="container flex h-16 items-center justify-between">
               <Link className="text-lg font-semibold tracking-tight" href="/">
                 AI Site Builder
@@ -62,7 +62,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
           </header>
           <Separator />
-          <main className="container flex-1 py-10">{children}</main>
+          <main data-app-main="true" className="container flex-1 py-10">{children}</main>
         </div>
       </body>
     </html>

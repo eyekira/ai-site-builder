@@ -1,5 +1,9 @@
+import { withRetry } from '@/lib/net-retry';
+
 const GOOGLE_PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
 const GOOGLE_PLACES_DETAILS_URL = 'https://places.googleapis.com/v1/places';
+const PLACE_DETAILS_FIELD_MASK =
+  'id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,regularOpeningHours,location,addressComponents,photos';
 
 type GoogleAutocompleteResponse = {
   suggestions?: Array<{
@@ -56,6 +60,17 @@ export type NormalizedPlaceDetails = {
   lng: number | null;
   city: string | null;
   photos: Array<{ ref: string; width: number | null; height: number | null }>;
+};
+
+export type PlacePhotoDebugMeta = {
+  endpoint: string;
+  fieldMask: string;
+  rawGoogleCount: number;
+  postProcessedCount: number;
+  photoRefsLength: number;
+  nextPageToken: string | null;
+  truncated: boolean;
+  truncatedBy?: string;
 };
 
 function getServerKey() {
@@ -115,45 +130,71 @@ function getCityFromAddressComponents(
   return sublocality?.longText ?? null;
 }
 
-export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlaceDetails> {
+export async function fetchPlaceDetailsWithDebug(
+  placeId: string,
+  opts?: { photoCap?: number; truncatedBy?: string },
+): Promise<{ place: NormalizedPlaceDetails; debug: PlacePhotoDebugMeta }> {
   const apiKey = getServerKey();
-  const response = await fetch(`${GOOGLE_PLACES_DETAILS_URL}/${encodeURIComponent(placeId)}`, {
-    headers: {
-      'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask':
-        'id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,regularOpeningHours,location,addressComponents,photos',
+  const response = await withRetry(
+    async () => {
+      const res = await fetch(`${GOOGLE_PLACES_DETAILS_URL}/${encodeURIComponent(placeId)}`, {
+        headers: {
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': PLACE_DETAILS_FIELD_MASK,
+        },
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`GOOGLE_DETAILS_HTTP_${res.status}:${body.slice(0, 120)}`);
+      }
+      return res;
     },
-    cache: 'no-store',
-  });
+    { retries: 2, baseDelayMs: 300 },
+  );
 
-  if (!response.ok) {
-    throw new Error('Google Places details request failed.');
-  }
+  const place = (await response.json()) as GooglePlaceDetailsResponse & { nextPageToken?: string };
+  const rawPhotos = (place.photos ?? [])
+    .map((photo) => ({
+      ref: photo.name ?? '',
+      width: typeof photo.widthPx === 'number' ? photo.widthPx : null,
+      height: typeof photo.heightPx === 'number' ? photo.heightPx : null,
+    }))
+    .filter((photo) => Boolean(photo.ref));
 
-  const place = (await response.json()) as GooglePlaceDetailsResponse;
-const photos = (place.photos ?? [])
-  .map((photo) => ({
-    // Keep the v1 photo resource name exactly as Google returns it:
-    // e.g. "places/PLACE_ID/photos/PHOTO_ID"
-    ref: photo.name ?? '',
-    width: typeof photo.widthPx === 'number' ? photo.widthPx : null,
-    height: typeof photo.heightPx === 'number' ? photo.heightPx : null,
-  }))
-  .filter((photo) => Boolean(photo.ref));
+  const photoCap = typeof opts?.photoCap === 'number' && opts.photoCap > 0 ? opts.photoCap : null;
+  const photos = photoCap ? rawPhotos.slice(0, photoCap) : rawPhotos;
 
   return {
-    id: place.id ?? placeId,
-    name: place.displayName?.text ?? 'Untitled Place',
-    address: place.formattedAddress ?? null,
-    phone: place.nationalPhoneNumber ?? null,
-    website: place.websiteUri ?? null,
-    hoursJson:
-      place.regularOpeningHours && typeof place.regularOpeningHours === 'object'
-        ? (place.regularOpeningHours as Record<string, unknown>)
-        : null,
-    lat: place.location?.latitude ?? null,
-    lng: place.location?.longitude ?? null,
-    city: getCityFromAddressComponents(place.addressComponents),
-    photos,
+    place: {
+      id: place.id ?? placeId,
+      name: place.displayName?.text ?? 'Untitled Place',
+      address: place.formattedAddress ?? null,
+      phone: place.nationalPhoneNumber ?? null,
+      website: place.websiteUri ?? null,
+      hoursJson:
+        place.regularOpeningHours && typeof place.regularOpeningHours === 'object'
+          ? (place.regularOpeningHours as Record<string, unknown>)
+          : null,
+      lat: place.location?.latitude ?? null,
+      lng: place.location?.longitude ?? null,
+      city: getCityFromAddressComponents(place.addressComponents),
+      photos,
+    },
+    debug: {
+      endpoint: `${GOOGLE_PLACES_DETAILS_URL}/{placeId}`,
+      fieldMask: PLACE_DETAILS_FIELD_MASK,
+      rawGoogleCount: rawPhotos.length,
+      postProcessedCount: photos.length,
+      photoRefsLength: photos.length,
+      nextPageToken: typeof place.nextPageToken === 'string' ? place.nextPageToken : null,
+      truncated: photoCap !== null && rawPhotos.length > photos.length,
+      truncatedBy: photoCap !== null && rawPhotos.length > photos.length ? opts?.truncatedBy ?? 'unknown-call-site' : undefined,
+    },
   };
+}
+
+export async function fetchPlaceDetails(placeId: string): Promise<NormalizedPlaceDetails> {
+  const { place } = await fetchPlaceDetailsWithDebug(placeId);
+  return place;
 }

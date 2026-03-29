@@ -19,7 +19,8 @@
     "next-auth": "^5.0.0-beta.25",
     "react": "latest",
     "react-dom": "latest",
-    "tailwind-merge": "latest"
+    "tailwind-merge": "latest",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^20",
